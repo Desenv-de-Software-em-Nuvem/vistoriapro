@@ -2,16 +2,7 @@
 // const routes = require('./src/routes');
 
 
-
-// app.get('/', (req, res) => {
-//   res.json({ 
-//     message: 'API VistoriaPro rodando!',
-//     version: '1.0.0',
-//     // environment: process.env.NODE_ENV || 'development'
-//   });
-// });
-
-import express from "express";
+import express, { text } from "express";
 
 const app = express();
 const PORT = 3000;
@@ -20,7 +11,7 @@ app.get("/", (req, res) => {
   res.json({ 
     message: 'API VistoriaPro rodando!',
     version: '1.0.0',
-    // environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV //|| 'development'
   });
 });
 
