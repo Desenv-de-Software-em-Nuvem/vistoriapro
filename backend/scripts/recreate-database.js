@@ -7,11 +7,11 @@ const { Client } = require('pg');
 
 // Configurações do banco (ajuste conforme seu ambiente)
 const dbConfig = {
-  user: process.env.PGUSER || 'postgres',
-  host: process.env.PGHOST || 'localhost',
-  database: process.env.PGDATABASE || 'vistoriapro',
-  password: process.env.PGPASSWORD || 'postgres',
-  port: process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432,
+  user: process.env.DB_USER || 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_NAME || 'vistoriapro',
+  password: process.env.DB_PASSWORD || 'postgres',
+  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 5432,
 };
 
 const migrationsDir = path.join(__dirname, '../migrations');
