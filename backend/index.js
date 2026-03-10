@@ -1,5 +1,6 @@
 import express, { text } from "express";
 import pool from './src/config/database.js';
+import routes from './src/routes/index.js';
 
 const app = express();
 const PORT = 3000;
@@ -33,6 +34,8 @@ app.get('/test-db', async (req, res) => {
   }
 });
 
+app.use(express.json());
+app.use('/api', routes);
 
 app.listen(PORT, () => {
   console.log(`Express server running at http://localhost:${PORT}/`);
