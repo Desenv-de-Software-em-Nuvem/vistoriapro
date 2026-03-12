@@ -56,6 +56,18 @@ router.get('/:id', vistoriaController.buscarVistoriaPorId);
  *         application/json:
  *           schema:
  *             type: object
+ *             properties:
+ *               empresa_id:
+ *                 type: integer
+ *               usuario_id:
+ *                 type: integer
+ *               imovel_id:
+ *                 type: integer
+ *               data:
+ *                 type: string
+ *                 format: date-time
+ *               obs:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Vistoria criada com sucesso.

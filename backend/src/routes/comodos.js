@@ -56,6 +56,19 @@ router.get('/:id', comodoVistoriaController.buscarComodoPorId);
  *         application/json:
  *           schema:
  *             type: object
+ *             properties:
+ *               vistoria_id:
+ *                 type: integer
+ *               nome:
+ *                 type: string
+ *               observacoes:
+ *                 type: string
+ *               estado_geral:
+ *                 type: string
+ *                 enum:
+ *                   - Bom
+ *                   - Regular
+ *                   - Ruim
  *     responses:
  *       201:
  *         description: Cômodo criado com sucesso.

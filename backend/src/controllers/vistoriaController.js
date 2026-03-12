@@ -29,7 +29,23 @@ const vistoriaController = {
 
   async criarVistoria(req, res) {
     try {
-      const vistoria = await VistoriaRepository.create(req.body);
+      const payload = { ...req.body };
+
+      // Mapeia as chaves de FK para as relações do TypeORM
+      if (payload.empresa_id) {
+        payload.empresa = { id: payload.empresa_id };
+        delete payload.empresa_id;
+      }
+      if (payload.usuario_id) {
+        payload.usuario = { id: payload.usuario_id };
+        delete payload.usuario_id;
+      }
+      if (payload.imovel_id) {
+        payload.imovel = { id: payload.imovel_id };
+        delete payload.imovel_id;
+      }
+
+      const vistoria = await VistoriaRepository.create(payload);
       res.status(201).json(vistoria);
     } catch (err) {
       console.error('Erro ao criar vistoria:', err);
@@ -40,7 +56,22 @@ const vistoriaController = {
   async atualizarVistoria(req, res) {
     try {
       const { id } = req.params;
-      const vistoria = await VistoriaRepository.update(id, req.body);
+      const payload = { ...req.body };
+
+      if (payload.empresa_id) {
+        payload.empresa = { id: payload.empresa_id };
+        delete payload.empresa_id;
+      }
+      if (payload.usuario_id) {
+        payload.usuario = { id: payload.usuario_id };
+        delete payload.usuario_id;
+      }
+      if (payload.imovel_id) {
+        payload.imovel = { id: payload.imovel_id };
+        delete payload.imovel_id;
+      }
+
+      const vistoria = await VistoriaRepository.update(id, payload);
 
       if (!vistoria) {
         return res.status(404).json({ error: 'Vistoria não encontrada' });

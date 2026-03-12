@@ -29,7 +29,14 @@ const comodoVistoriaController = {
 
   async criarComodo(req, res) {
     try {
-      const comodo = await ComodoVistoriaRepository.create(req.body);
+      const payload = { ...req.body };
+
+      if (payload.vistoria_id) {
+        payload.vistoria = { id: payload.vistoria_id };
+        delete payload.vistoria_id;
+      }
+
+      const comodo = await ComodoVistoriaRepository.create(payload);
       res.status(201).json(comodo);
     } catch (err) {
       console.error('Erro ao criar cômodo:', err);
@@ -40,7 +47,14 @@ const comodoVistoriaController = {
   async atualizarComodo(req, res) {
     try {
       const { id } = req.params;
-      const comodo = await ComodoVistoriaRepository.update(id, req.body);
+      const payload = { ...req.body };
+
+      if (payload.vistoria_id) {
+        payload.vistoria = { id: payload.vistoria_id };
+        delete payload.vistoria_id;
+      }
+
+      const comodo = await ComodoVistoriaRepository.update(id, payload);
 
       if (!comodo) {
         return res.status(404).json({ error: 'Cômodo não encontrado' });
