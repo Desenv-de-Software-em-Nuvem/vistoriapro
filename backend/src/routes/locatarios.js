@@ -56,6 +56,25 @@ router.get('/:id', locatarioVistoriaController.buscarLocatarioPorId);
  *         application/json:
  *           schema:
  *             type: object
+ *             properties:
+ *               vistoria_id:
+ *                 type: integer
+ *               nome:
+ *                 type: string
+ *               nacionalidade:
+ *                 type: string
+ *               profissao:
+ *                 type: string
+ *               cpf:
+ *                 type: string
+ *               rg:
+ *                 type: string
+ *               rg_orgao:
+ *                 type: string
+ *               rg_uf:
+ *                 type: string
+ *               endereco:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Locatário criado com sucesso.

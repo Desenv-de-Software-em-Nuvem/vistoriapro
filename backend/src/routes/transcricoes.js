@@ -56,6 +56,15 @@ router.get('/:id', transcricaoController.buscarTranscricaoPorId);
  *         application/json:
  *           schema:
  *             type: object
+ *             properties:
+ *               vistoria_id:
+ *                 type: integer
+ *               url_audio:
+ *                 type: string
+ *               texto:
+ *                 type: string
+ *               comodo_nome:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Transcrição criada com sucesso.

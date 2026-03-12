@@ -29,7 +29,14 @@ const transcricaoController = {
 
   async criarTranscricao(req, res) {
     try {
-      const transcricao = await TranscricaoRepository.create(req.body);
+      const payload = { ...req.body };
+
+      if (payload.vistoria_id) {
+        payload.vistoria = { id: payload.vistoria_id };
+        delete payload.vistoria_id;
+      }
+
+      const transcricao = await TranscricaoRepository.create(payload);
       res.status(201).json(transcricao);
     } catch (err) {
       console.error('Erro ao criar transcrição:', err);
@@ -40,7 +47,14 @@ const transcricaoController = {
   async atualizarTranscricao(req, res) {
     try {
       const { id } = req.params;
-      const transcricao = await TranscricaoRepository.update(id, req.body);
+      const payload = { ...req.body };
+
+      if (payload.vistoria_id) {
+        payload.vistoria = { id: payload.vistoria_id };
+        delete payload.vistoria_id;
+      }
+
+      const transcricao = await TranscricaoRepository.update(id, payload);
 
       if (!transcricao) {
         return res.status(404).json({ error: 'Transcrição não encontrada' });

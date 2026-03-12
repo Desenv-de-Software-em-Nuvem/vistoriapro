@@ -29,7 +29,14 @@ const locatarioVistoriaController = {
 
   async criarLocatario(req, res) {
     try {
-      const locatario = await LocatarioVistoriaRepository.create(req.body);
+      const payload = { ...req.body };
+
+      if (payload.vistoria_id) {
+        payload.vistoria = { id: payload.vistoria_id };
+        delete payload.vistoria_id;
+      }
+
+      const locatario = await LocatarioVistoriaRepository.create(payload);
       res.status(201).json(locatario);
     } catch (err) {
       console.error('Erro ao criar locatário:', err);
@@ -40,7 +47,14 @@ const locatarioVistoriaController = {
   async atualizarLocatario(req, res) {
     try {
       const { id } = req.params;
-      const locatario = await LocatarioVistoriaRepository.update(id, req.body);
+      const payload = { ...req.body };
+
+      if (payload.vistoria_id) {
+        payload.vistoria = { id: payload.vistoria_id };
+        delete payload.vistoria_id;
+      }
+
+      const locatario = await LocatarioVistoriaRepository.update(id, payload);
 
       if (!locatario) {
         return res.status(404).json({ error: 'Locatário não encontrado' });
