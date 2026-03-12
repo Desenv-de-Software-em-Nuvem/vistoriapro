@@ -1,12 +1,13 @@
 import express, { text } from "express";
 import pool from './src/config/database.js';
 import routes from './src/routes/index.js';
-// import dotenv from 'dotenv';
+import { AppDataSource } from './src/data-source.js';
 
+// import dotenv from 'dotenv';
 // dotenv.config();
 
-const app = express();  
-const PORT = 3000;
+const app = express();
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 app.get("/", (req, res) => {
   res.json({ 
@@ -40,6 +41,15 @@ app.get('/test-db', async (req, res) => {
 app.use(express.json());
 app.use('/api', routes);
 
-app.listen(PORT, () => {
-  console.log(`Express server running at http://localhost:${PORT}/`);
-});
+// Inicializa a conexão TypeORM antes de ligar o servidor
+AppDataSource.initialize()
+  .then(() => {
+    console.log('TypeORM: conexão com o banco inicializada.');
+    app.listen(PORT, () => {
+      console.log(`Express server running at http://localhost:${PORT}/`);
+    });
+  })
+  .catch((err) => {
+    console.error('Falha ao inicializar TypeORM:', err);
+    process.exit(1);
+  });
