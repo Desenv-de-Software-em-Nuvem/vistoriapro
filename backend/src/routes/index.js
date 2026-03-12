@@ -2,6 +2,11 @@ import express from 'express';
 import empresasRouter from './empresas.js';
 import usuariosRouter from './usuarios.js';
 import imoveisRouter from './imoveis.js';
+import vistoriasRouter from './vistorias.js';
+import comodosRouter from './comodos.js';
+import fotosRouter from './fotos.js';
+import transcricoesRouter from './transcricoes.js';
+import locatariosRouter from './locatarios.js';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsDoc from 'swagger-jsdoc';
 
@@ -11,6 +16,11 @@ const router = express.Router();
 router.use('/empresas', empresasRouter);
 router.use('/usuarios', usuariosRouter);
 router.use('/imoveis', imoveisRouter);
+router.use('/vistorias', vistoriasRouter);
+router.use('/comodos', comodosRouter);
+router.use('/fotos', fotosRouter);
+router.use('/transcricoes', transcricoesRouter);
+router.use('/locatarios', locatariosRouter);
 
 // Swagger setup
 const swaggerOptions = {
