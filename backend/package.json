@@ -14,7 +14,9 @@
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "pg": "^8.20.0",
+    "reflect-metadata": "^0.2.2",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "typeorm": "^0.3.28"
   }
 }

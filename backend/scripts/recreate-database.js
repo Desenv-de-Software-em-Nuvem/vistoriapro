@@ -1,21 +1,23 @@
 // Script para recriar o banco de dados rodando todas as migrations em ordem
 // Uso: node backend/scripts/recreate-database.js
 
-const fs = require('fs');
-const path = require('path');
-const { Client } = require('pg');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { Client } from 'pg';
+
+// Compatibilidade com ES modules (não existe __dirname por padrão)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Configurações do banco (ajuste conforme seu ambiente)
-if (process.env.NODE_ENV !== 'producao') {
-  const dbConfig = {
-    user: process.env.DB_USER || 'postgres',
-    host: process.env.DB_HOST || 'localhost',
-    database: process.env.DB_NAME || 'vistoriapro',
-    password: process.env.DB_PASSWORD || 'postgres',
-    port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 5432,
-  }
+const dbConfig = {
+  user: process.env.DB_USER || 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_NAME || 'vistoriapro',
+  password: process.env.DB_PASSWORD || 'postgres',
+  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 5432,
 };
-
 
 const migrationsDir = path.join(__dirname, '../migrations');
 

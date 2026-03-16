@@ -34,4 +34,73 @@ router.get('/', empresaController.listarEmpresas);
 // Criar empresa
 router.post('/', empresaController.criarEmpresa);
 
+/**
+ * @swagger
+ * /empresas/{id}:
+ *   get:
+ *     tags:
+ *       - Empresas
+ *     summary: Buscar empresa por ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Empresa encontrada.
+ *       404:
+ *         description: Empresa não encontrada.
+ */
+router.get('/:id', empresaController.buscarEmpresaPorId);
+
+/**
+ * @swagger
+ * /empresas/{id}:
+ *   put:
+ *     tags:
+ *       - Empresas
+ *     summary: Atualizar empresa
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Empresa atualizada.
+ *       404:
+ *         description: Empresa não encontrada.
+ */
+router.put('/:id', empresaController.atualizarEmpresa);
+
+/**
+ * @swagger
+ * /empresas/{id}:
+ *   delete:
+ *     tags:
+ *       - Empresas
+ *     summary: Excluir empresa
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       204:
+ *         description: Empresa excluída.
+ *       404:
+ *         description: Empresa não encontrada.
+ */
+router.delete('/:id', empresaController.deletarEmpresa);
+
 export default router;
