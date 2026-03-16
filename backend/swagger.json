@@ -1,0 +1,1444 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "VistoriaPro API",
+    "version": "1.0.0",
+    "description": "Documentação da API VistoriaPro"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api",
+      "description": "Servidor local (desenvolvimento)"
+    }
+  ],
+  "components": {
+    "schemas": {
+      "Empresa": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "cnpj": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "telefone": {
+            "type": "string"
+          },
+          "endereco": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "nome"
+        ]
+      },
+      "Usuario": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "empresa_id": {
+            "type": "integer"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "papel": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "vistoriador",
+              "cliente"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "empresa_id",
+          "nome",
+          "email"
+        ]
+      },
+      "Imovel": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "empresa_id": {
+            "type": "integer"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "endereco_completo": {
+            "type": "string"
+          },
+          "unidade": {
+            "type": "string"
+          },
+          "cidade": {
+            "type": "string"
+          },
+          "uf": {
+            "type": "string"
+          },
+          "cep": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "observacoes": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "empresa_id",
+          "nome",
+          "endereco_completo",
+          "cidade",
+          "uf",
+          "cep",
+          "tipo"
+        ]
+      },
+      "Vistoria": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "empresa_id": {
+            "type": "integer"
+          },
+          "usuario_id": {
+            "type": "integer"
+          },
+          "imovel_id": {
+            "type": "integer"
+          },
+          "descricao": {
+            "type": "string"
+          },
+          "data": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "em_andamento",
+              "finalizada",
+              "cancelada"
+            ]
+          },
+          "observacoes_gerais": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "empresa_id",
+          "usuario_id",
+          "imovel_id",
+          "data"
+        ]
+      },
+      "ComodoVistoria": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "vistoria_id": {
+            "type": "integer"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "observacoes": {
+            "type": "string"
+          },
+          "estado_geral": {
+            "type": "string",
+            "enum": [
+              "Bom",
+              "Regular",
+              "Ruim"
+            ]
+          }
+        },
+        "required": [
+          "vistoria_id",
+          "nome"
+        ]
+      },
+      "Foto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "vistoria_id": {
+            "type": "integer"
+          },
+          "url": {
+            "type": "string"
+          },
+          "descricao": {
+            "type": "string"
+          },
+          "comodo_nome": {
+            "type": "string"
+          },
+          "comodo_id": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "vistoria_id",
+          "url"
+        ]
+      },
+      "Transcricao": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "vistoria_id": {
+            "type": "integer"
+          },
+          "url_audio": {
+            "type": "string"
+          },
+          "texto": {
+            "type": "string"
+          },
+          "foto_id": {
+            "type": "integer"
+          },
+          "comodo_nome": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "vistoria_id",
+          "url_audio",
+          "texto"
+        ]
+      },
+      "LocatarioVistoria": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "vistoria_id": {
+            "type": "integer"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "nacionalidade": {
+            "type": "string"
+          },
+          "profissao": {
+            "type": "string"
+          },
+          "cpf": {
+            "type": "string"
+          },
+          "rg": {
+            "type": "string"
+          },
+          "rg_orgao": {
+            "type": "string"
+          },
+          "rg_uf": {
+            "type": "string"
+          },
+          "endereco": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "vistoria_id",
+          "nome"
+        ]
+      }
+    }
+  },
+  "paths": {
+    "/comodos": {
+      "get": {
+        "tags": [
+          "Comodos"
+        ],
+        "summary": "Listar cômodos",
+        "responses": {
+          "200": {
+            "description": "Lista de cômodos retornada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ComodoVistoria"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Comodos"
+        ],
+        "summary": "Criar cômodo",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComodoVistoria"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Cômodo criado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComodoVistoria"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/comodos/{id}": {
+      "get": {
+        "tags": [
+          "Comodos"
+        ],
+        "summary": "Buscar cômodo por ID",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cômodo encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComodoVistoria"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Cômodo não encontrado."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Comodos"
+        ],
+        "summary": "Atualizar cômodo",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComodoVistoria"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cômodo atualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComodoVistoria"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Cômodo não encontrado."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Comodos"
+        ],
+        "summary": "Excluir cômodo",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Cômodo excluído."
+          },
+          "404": {
+            "description": "Cômodo não encontrado."
+          }
+        }
+      }
+    },
+    "/empresas": {
+      "get": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Listar empresas",
+        "responses": {
+          "200": {
+            "description": "Lista de empresas retornada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Empresa"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Criar empresa",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empresa"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Empresa criada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Empresa"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/empresas/{id}": {
+      "get": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Buscar empresa por ID",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Empresa encontrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Empresa"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Empresa não encontrada."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Atualizar empresa",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Empresa"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Empresa atualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Empresa"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Empresa não encontrada."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Empresas"
+        ],
+        "summary": "Excluir empresa",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Empresa excluída."
+          },
+          "404": {
+            "description": "Empresa não encontrada."
+          }
+        }
+      }
+    },
+    "/fotos": {
+      "get": {
+        "tags": [
+          "Fotos"
+        ],
+        "summary": "Listar fotos",
+        "responses": {
+          "200": {
+            "description": "Lista de fotos retornada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Foto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Fotos"
+        ],
+        "summary": "Criar foto",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Foto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Foto criada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Foto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fotos/{id}": {
+      "get": {
+        "tags": [
+          "Fotos"
+        ],
+        "summary": "Buscar foto por ID",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Foto encontrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Foto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Foto não encontrada."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Fotos"
+        ],
+        "summary": "Atualizar foto",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Foto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Foto atualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Foto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Foto não encontrada."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Fotos"
+        ],
+        "summary": "Excluir foto",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Foto excluída."
+          },
+          "404": {
+            "description": "Foto não encontrada."
+          }
+        }
+      }
+    },
+    "/imoveis": {
+      "get": {
+        "tags": [
+          "Imóveis"
+        ],
+        "summary": "Listar imóveis",
+        "description": "Retorna a lista de imóveis. Opcionalmente filtra por empresa.",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "empresa_id",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false,
+            "description": "Filtrar imóveis por empresa"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de imóveis retornada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Imovel"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno no servidor"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Imóveis"
+        ],
+        "summary": "Criar imóvel",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Imovel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Imóvel criado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Imovel"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/imoveis/{id}": {
+      "get": {
+        "tags": [
+          "Imóveis"
+        ],
+        "summary": "Buscar imóvel por ID",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "schema": {
+              "type": "integer"
+            },
+            "required": true,
+            "description": "ID do imóvel"
+          },
+          {
+            "in": "query",
+            "name": "empresa_id",
+            "schema": {
+              "type": "integer"
+            },
+            "required": false,
+            "description": "Filtrar por empresa"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Imóvel encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Imovel"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Imóvel não encontrado"
+          },
+          "500": {
+            "description": "Erro interno no servidor"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Imóveis"
+        ],
+        "summary": "Atualizar imóvel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Imovel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Imóvel atualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Imovel"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Imóvel não encontrado."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Imóveis"
+        ],
+        "summary": "Excluir imóvel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Imóvel excluído."
+          },
+          "404": {
+            "description": "Imóvel não encontrado."
+          }
+        }
+      }
+    },
+    "/locatarios": {
+      "get": {
+        "tags": [
+          "Locatarios"
+        ],
+        "summary": "Listar locatários",
+        "responses": {
+          "200": {
+            "description": "Lista de locatários retornada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LocatarioVistoria"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Locatarios"
+        ],
+        "summary": "Criar locatário",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocatarioVistoria"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Locatário criado com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocatarioVistoria"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/locatarios/{id}": {
+      "get": {
+        "tags": [
+          "Locatarios"
+        ],
+        "summary": "Buscar locatário por ID",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Locatário encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocatarioVistoria"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Locatário não encontrado."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Locatarios"
+        ],
+        "summary": "Atualizar locatário",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocatarioVistoria"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Locatário atualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocatarioVistoria"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Locatário não encontrado."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Locatarios"
+        ],
+        "summary": "Excluir locatário",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Locatário excluído."
+          },
+          "404": {
+            "description": "Locatário não encontrado."
+          }
+        }
+      }
+    },
+    "/transcricoes": {
+      "get": {
+        "tags": [
+          "Transcricoes"
+        ],
+        "summary": "Listar transcrições",
+        "responses": {
+          "200": {
+            "description": "Lista de transcrições retornada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Transcricao"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Transcricoes"
+        ],
+        "summary": "Criar transcrição",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Transcricao"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Transcrição criada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transcricao"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transcricoes/{id}": {
+      "get": {
+        "tags": [
+          "Transcricoes"
+        ],
+        "summary": "Buscar transcrição por ID",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Transcrição encontrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transcricao"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Transcrição não encontrada."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Transcricoes"
+        ],
+        "summary": "Atualizar transcrição",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Transcricao"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transcrição atualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transcricao"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Transcrição não encontrada."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Transcricoes"
+        ],
+        "summary": "Excluir transcrição",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Transcrição excluída."
+          },
+          "404": {
+            "description": "Transcrição não encontrada."
+          }
+        }
+      }
+    },
+    "/usuarios": {
+      "get": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Listar usuários",
+        "description": "Retorna a lista de todos os usuários cadastrados.",
+        "responses": {
+          "200": {
+            "description": "Lista de usuários retornada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Usuario"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno no servidor"
+          }
+        }
+      }
+    },
+    "/vistorias": {
+      "get": {
+        "tags": [
+          "Vistorias"
+        ],
+        "summary": "Listar vistorias",
+        "responses": {
+          "200": {
+            "description": "Lista de vistorias retornada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Vistoria"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Vistorias"
+        ],
+        "summary": "Criar vistoria",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Vistoria"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Vistoria criada com sucesso.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Vistoria"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vistorias/{id}": {
+      "get": {
+        "tags": [
+          "Vistorias"
+        ],
+        "summary": "Buscar vistoria por ID",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Vistoria encontrada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Vistoria"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vistoria não encontrada."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Vistorias"
+        ],
+        "summary": "Atualizar vistoria",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Vistoria"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Vistoria atualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Vistoria"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Vistoria não encontrada."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Vistorias"
+        ],
+        "summary": "Excluir vistoria",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Vistoria excluída."
+          },
+          "404": {
+            "description": "Vistoria não encontrada."
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Comodos",
+      "description": "Endpoints relacionados a cômodos de vistoria"
+    },
+    {
+      "name": "Empresas",
+      "description": "Endpoints relacionados a empresas"
+    },
+    {
+      "name": "Fotos",
+      "description": "Endpoints relacionados a fotos"
+    },
+    {
+      "name": "Imóveis",
+      "description": "Endpoints relacionados a imóveis"
+    },
+    {
+      "name": "Locatarios",
+      "description": "Endpoints relacionados a locatários"
+    },
+    {
+      "name": "Transcricoes",
+      "description": "Endpoints relacionados a transcrições"
+    },
+    {
+      "name": "Usuários",
+      "description": "Endpoints relacionados a usuários"
+    },
+    {
+      "name": "Vistorias",
+      "description": "Endpoints relacionados a vistorias"
+    }
+  ]
+}
