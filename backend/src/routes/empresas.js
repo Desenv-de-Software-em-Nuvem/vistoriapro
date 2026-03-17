@@ -1,5 +1,6 @@
 import express from 'express';
 import empresaController from '../controllers/empresaController.js';
+import { authenticateToken, requireRole } from '../middlewares/auth.js';
 const router = express.Router();
 
 /**
@@ -30,9 +31,9 @@ const router = express.Router();
  *                   example: Empresas endpoint funcionando!
  */
 // Listar empresas
-router.get('/', empresaController.listarEmpresas);
+router.get('/', authenticateToken, requireRole('admin'), empresaController.listarEmpresas);
 // Criar empresa
-router.post('/', empresaController.criarEmpresa);
+router.post('/', authenticateToken, requireRole('admin'), empresaController.criarEmpresa);
 
 /**
  * @swagger
@@ -53,7 +54,7 @@ router.post('/', empresaController.criarEmpresa);
  *       404:
  *         description: Empresa não encontrada.
  */
-router.get('/:id', empresaController.buscarEmpresaPorId);
+router.get('/:id', authenticateToken, requireRole('admin'), empresaController.buscarEmpresaPorId);
 
 /**
  * @swagger
@@ -80,7 +81,7 @@ router.get('/:id', empresaController.buscarEmpresaPorId);
  *       404:
  *         description: Empresa não encontrada.
  */
-router.put('/:id', empresaController.atualizarEmpresa);
+router.put('/:id', authenticateToken, requireRole('admin'), empresaController.atualizarEmpresa);
 
 /**
  * @swagger
@@ -101,6 +102,6 @@ router.put('/:id', empresaController.atualizarEmpresa);
  *       404:
  *         description: Empresa não encontrada.
  */
-router.delete('/:id', empresaController.deletarEmpresa);
+router.delete('/:id', authenticateToken, requireRole('admin'), empresaController.deletarEmpresa);
 
 export default router;

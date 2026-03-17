@@ -1,5 +1,6 @@
 import express from 'express';
 import vistoriaController from '../controllers/vistoriaController.js';
+import { authenticateToken, requireRole } from '../middlewares/auth.js';
 const router = express.Router();
 
 /**
@@ -20,7 +21,7 @@ const router = express.Router();
  *       200:
  *         description: Lista de vistorias retornada com sucesso.
  */
-router.get('/', vistoriaController.listarVistorias);
+router.get('/', authenticateToken, vistoriaController.listarVistorias);
 
 /**
  * @swagger
@@ -41,7 +42,7 @@ router.get('/', vistoriaController.listarVistorias);
  *       404:
  *         description: Vistoria não encontrada.
  */
-router.get('/:id', vistoriaController.buscarVistoriaPorId);
+router.get('/:id', authenticateToken, vistoriaController.buscarVistoriaPorId);
 
 /**
  * @swagger
@@ -72,7 +73,7 @@ router.get('/:id', vistoriaController.buscarVistoriaPorId);
  *       201:
  *         description: Vistoria criada com sucesso.
  */
-router.post('/', vistoriaController.criarVistoria);
+router.post('/', authenticateToken, requireRole('admin'), vistoriaController.criarVistoria);
 
 /**
  * @swagger
@@ -99,7 +100,7 @@ router.post('/', vistoriaController.criarVistoria);
  *       404:
  *         description: Vistoria não encontrada.
  */
-router.put('/:id', vistoriaController.atualizarVistoria);
+router.put('/:id', authenticateToken, requireRole('admin'), vistoriaController.atualizarVistoria);
 
 /**
  * @swagger
@@ -120,6 +121,6 @@ router.put('/:id', vistoriaController.atualizarVistoria);
  *       404:
  *         description: Vistoria não encontrada.
  */
-router.delete('/:id', vistoriaController.deletarVistoria);
+router.delete('/:id', authenticateToken, requireRole('admin'), vistoriaController.deletarVistoria);
 
 export default router;

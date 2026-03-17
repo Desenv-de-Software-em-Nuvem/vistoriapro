@@ -42,6 +42,21 @@ const swaggerOptions = {
         description: 'Servidor local (desenvolvimento)',
       },
     ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Token JWT obtido através de /usuarios/auth/login'
+        }
+      }
+    },
+    security: [
+      {
+        bearerAuth: []
+      }
+    ],
   },
   apis: [path.join(__dirname, '*.js')], // Caminho absoluto para os arquivos de rotas
 };

@@ -1,4 +1,5 @@
 import { UsuarioRepository } from '../repositories/usuarioRepository.js';
+import { generateToken } from '../middlewares/auth.js';
 
 const usuarioController = {
   async listarUsuarios(req, res) {
@@ -11,18 +12,24 @@ const usuarioController = {
     }
   },
 
-  async obterUsuario(req, res) {
+  async obterPerfil(req, res) {
     try {
-      const { id } = req.params;
-      const usuario = await UsuarioRepository.findById(id);
+      // req.user é definido pelo middleware de autenticação
+      const usuario = await UsuarioRepository.findById(req.user.id);
       
       if (!usuario) {
         return res.status(404).json({ error: 'Usuário não encontrado' });
       }
       
-      res.json(usuario);
+      // Remove a senha do response
+      const { senha_hash: _, ...usuarioSemSenha } = usuario;
+      
+      res.json({
+        message: 'Perfil obtido com sucesso',
+        usuario: usuarioSemSenha
+      });
     } catch (err) {
-      console.error('Erro ao obter usuario:', err);
+      console.error('Erro ao obter perfil:', err);
       res.status(500).json({ error: err.message });
     }
   },
@@ -121,12 +128,19 @@ const usuarioController = {
         return res.status(401).json({ error: 'Email ou senha inválidos' });
       }
 
+      // Gera token JWT
+      const token = generateToken(usuario);
+      
+      if (process.env.NODE_ENV === 'development') {
       // Remove a senha do response
       const { senha_hash: _, ...usuarioSemSenha } = usuario;
+      }
       
       res.json({
         message: 'Autenticação bem-sucedida',
-        usuario: usuarioSemSenha,
+        token: token,
+        usuario: usuarioSemSenha || null,
+        expiresIn: '24h'
       });
     } catch (err) {
       console.error('Erro ao autenticar usuario:', err);

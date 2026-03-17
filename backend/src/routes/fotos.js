@@ -1,5 +1,6 @@
 import express from 'express';
 import fotoController from '../controllers/fotoController.js';
+import { authenticateToken, requireRole } from '../middlewares/auth.js';
 const router = express.Router();
 
 /**
@@ -20,7 +21,7 @@ const router = express.Router();
  *       200:
  *         description: Lista de fotos retornada com sucesso.
  */
-router.get('/', fotoController.listarFotos);
+router.get('/', authenticateToken, fotoController.listarFotos);
 
 /**
  * @swagger
@@ -41,7 +42,7 @@ router.get('/', fotoController.listarFotos);
  *       404:
  *         description: Foto não encontrada.
  */
-router.get('/:id', fotoController.buscarFotoPorId);
+router.get('/:id', authenticateToken, fotoController.buscarFotoPorId);
 
 /**
  * @swagger
@@ -60,7 +61,7 @@ router.get('/:id', fotoController.buscarFotoPorId);
  *       201:
  *         description: Foto criada com sucesso.
  */
-router.post('/', fotoController.criarFoto);
+router.post('/', authenticateToken, requireRole('admin'), fotoController.criarFoto);
 
 /**
  * @swagger
@@ -87,7 +88,7 @@ router.post('/', fotoController.criarFoto);
  *       404:
  *         description: Foto não encontrada.
  */
-router.put('/:id', fotoController.atualizarFoto);
+router.put('/:id', authenticateToken, requireRole('admin'), fotoController.atualizarFoto);
 
 /**
  * @swagger
@@ -108,6 +109,6 @@ router.put('/:id', fotoController.atualizarFoto);
  *       404:
  *         description: Foto não encontrada.
  */
-router.delete('/:id', fotoController.deletarFoto);
+router.delete('/:id', authenticateToken, requireRole('admin'), fotoController.deletarFoto);
 
 export default router;

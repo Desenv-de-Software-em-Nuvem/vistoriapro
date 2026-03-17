@@ -1,5 +1,6 @@
 import express from 'express';
 import usuarioController from '../controllers/usuarioController.js';
+import { authenticateToken, requireRole } from '../middlewares/auth.js';
 const router = express.Router();
 
 /**
@@ -30,7 +31,7 @@ const router = express.Router();
  *       500:
  *         description: Erro interno no servidor
  */
-router.get('/', usuarioController.listarUsuarios);
+router.get('/', authenticateToken, requireRole('admin'), usuarioController.listarUsuarios);
 
 /**
  * @swagger
@@ -54,7 +55,15 @@ router.get('/', usuarioController.listarUsuarios);
  *       500:
  *         description: Erro interno no servidor
  */
-router.get('/:id', usuarioController.obterUsuario);
+router.get('/:id', authenticateToken, async (req, res, next) => {
+  const { id } = req.params;
+  // Permite se for o próprio usuário ou admin
+  if (req.user.id !== parseInt(id) && req.user.papel !== 'admin') {
+    return res.status(403).json({ error: 'Acesso negado' });
+  }
+  // Chama o controller diretamente
+  return usuarioController.obterUsuario(req, res);
+});
 
 /**
  * @swagger
@@ -97,7 +106,7 @@ router.get('/:id', usuarioController.obterUsuario);
  *       500:
  *         description: Erro interno no servidor
  */
-router.post('/', usuarioController.criarUsuario);
+router.post('/', authenticateToken, requireRole('admin'), usuarioController.criarUsuario);
 
 /**
  * @swagger
@@ -138,7 +147,14 @@ router.post('/', usuarioController.criarUsuario);
  *       500:
  *         description: Erro interno no servidor
  */
-router.put('/:id', usuarioController.atualizarUsuario);
+router.put('/:id', authenticateToken, async (req, res, next) => {
+  const { id } = req.params;
+  if (req.user.id !== parseInt(id) && req.user.papel !== 'admin') {
+    return res.status(403).json({ error: 'Acesso negado' });
+  }
+  // Chama o controller diretamente
+  return usuarioController.atualizarUsuario(req, res);
+});
 
 /**
  * @swagger
@@ -162,7 +178,7 @@ router.put('/:id', usuarioController.atualizarUsuario);
  *       500:
  *         description: Erro interno no servidor
  */
-router.delete('/:id', usuarioController.deletarUsuario);
+router.delete('/:id', authenticateToken, requireRole('admin'), usuarioController.deletarUsuario);
 
 /**
  * @swagger
@@ -198,5 +214,25 @@ router.delete('/:id', usuarioController.deletarUsuario);
  *         description: Erro interno no servidor
  */
 router.post('/auth/login', usuarioController.autenticar);
+
+/**
+ * @swagger
+ * /usuarios/auth/perfil:
+ *   get:
+ *     tags:
+ *       - Usuários
+ *     summary: Obter perfil do usuário autenticado
+ *     description: Retorna os dados do usuário atualmente autenticado
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Perfil obtido com sucesso
+ *       401:
+ *         description: Token não fornecido ou inválido
+ *       500:
+ *         description: Erro interno no servidor
+ */
+router.get('/auth/perfil', authenticateToken, usuarioController.obterPerfil);
 
 export default router;

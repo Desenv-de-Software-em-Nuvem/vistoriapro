@@ -1,5 +1,6 @@
 import express from 'express';
 import imovelController from '../controllers/imovelController.js';
+import { authenticateToken, requireRole } from '../middlewares/auth.js';
 const router = express.Router();
 
 /**
@@ -58,7 +59,7 @@ const router = express.Router();
  *         description: Erro interno no servidor
  */
 // Listar imóveis
-router.get('/', imovelController.listarImoveis);
+router.get('/', authenticateToken, imovelController.listarImoveis);
 
 /**
  * @swagger
@@ -92,7 +93,7 @@ router.get('/', imovelController.listarImoveis);
  *       500:
  *         description: Erro interno no servidor
  */
-router.get('/:id', imovelController.buscarImovelPorId);
+router.get('/:id', authenticateToken, imovelController.buscarImovelPorId);
 
 /**
  * @swagger
@@ -130,7 +131,7 @@ router.get('/:id', imovelController.buscarImovelPorId);
  *       201:
  *         description: Imóvel criado com sucesso.
  */
-router.post('/', imovelController.criarImovel);
+router.post('/', authenticateToken, requireRole('admin'), imovelController.criarImovel);
 
 /**
  * @swagger
@@ -157,7 +158,7 @@ router.post('/', imovelController.criarImovel);
  *       404:
  *         description: Imóvel não encontrado.
  */
-router.put('/:id', imovelController.atualizarImovel);
+router.put('/:id', authenticateToken, requireRole('admin'), imovelController.atualizarImovel);
 
 /**
  * @swagger
@@ -178,6 +179,6 @@ router.put('/:id', imovelController.atualizarImovel);
  *       404:
  *         description: Imóvel não encontrado.
  */
-router.delete('/:id', imovelController.deletarImovel);
+router.delete('/:id', authenticateToken, requireRole('admin'), imovelController.deletarImovel);
 
 export default router;

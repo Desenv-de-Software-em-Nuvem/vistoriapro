@@ -1,5 +1,6 @@
 import express from 'express';
 import transcricaoController from '../controllers/transcricaoController.js';
+import { authenticateToken, requireRole } from '../middlewares/auth.js';
 const router = express.Router();
 
 /**
@@ -20,7 +21,7 @@ const router = express.Router();
  *       200:
  *         description: Lista de transcrições retornada com sucesso.
  */
-router.get('/', transcricaoController.listarTranscricoes);
+router.get('/', authenticateToken, transcricaoController.listarTranscricoes);
 
 /**
  * @swagger
@@ -41,7 +42,7 @@ router.get('/', transcricaoController.listarTranscricoes);
  *       404:
  *         description: Transcrição não encontrada.
  */
-router.get('/:id', transcricaoController.buscarTranscricaoPorId);
+router.get('/:id', authenticateToken, transcricaoController.buscarTranscricaoPorId);
 
 /**
  * @swagger
@@ -69,7 +70,7 @@ router.get('/:id', transcricaoController.buscarTranscricaoPorId);
  *       201:
  *         description: Transcrição criada com sucesso.
  */
-router.post('/', transcricaoController.criarTranscricao);
+router.post('/', authenticateToken, requireRole('admin'), transcricaoController.criarTranscricao);
 
 /**
  * @swagger
@@ -96,7 +97,7 @@ router.post('/', transcricaoController.criarTranscricao);
  *       404:
  *         description: Transcrição não encontrada.
  */
-router.put('/:id', transcricaoController.atualizarTranscricao);
+router.put('/:id', authenticateToken, requireRole('admin'), transcricaoController.atualizarTranscricao);
 
 /**
  * @swagger
@@ -117,6 +118,6 @@ router.put('/:id', transcricaoController.atualizarTranscricao);
  *       404:
  *         description: Transcrição não encontrada.
  */
-router.delete('/:id', transcricaoController.deletarTranscricao);
+router.delete('/:id', authenticateToken, requireRole('admin'), transcricaoController.deletarTranscricao);
 
 export default router;
