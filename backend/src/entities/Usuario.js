@@ -22,7 +22,7 @@ export default new EntitySchema({
     },
     senha_hash: {
       type: String,
-      length: 200,
+      length: 255,
       nullable: false,
     },
     papel: {
