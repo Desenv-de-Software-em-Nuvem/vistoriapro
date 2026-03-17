@@ -9,6 +9,11 @@ import transcricoesRouter from './transcricoes.js';
 import locatariosRouter from './locatarios.js';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsDoc from 'swagger-jsdoc';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
@@ -38,10 +43,17 @@ const swaggerOptions = {
       },
     ],
   },
-  apis: ['./src/routes/*.js'], // files containing annotations as above
+  apis: [path.join(__dirname, '*.js')], // Caminho absoluto para os arquivos de rotas
 };
 
 const swaggerSpec = swaggerJsDoc(swaggerOptions);
+
+// Rota para servir o JSON do Swagger diretamente (deve vir ANTES do swaggerUi.serve)
+router.get('/docs/swagger.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
 router.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Adicionar rota padrão para /api
