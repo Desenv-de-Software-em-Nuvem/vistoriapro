@@ -4,15 +4,23 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "db:recreate": "node scripts/recreate-database.js",
+    "db:migrate": "node scripts/run-migration.js",
+    "db:create-test-user": "node scripts/create-test-user.js",
+    "swagger:generate": "node scripts/generate-swagger.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.20.0",
     "reflect-metadata": "^0.2.2",
     "swagger-jsdoc": "^6.2.8",

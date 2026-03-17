@@ -1,5 +1,6 @@
 import express from 'express';
 import comodoVistoriaController from '../controllers/comodoVistoriaController.js';
+import { authenticateToken, requireRole } from '../middlewares/auth.js';
 const router = express.Router();
 
 /**
@@ -20,7 +21,7 @@ const router = express.Router();
  *       200:
  *         description: Lista de cômodos retornada com sucesso.
  */
-router.get('/', comodoVistoriaController.listarComodos);
+router.get('/', authenticateToken, comodoVistoriaController.listarComodos);
 
 /**
  * @swagger
@@ -41,7 +42,7 @@ router.get('/', comodoVistoriaController.listarComodos);
  *       404:
  *         description: Cômodo não encontrado.
  */
-router.get('/:id', comodoVistoriaController.buscarComodoPorId);
+router.get('/:id', authenticateToken, comodoVistoriaController.buscarComodoPorId);
 
 /**
  * @swagger
@@ -73,7 +74,7 @@ router.get('/:id', comodoVistoriaController.buscarComodoPorId);
  *       201:
  *         description: Cômodo criado com sucesso.
  */
-router.post('/', comodoVistoriaController.criarComodo);
+router.post('/', authenticateToken, requireRole('admin'), comodoVistoriaController.criarComodo);
 
 /**
  * @swagger
@@ -100,7 +101,7 @@ router.post('/', comodoVistoriaController.criarComodo);
  *       404:
  *         description: Cômodo não encontrado.
  */
-router.put('/:id', comodoVistoriaController.atualizarComodo);
+router.put('/:id', authenticateToken, requireRole('admin'), comodoVistoriaController.atualizarComodo);
 
 /**
  * @swagger
@@ -121,6 +122,6 @@ router.put('/:id', comodoVistoriaController.atualizarComodo);
  *       404:
  *         description: Cômodo não encontrado.
  */
-router.delete('/:id', comodoVistoriaController.deletarComodo);
+router.delete('/:id', authenticateToken, requireRole('admin'), comodoVistoriaController.deletarComodo);
 
 export default router;

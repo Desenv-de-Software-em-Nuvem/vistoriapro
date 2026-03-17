@@ -1,5 +1,6 @@
 import express from 'express';
 import locatarioVistoriaController from '../controllers/locatarioVistoriaController.js';
+import { authenticateToken, requireRole } from '../middlewares/auth.js';
 const router = express.Router();
 
 /**
@@ -20,7 +21,7 @@ const router = express.Router();
  *       200:
  *         description: Lista de locatários retornada com sucesso.
  */
-router.get('/', locatarioVistoriaController.listarLocatarios);
+router.get('/', authenticateToken, locatarioVistoriaController.listarLocatarios);
 
 /**
  * @swagger
@@ -41,7 +42,7 @@ router.get('/', locatarioVistoriaController.listarLocatarios);
  *       404:
  *         description: Locatário não encontrado.
  */
-router.get('/:id', locatarioVistoriaController.buscarLocatarioPorId);
+router.get('/:id', authenticateToken, locatarioVistoriaController.buscarLocatarioPorId);
 
 /**
  * @swagger
@@ -79,7 +80,7 @@ router.get('/:id', locatarioVistoriaController.buscarLocatarioPorId);
  *       201:
  *         description: Locatário criado com sucesso.
  */
-router.post('/', locatarioVistoriaController.criarLocatario);
+router.post('/', authenticateToken, requireRole('admin'), locatarioVistoriaController.criarLocatario);
 
 /**
  * @swagger
@@ -106,7 +107,7 @@ router.post('/', locatarioVistoriaController.criarLocatario);
  *       404:
  *         description: Locatário não encontrado.
  */
-router.put('/:id', locatarioVistoriaController.atualizarLocatario);
+router.put('/:id', authenticateToken, requireRole('admin'), locatarioVistoriaController.atualizarLocatario);
 
 /**
  * @swagger
@@ -127,6 +128,6 @@ router.put('/:id', locatarioVistoriaController.atualizarLocatario);
  *       404:
  *         description: Locatário não encontrado.
  */
-router.delete('/:id', locatarioVistoriaController.deletarLocatario);
+router.delete('/:id', authenticateToken, requireRole('admin'), locatarioVistoriaController.deletarLocatario);
 
 export default router;
