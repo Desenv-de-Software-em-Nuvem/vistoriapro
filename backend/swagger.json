@@ -305,8 +305,17 @@
           "nome"
         ]
       }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Use 'Bearer <token>' to authenticate. Token obtained from /usuarios/auth/login."
+      }
     }
   },
+  "security": [],
   "paths": {
     "/comodos": {
       "get": {
@@ -1254,6 +1263,44 @@
           "500": {
             "description": "Erro interno no servidor"
           }
+        }
+      }
+    },
+    "/usuarios/auth/login": {
+      "post": {
+        "tags": ["Usuários"],
+        "summary": "Autenticar usuário (obter JWT)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Autenticação bem-sucedida. Retorna objeto com token JWT.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Requisição inválida." },
+          "401": { "description": "Credenciais inválidas." }
         }
       }
     },

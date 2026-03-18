@@ -8,7 +8,7 @@ import fotosRouter from './fotos.js';
 import transcricoesRouter from './transcricoes.js';
 import locatariosRouter from './locatarios.js';
 import swaggerUi from 'swagger-ui-express';
-import swaggerJsDoc from 'swagger-jsdoc';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -27,41 +27,8 @@ router.use('/fotos', fotosRouter);
 router.use('/transcricoes', transcricoesRouter);
 router.use('/locatarios', locatariosRouter);
 
-// Swagger setup
-const swaggerOptions = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'VistoriaPro API',
-      version: '1.0.0',
-      description: 'Documentação da API VistoriaPro',
-    },
-    servers: [
-      {
-        url: 'http://localhost:3000/api',
-        description: 'Servidor local (desenvolvimento)',
-      },
-    ],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-          description: 'Token JWT obtido através de /usuarios/auth/login'
-        }
-      }
-    },
-    security: [
-      {
-        bearerAuth: []
-      }
-    ],
-  },
-  apis: [path.join(__dirname, '*.js')], // Caminho absoluto para os arquivos de rotas
-};
-
-const swaggerSpec = swaggerJsDoc(swaggerOptions);
+// Config do Swagger: swagger.json no diretório raiz
+const swaggerSpec = JSON.parse(fs.readFileSync(path.join(__dirname, '../../swagger.json'), 'utf8'));
 
 // Rota para servir o JSON do Swagger diretamente (deve vir ANTES do swaggerUi.serve)
 router.get('/docs/swagger.json', (req, res) => {

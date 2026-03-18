@@ -131,15 +131,15 @@ const usuarioController = {
       // Gera token JWT
       const token = generateToken(usuario);
       
-      if (process.env.NODE_ENV === 'development') {
-      // Remove a senha do response
-      const { senha_hash: _, ...usuarioSemSenha } = usuario;
-      }
+      // if (process.env.NODE_ENV === 'development') {
+      // // Remove a senha do response
+      // const { senha_hash: _, ...usuarioSemSenha } = usuario;
+      // }
       
       res.json({
         message: 'Autenticação bem-sucedida',
         token: token,
-        usuario: usuarioSemSenha || null,
+        // usuario: usuarioSemSenha || null,
         expiresIn: '24h'
       });
     } catch (err) {
