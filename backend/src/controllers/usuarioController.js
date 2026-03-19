@@ -2,6 +2,23 @@ import { UsuarioRepository } from '../repositories/usuarioRepository.js';
 import { generateToken } from '../middlewares/auth.js';
 
 const usuarioController = {
+  async obterUsuario(req, res) {
+    try {
+      const { id } = req.params;
+      const usuario = await UsuarioRepository.findById(parseInt(id));
+
+      if (!usuario) {
+        return res.status(404).json({ error: 'Usuário não encontrado' });
+      }
+
+      const { senha_hash: _, ...usuarioSemSenha } = usuario;
+      res.json(usuarioSemSenha);
+    } catch (err) {
+      console.error('Erro ao obter usuario:', err);
+      res.status(500).json({ error: err.message });
+    }
+  },
+
   async listarUsuarios(req, res) {
     try {
       const usuarios = await UsuarioRepository.findAll();

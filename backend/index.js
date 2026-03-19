@@ -1,44 +1,7 @@
-import express from 'express';
-import dotenv from 'dotenv';
-import routes from './src/routes/index.js';
+import app from './src/app.js';
 import { AppDataSource } from './src/data-source.js';
 
-dotenv.config();
-
-const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-
-app.get('/', (req, res) => {
-  res.json({
-    message: 'API VistoriaPro rodando!',
-    version: '1.0.0',
-    environment: process.env.NODE_ENV || 'development',
-  });
-});
-
-// Rota de teste usando AppDataSource
-app.get('/test-db', async (req, res) => {
-  try {
-    console.log('Testando conexão com o banco...');
-    const result = await AppDataSource.query('SELECT NOW() as current_time, version() as db_version');
-    console.log('Conexão com banco OK');
-    res.json({
-      success: true,
-      data: result[0],
-      message: 'Conexão com banco de dados funcionando!',
-    });
-  } catch (err) {
-    console.error('Erro ao conectar com o banco:', err.message);
-    res.status(500).json({
-      success: false,
-      error: err.message,
-      message: 'Erro ao conectar com o banco de dados',
-    });
-  }
-});
-
-app.use(express.json());
-app.use('/api', routes);
 
 // Inicializa a conexão TypeORM antes de ligar o servidor
 AppDataSource.initialize()

@@ -12,8 +12,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const _routeFilename = fileURLToPath(import.meta.url);
+const _routeDirname = path.dirname(_routeFilename);
 
 const router = express.Router();
 
@@ -28,7 +28,7 @@ router.use('/transcricoes', transcricoesRouter);
 router.use('/locatarios', locatariosRouter);
 
 // Config do Swagger: swagger.json no diretório raiz
-const swaggerSpec = JSON.parse(fs.readFileSync(path.join(__dirname, '../../swagger.json'), 'utf8'));
+const swaggerSpec = JSON.parse(fs.readFileSync(path.join(_routeDirname, '../../swagger.json'), 'utf8'));
 
 // Rota para servir o JSON do Swagger diretamente (deve vir ANTES do swaggerUi.serve)
 router.get('/docs/swagger.json', (req, res) => {
