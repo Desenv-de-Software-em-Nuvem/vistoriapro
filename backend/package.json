@@ -1,0 +1,55 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "dev:setup": "node scripts/dev-setup.js",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "db:recreate": "node scripts/recreate-database.js",
+    "db:migrate": "node scripts/run-migration.js",
+    "db:create-test-user": "node scripts/create-test-user.js",
+    "swagger:generate": "node scripts/generate-swagger.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.20.0",
+    "reflect-metadata": "^0.2.2",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "typeorm": "^0.3.28"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/preset-env": "^7.29.2",
+    "babel-jest": "^30.3.0",
+    "babel-plugin-transform-import-meta": "^2.3.3",
+    "jest": "^30.3.0",
+    "nodemon": "^3.0.2",
+    "supertest": "^7.2.2"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {
+      "^.+\\.js$": "babel-jest"
+    },
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/__tests__/**"
+    ],
+    "coverageDirectory": "coverage",
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ]
+  }
+}

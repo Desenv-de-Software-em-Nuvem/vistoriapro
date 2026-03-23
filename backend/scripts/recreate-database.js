@@ -1,0 +1,56 @@
+// Script para recriar o banco de dados rodando todas as migrations em ordem
+// Uso: node backend/scripts/recreate-database.js
+
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { Client } from 'pg';
+
+// Compatibilidade com ES modules (não existe __dirname por padrão)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Configurações do banco (ajuste conforme seu ambiente)
+const dbConfig = {
+  user: process.env.DB_USER || 'postgres',
+  host: process.env.DB_HOST || 'localhost',
+  database: process.env.DB_NAME || 'vistoriapro',
+  password: process.env.DB_PASSWORD || 'postgres',
+  port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 5432,
+};
+
+const migrationsDir = path.join(__dirname, '../migrations');
+
+async function runMigrations() {
+  const client = new Client(dbConfig);
+  try {
+    await client.connect();
+    console.log('Conectado ao banco de dados!');
+
+    // Lê todos os arquivos .sql em ordem alfabética
+    const files = fs.readdirSync(migrationsDir)
+      .filter(f => f.endsWith('.sql'))
+      .sort();
+
+    for (const file of files) {
+      const filePath = path.join(migrationsDir, file);
+      const sql = fs.readFileSync(filePath, 'utf8');
+      console.log(`\nExecutando migration: ${file}`);
+      try {
+        await client.query(sql);
+        console.log(`Migration ${file} executada com sucesso!`);
+      } catch (err) {
+        console.error(`Erro ao executar ${file}:`, err.message);
+        throw err;
+      }
+    }
+    console.log('\nTodas as migrations foram executadas com sucesso!');
+  } catch (err) {
+    console.error('Erro geral:', err.message);
+  } finally {
+    await client.end();
+    console.log('Conexão com o banco encerrada.');
+  }
+}
+
+runMigrations();
