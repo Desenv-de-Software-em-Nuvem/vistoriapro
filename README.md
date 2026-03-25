@@ -42,6 +42,9 @@ O VistoriaPro é uma aplicação para gestão de vistorias imobiliárias, permit
 - PostgreSQL 12+ (opcional, para desenvolvimento)
 
 ### Com Docker (Recomendado)
+
+> ⚠️ Certifique-se de que o Docker esteja em execução antes de rodar os comandos abaixo.
+
 ```bash
 # Clonar repositório
 git clone <repository-url>
