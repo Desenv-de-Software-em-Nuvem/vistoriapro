@@ -129,36 +129,46 @@ const usuarioController = {
     }
   },
 
-  async autenticar(req, res) {
+async autenticar(req, res) {
     try {
-      const { email, password } = req.body;
+      const { email, senha } = req.body;
 
-      if (!email || !password) {
+      if (!email || !senha) {
         return res.status(400).json({ 
           error: 'Email e senha são obrigatórios' 
         });
       }
 
-      const usuario = await UsuarioRepository.validateCredentials(email, password);
+      const usuario = await UsuarioRepository.validateCredentials(email, senha);
       
       if (!usuario) {
         return res.status(401).json({ error: 'Email ou senha inválidos' });
       }
 
+
       // Gera token JWT
       const token = generateToken(usuario);
       
-      // if (process.env.NODE_ENV === 'development') {
-      // // Remove a senha do response
-      // const { senha_hash: _, ...usuarioSemSenha } = usuario;
-      // }
+      // Remove a senha (e qualquer outro dado sensível) do objeto antes de enviar
+      // Assumindo que o campo no seu banco se chama 'senha_hash' ou 'senha'
+      // const { senha_hash, senha: senhaAberta, ...usuarioSemSenha } = usuario;
+      // console.log(usuarioSemSenha)
       
+      // Agora enviamos o token E o usuarioSemSenha para o frontend
       res.json({
         message: 'Autenticação bem-sucedida',
         token: token,
-        // usuario: usuarioSemSenha || null,
+                usuario: {
+          id: usuario.id,
+          nome: usuario.nome,
+          email: usuario.email,
+          papel: usuario.papel,
+          empresa_id: usuario.empresa_id,
+          permitidoVistoria: !usuario.bloqueado
+        }, 
         expiresIn: '24h'
       });
+      
     } catch (err) {
       console.error('Erro ao autenticar usuario:', err);
       res.status(500).json({ error: err.message });

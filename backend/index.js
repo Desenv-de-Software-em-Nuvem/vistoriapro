@@ -1,6 +1,7 @@
 import app from './src/app.js';
 import { AppDataSource } from './src/data-source.js';
 
+
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Inicializa a conexão TypeORM antes de ligar o servidor
