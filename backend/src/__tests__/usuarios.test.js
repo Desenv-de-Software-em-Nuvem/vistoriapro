@@ -54,7 +54,7 @@ describe('POST /api/usuarios/auth/login', () => {
 
     const res = await request(app)
       .post('/api/usuarios/auth/login')
-      .send({ email: 'admin@test.com', password: 'senha123' });
+      .send({ email: 'admin@test.com', senha: 'senha123' })
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('token');
@@ -75,7 +75,7 @@ describe('POST /api/usuarios/auth/login', () => {
 
     const res = await request(app)
       .post('/api/usuarios/auth/login')
-      .send({ email: 'admin@test.com', password: 'senha_errada' });
+      .send({ email: 'admin@test.com', senha: 'senha_errada' })
 
     expect(res.status).toBe(401);
     expect(res.body.error).toBe('Email ou senha inválidos');
