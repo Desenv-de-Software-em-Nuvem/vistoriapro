@@ -12,7 +12,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./databases/banco.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./databases/1-createdb.sql:/docker-entrypoint-initdb.d/01-init.sql
     networks:
       - vistoriapro-network
     healthcheck:
@@ -30,18 +30,19 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-vistoriapro}
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       DB_NAME: ${DB_NAME:-vistoriapro}
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-me}
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_API_KEY: ${SUPABASE_API_KEY}
-      AWS_REGION: ${AWS_REGION:-us-east-1}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      S3_BUCKET_NAME: ${S3_BUCKET_NAME}
+      # JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-me}
+      # SUPABASE_URL: ${SUPABASE_URL}
+      # SUPABASE_API_KEY: ${SUPABASE_API_KEY}
+      # AWS_REGION: ${AWS_REGION:-us-east-1}
+      # AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      # AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      # S3_BUCKET_NAME: ${S3_BUCKET_NAME}
     ports:
       - "3000:3000"
     volumes:

@@ -1,3 +1,4 @@
+import cors from 'cors';
 import express from 'express';
 import dotenv from 'dotenv';
 import routes from './routes/index.js';
@@ -6,6 +7,35 @@ import { AppDataSource } from './data-source.js';
 dotenv.config();
 
 const app = express();
+
+
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? [
+        'https://imob-vistorias.netlify.app',
+        'https://vistoriapro.netlify.app',
+        'https://*.netlify.app',
+        'http://localhost:5173',
+        'capacitor://localhost',
+        'file://',
+        'https://localhost'
+      ]
+    : [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        'capacitor://localhost',
+        'file://',
+        'https://localhost'
+      
+      ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Custom-Header'],
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+// console.log('CORS configurado com as seguintes origens permitidas:', corsOptions.origin);
 
 app.get('/', (req, res) => {
   res.json({

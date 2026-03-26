@@ -7,8 +7,8 @@ function run(cmd) {
 
 try {
   // 1) apply migrations / recreate DB
-  run('npm run db:recreate');
-
+  // run('npm run db:recreate');
+  run('node scripts/recreate-database.js');
   // 2) seed development data
   run('node scripts/seed-database.js');
 

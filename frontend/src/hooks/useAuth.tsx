@@ -48,7 +48,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Tentando login com:', { email, senha: password })
       console.log('URL da API:', import.meta.env.VITE_API_URL)
       
-      const response = await api.post('/usuarios/login', { 
+      const response = await api.post('/usuarios/auth/login', { 
         email, 
         senha: password 
       })
