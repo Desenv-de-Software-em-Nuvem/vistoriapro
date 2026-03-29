@@ -39,19 +39,21 @@ const InstallPWAButton: React.FC = () => {
     <div
       style={{
         position: 'fixed',
-        top: 24,
-        right: 24,
+        bottom: 24,
+        left: '50%',
+        transform: 'translateX(-50%)',
         background: 'rgba(255,255,255,0.95)',
         borderRadius: 10,
         boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
-        padding: '10px 18px',
+        padding: '10px 14px',
         zIndex: 9999,
         display: 'flex',
         alignItems: 'center',
         gap: '10px',
-        minWidth: 180,
-        maxWidth: '80vw',
+        minWidth: 140,
+        maxWidth: '90vw',
         fontSize: 15,
+        pointerEvents: 'auto'
       }}
     >
       <span style={{ flex: 1, color: '#333' }}>
