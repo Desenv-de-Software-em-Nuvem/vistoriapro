@@ -3,6 +3,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import routes from './routes/index.js';
 import { AppDataSource } from './data-source.js';
+import errorHandler from './middlewares/errorHandler.js';
 
 dotenv.config();
 
@@ -64,5 +65,8 @@ app.get('/test-db', async (req, res) => {
 
 app.use(express.json());
 app.use('/api', routes);
+
+// Middleware global de tratamento de erros (último middleware)
+app.use(errorHandler);
 
 export default app;
