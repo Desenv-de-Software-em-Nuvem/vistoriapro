@@ -4,8 +4,7 @@ import axios from 'axios';
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const baseURL = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
 
-console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
-console.log('Base URL que será usada:', baseURL);
+// Removidos logs de URL em produção para evitar exposição de variáveis sensíveis
 
 // Configuração base da API
 const api = axios.create({

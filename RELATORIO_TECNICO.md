@@ -109,10 +109,22 @@ Recomendações e correções prioritárias:
   - `.github/workflows/ci-cd.yml`: presente, executa build e testes; deploy precisa de configuração final do provedor.
   - `README.md`: presente e descreve execução via Docker.
 
-9. Ações recomendadas antes da entrega final
--------------------------------------------
-1. Remover ou parametrizar qualquer credencial dentro do código e `Dockerfile`.
-2. Criar `env.example` com todas as chaves necessárias.
-3. Tornar `JWT_SECRET` obrigatório em produção e documentar como gerar/armazenar o segredo.
-4. Completar o job `deploy` com o método escolhido e testar deploy automático para `main`.
-5. Adicionar middleware de erro central e substituir `console.error` por logger.
+- Arquiteto(a) de Software em Nuvem:  Daniel Leite Delfino - 2425168 
+  - Responsabilidades: definição da arquitetura em nuvem, estratégias de deploy, segurança e observabilidade; organização do repositório; revisão final dos entregáveis.
+  - Principais commits/PRs: (adicione hashes ou links de PRs relevantes)
+
+- Desenvolvedor(a) Back-end: João Sampaio de Andrade Neto - 2427419
+  - Responsabilidades: implementação da API, migrations, scripts de seed, testes backend.
+
+- Desenvolvedor(a) Front-end: José Araken Lobão dos Santos - 2425094
+  - Responsabilidades: interface React, PWA, integração com API, build e otimizações.
+
+- Engenheiro(a) DevOps: Felipe Macedo Gomes - 2428003
+  - Responsabilidades: Dockerfile, docker-compose, CI/CD (workflows), automação de deploy. 
+
+- Responsável por Qualidade e Testes: João Victor Oliveira Gomes - 2314720
+  - Responsabilidades: testes automatizados, coverage, validação de endpoints.
+  - Principais commits/PRs: 
+
+- Documentação e Integração : Francisco Alexandre de Brito Bezerra Filho - 2425103
+  - Responsabilidades: documentação final, relatório técnico, roteiro da demo e vídeo.
