@@ -82,7 +82,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     // Guarda o ID do usuário antes de removê-lo para manter a referência nas vistorias salvas
     const userJson = localStorage.getItem('vistoriapro_user');
-    let userId = null;
+    let userId: string | null = null;
     try {
       if (userJson) {
         const userData = JSON.parse(userJson);
@@ -91,6 +91,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Erro ao processar dados do usuário durante logout:', error);
     }
+
+    // Referencia userId para evitar TS6133 (declarado mas não lido).
+    // Mantemos a variável caso futuramente seja usada para preservar vistorias.
+    void userId;
 
     setUser(null);
     localStorage.removeItem('vistoriapro_user');
