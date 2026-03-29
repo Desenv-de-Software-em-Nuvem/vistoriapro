@@ -45,15 +45,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string): Promise<boolean> => {
     setLoading(true)
     try {
-      console.log('Tentando login com:', { email, senha: password })
-      console.log('URL da API:', import.meta.env.VITE_API_URL)
-      
+      // Não logar credenciais nem respostas em produção
       const response = await api.post('/usuarios/login', { 
         email, 
         senha: password 
       })
-      
-      console.log('Resposta do login:', response.data)
       const { token, usuario } = response.data
       setUser({
         id: usuario.id,
@@ -108,8 +104,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     });
     
-    // Log para indicar que o logout foi concluído
-    console.log('Logout realizado, ID de usuário preservado para recuperação de vistorias:', userId);
+    // Logout concluído (não logar dados sensíveis)
   }
 
   return (

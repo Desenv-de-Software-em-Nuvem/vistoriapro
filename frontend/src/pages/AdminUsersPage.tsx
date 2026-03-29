@@ -300,6 +300,8 @@ const AdminUsersPage: React.FC = () => {
             />
             <Input
               type="password"
+              name="password"
+              autoComplete="new-password"
               placeholder="Senha"
               value={form.senha}
               onChange={e => setForm(f => ({ ...f, senha: e.target.value }))}

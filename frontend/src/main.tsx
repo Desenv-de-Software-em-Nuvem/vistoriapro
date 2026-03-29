@@ -7,7 +7,7 @@ import App from './App.tsx'
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch((registrationError) => {
-      console.log('Falha ao registrar o service worker:', registrationError)
+      console.warn('Falha ao registrar o service worker:', registrationError)
     })
   })
 }

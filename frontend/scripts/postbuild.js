@@ -16,9 +16,9 @@ const dest = path.join(__dirname, '..', 'dist', '_redirects');
 try {
   if (fs.existsSync(source)) {
     fs.copyFileSync(source, dest);
-    console.log('✓ public/_redirects copiado para dist/');
+    console.info('✓ public/_redirects copiado para dist/');
   } else {
-    console.log('ℹ public/_redirects não encontrado (esperado em produção)');
+    console.info('ℹ public/_redirects não encontrado (esperado em produção)');
   }
 } catch (err) {
   console.warn('⚠ Erro ao copiar _redirects (continuando):', err.message);
