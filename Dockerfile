@@ -34,8 +34,7 @@ EXPOSE 3000
 
 # Variáveis de ambiente
 ENV NODE_ENV=production \
-    PORT=3000 \
-    DATABASE_URL=postgresql://postgres:postgres@localhost:5432/vistoriapro
+    PORT=3000
 
 # Health check (Ajuste a rota '/' se necessário)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
