@@ -1,0 +1,16 @@
+# Arquivos que não devem ser enviados para o Railway
+.env
+.env.local
+.env.development
+.env.test
+node_modules/
+*.log
+.DS_Store
+.vscode/
+*.md
+tests/
+anotacoes_*
+exemplos_*
+ROTEIRO_*
+README_*
+backendbackup.zip

@@ -1,0 +1,19 @@
+<svg width="400" height="200" viewBox="0 0 400 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Ícone dos prédios laranja -->
+  <g transform="translate(50, 50)">
+    <!-- Prédio 1 -->
+    <rect x="0" y="30" width="15" height="40" fill="#ff6b35"/>
+    
+    <!-- Prédio 2 -->
+    <rect x="15" y="20" width="15" height="50" fill="#ff4500"/>
+    
+    <!-- Prédio 3 -->
+    <rect x="30" y="35" width="15" height="35" fill="#ff8c42"/>
+  </g>
+  
+  <!-- Texto "Imob" -->
+  <text x="120" y="90" font-family="Arial, sans-serif" font-size="48" font-weight="900" fill="#000000">Imob</text>
+  
+  <!-- Texto "EMPREENDIMENTOS" -->
+  <text x="120" y="110" font-family="Arial, sans-serif" font-size="12" font-weight="500" fill="#000000" letter-spacing="2px">EMPREENDIMENTOS</text>
+</svg>

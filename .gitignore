@@ -1,0 +1,122 @@
+# ===========================
+# Dependências
+# ===========================
+node_modules/
+.pnp
+.pnp.js
+
+# ===========================
+# Build e Output
+# ===========================
+dist/
+build/
+*.local
+
+# ===========================
+# Variáveis de Ambiente (IMPORTANTE!)
+# ===========================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# ===========================
+# Logs
+# ===========================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ===========================
+# Sistema Operacional
+# ===========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ===========================
+# IDE e Editores
+# ===========================
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+
+# ===========================
+# Arquivos Temporários
+# ===========================
+*.tmp
+*.temp
+.tmp.driveupload/
+tmp/
+temp/
+
+# ===========================
+# Uploads Locais
+# ===========================
+backend/uploads/fotos/*
+!backend/uploads/fotos/.gitkeep
+
+# ===========================
+# Testes
+# ===========================
+coverage/
+.nyc_output/
+
+# ===========================
+# Netlify
+# ===========================
+.netlify/
+
+# ===========================
+# Capacitor/Android
+# ===========================
+frontend/android/app/build/
+frontend/android/.gradle/
+frontend/android/build/
+frontend/android/local.properties
+*.apk
+*.aab
+*.keystore
+
+# ===========================
+# Arquivos de Backup e Compactados
+# ===========================
+*.zip
+*.rar
+*.tar.gz
+*.bak
+*.backup
+
+# ===========================
+# Banco de Dados Local
+# ===========================
+*.sqlite
+*.sqlite3
+*.db
+databases/
+
+# ===========================
+# Outros
+# ===========================
+.cache/
+.parcel-cache/
+AJUSTES FINAIS.txt
+*.pdf
+extract_pdf.py
+pdf_content.txt
+.venv/

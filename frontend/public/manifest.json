@@ -1,0 +1,29 @@
+{  "name": "Imob Vistorias - Sistema Profissional",
+  "short_name": "Imob Vistorias",
+  "description": "Sistema profissional de vistorias de imóveis da Imob Empreendimentos com captura de fotos e transcrição de áudio",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#ff4500",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "pt-BR",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [],
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "platform": "narrow"
+    }
+  ],
+  "permissions": [
+    "camera",
+    "microphone"
+  ],
+  "features": [
+    "camera",
+    "microphone"
+  ]
+}

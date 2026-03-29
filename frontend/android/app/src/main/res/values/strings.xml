@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">vistoriapro</string>
+    <string name="title_activity_main">vistoriapro</string>
+    <string name="package_name">com.vistoria.pro</string>
+    <string name="custom_url_scheme">com.vistoria.pro</string>
+</resources>

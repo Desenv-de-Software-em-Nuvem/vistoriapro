@@ -1,0 +1,682 @@
+openapi: 3.0.0
+info:
+  title: API VistoriaPro
+  version: 1.0.0
+  description: >
+    API REST completa do sistema VistoriaPro - Sistema de Vistorias de Imóveis com Geração Automática de Laudos.
+    
+    ## Características Principais
+    - Autenticação JWT
+    - Controle de acesso por roles (admin, vistoriador, locatário)
+    - CRUD completo para imóveis, vistorias e laudos
+    - Upload de fotos e documentos
+    - Geração de relatórios em PDF e DOCX
+    - Transcrição de áudio
+    
+    ## Segurança
+    - Todas as requisições requerem autenticação via JWT Token
+    - Bearer token deve ser enviado no header: `Authorization: Bearer <token>`
+    - Alguns endpoints requerem papel específico (admin, vistoriador)
+    
+  contact:
+    name: Suporte VistoriaPro
+    email: support@vistoriapro.com
+  license:
+    name: MIT
+    
+servers:
+  - url: http://localhost:3000/api
+    description: Servidor de Desenvolvimento
+  - url: https://api.vistoriapro.demo/api
+    description: Servidor de Demonstração
+
+paths:
+  /health:
+    get:
+      summary: Health Check da API
+      description: Verifica se o servidor está operacional
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Servidor está ativo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /auth/login:
+    post:
+      summary: Autenticação de usuário
+      description: Realiza o login do usuário e retorna um token JWT válido por 7 dias
+      tags:
+        - Autenticação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+            examples:
+              admin:
+                summary: Login de administrador
+                value:
+                  email: admin@empresa.com
+                  senha: admin123
+      responses:
+        '200':
+          description: Login realizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Email ou senha faltando
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Credenciais inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /usuarios:
+    post:
+      summary: Criar novo usuário
+      description: Cria um novo usuário no sistema (apenas admin)
+      tags:
+        - Usuários
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsuarioInput'
+      responses:
+        '201':
+          description: Usuário criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioResponse'
+        '400':
+          description: Dados inválidos ou email já existe
+        '401':
+          description: Não autenticado
+        '403':
+          description: Sem permissão (não é admin)
+
+    get:
+      summary: Listar usuários
+      description: Lista todos os usuários do sistema (apenas admin)
+      tags:
+        - Usuários
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: empresa_id
+          in: query
+          schema:
+            type: integer
+          description: Filtrar por ID da empresa (opcional)
+      responses:
+        '200':
+          description: Lista de usuários
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UsuarioResponse'
+        '401':
+          description: Não autenticado
+        '403':
+          description: Sem permissão
+
+  /usuarios/{id}:
+    get:
+      summary: Obter detalhes do usuário
+      tags:
+        - Usuários
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Dados do usuário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioResponse'
+        '404':
+          description: Usuário não encontrado
+
+    put:
+      summary: Atualizar usuário
+      tags:
+        - Usuários
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsuarioInput'
+      responses:
+        '200':
+          description: Usuário atualizado
+        '404':
+          description: Usuário não encontrado
+
+  /empresas:
+    post:
+      summary: Criar nova empresa
+      tags:
+        - Empresas
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmpresaInput'
+      responses:
+        '201':
+          description: Empresa criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmpresaResponse'
+
+    get:
+      summary: Listar empresas
+      tags:
+        - Empresas
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de empresas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EmpresaResponse'
+
+  /imoveis:
+    post:
+      summary: Criar novo imóvel
+      tags:
+        - Imóveis
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImovelInput'
+      responses:
+        '201':
+          description: Imóvel criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImovelResponse'
+
+    get:
+      summary: Listar imóveis
+      tags:
+        - Imóveis
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: empresa_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de imóveis
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ImovelResponse'
+
+  /vistorias:
+    post:
+      summary: Criar nova vistoria
+      tags:
+        - Vistorias
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VistoriaInput'
+      responses:
+        '201':
+          description: Vistoria criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VistoriaResponse'
+
+    get:
+      summary: Listar vistorias
+      tags:
+        - Vistorias
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pendente, em_progresso, concluida, arquivada]
+      responses:
+        '200':
+          description: Lista de vistorias
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VistoriaResponse'
+
+  /fotos/upload:
+    post:
+      summary: Upload de foto
+      tags:
+        - Fotos
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - vistoria_id
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Arquivo de imagem (JPG, PNG)
+                vistoria_id:
+                  type: integer
+                comodo_id:
+                  type: integer
+                descricao:
+                  type: string
+      responses:
+        '201':
+          description: Foto enviada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FotoResponse'
+        '400':
+          description: Arquivo inválido
+        '413':
+          description: Arquivo muito grande
+
+  /relatorios/gerar:
+    post:
+      summary: Gerar relatório de vistoria
+      description: Gera um relatório completo em PDF ou DOCX com fotos, descrições e assinatura
+      tags:
+        - Relatórios
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RelatorioInput'
+      responses:
+        '200':
+          description: Relatório gerado (retorna URL para download)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RelatorioResponse'
+        '400':
+          description: Dados inválidos
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Token obtido no login
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "ok"
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Mensagem de erro
+        details:
+          type: string
+          description: Detalhes adicionais (opcional)
+
+    LoginInput:
+      type: object
+      required:
+        - email
+        - senha
+      properties:
+        email:
+          type: string
+          format: email
+          example: admin@empresa.com
+        senha:
+          type: string
+          format: password
+          example: admin123
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT Token válido por 7 dias
+        user:
+          $ref: '#/components/schemas/UsuarioResponse'
+
+    UsuarioInput:
+      type: object
+      required:
+        - nome
+        - email
+        - senha
+        - papel
+      properties:
+        empresa_id:
+          type: integer
+          description: ID da empresa (obrigatório para criar usuarios)
+        nome:
+          type: string
+          example: João Silva
+        email:
+          type: string
+          format: email
+          example: joao@empresa.com
+        senha:
+          type: string
+          format: password
+          description: Mínimo 8 caracteres
+        papel:
+          type: string
+          enum: [admin, vistoriador, locatario]
+          example: vistoriador
+
+    UsuarioResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        empresa_id:
+          type: integer
+        nome:
+          type: string
+        email:
+          type: string
+        papel:
+          type: string
+        criado_em:
+          type: string
+          format: date-time
+        atualizado_em:
+          type: string
+          format: date-time
+
+    EmpresaInput:
+      type: object
+      required:
+        - nome
+        - cnpj
+      properties:
+        nome:
+          type: string
+          example: Tecnologia XYZ Ltda
+        cnpj:
+          type: string
+          description: CNPJ sem formatação (14 dígitos)
+          example: "12345678000195"
+        email:
+          type: string
+          format: email
+
+    EmpresaResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        cnpj:
+          type: string
+        email:
+          type: string
+        criado_em:
+          type: string
+          format: date-time
+
+    ImovelInput:
+      type: object
+      required:
+        - endereco
+        - tipo
+      properties:
+        empresa_id:
+          type: integer
+        endereco:
+          type: string
+          example: "Rua Principal, 123, Apt 456, São Paulo"
+        tipo:
+          type: string
+          enum: [apartamento, casa, comercial, terreno, outro]
+          example: apartamento
+        proprietario:
+          type: string
+        locatario:
+          type: string
+        descricao:
+          type: string
+
+    ImovelResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        empresa_id:
+          type: integer
+        endereco:
+          type: string
+        tipo:
+          type: string
+        proprietario:
+          type: string
+        locatario:
+          type: string
+        descricao:
+          type: string
+        criado_em:
+          type: string
+          format: date-time
+
+    VistoriaInput:
+      type: object
+      required:
+        - imovel_id
+        - data
+      properties:
+        empresa_id:
+          type: integer
+        imovel_id:
+          type: integer
+        usuario_id:
+          type: integer
+        data:
+          type: string
+          format: date
+          example: "2026-02-21"
+        tipo:
+          type: string
+          enum: [entrada, saida, denuncia, especial]
+          example: entrada
+        status:
+          type: string
+          enum: [pendente, em_progresso, concluida, arquivada]
+        locatario:
+          type: string
+        proprietario:
+          type: string
+
+    VistoriaResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        imovel_id:
+          type: integer
+        usuario_id:
+          type: integer
+        data:
+          type: string
+          format: date
+        tipo:
+          type: string
+        status:
+          type: string
+        locatario:
+          type: string
+        proprietario:
+          type: string
+        comodos:
+          type: array
+          items:
+            type: object
+        fotos:
+          type: array
+          items:
+            type: object
+        criado_em:
+          type: string
+          format: date-time
+
+    FotoResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        vistoria_id:
+          type: integer
+        comodo_id:
+          type: integer
+        url:
+          type: string
+          description: URL para acessar a foto
+        descricao:
+          type: string
+        tamanho:
+          type: integer
+          description: Tamanho em bytes
+        criado_em:
+          type: string
+          format: date-time
+
+    RelatorioInput:
+      type: object
+      required:
+        - vistoria_id
+      properties:
+        vistoria_id:
+          type: integer
+        formato:
+          type: string
+          enum: [pdf, docx]
+          example: pdf
+        incluir_assinatura:
+          type: boolean
+          default: true
+
+    RelatorioResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        vistoria_id:
+          type: integer
+        url:
+          type: string
+          description: URL para download do relatório
+        formato:
+          type: string
+        tamanho:
+          type: integer
+        criado_em:
+          type: string
+          format: date-time
+
+tags:
+  - name: Health
+    description: Verificação de saúde da API
+  - name: Autenticação
+    description: Endpoints de autenticação
+  - name: Usuários
+    description: Gerenciamento de usuários
+  - name: Empresas
+    description: Gerenciamento de empresas
+  - name: Imóveis
+    description: Cadastro e gerenciamento de imóveis
+  - name: Vistorias
+    description: Registro e acompanhamento de vistorias
+  - name: Fotos
+    description: Upload e gerenciamento de fotos
+  - name: Relatórios
+    description: Geração de relatórios e laudos
+
+x-logo:
+  url: https://example.com/logo.png
+  altText: VistoriaPro Logo

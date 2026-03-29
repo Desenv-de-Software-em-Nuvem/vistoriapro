@@ -1,0 +1,5 @@
+# Railway ignores files/folders listed here
+node_modules
+.git
+.env.local
+*.log

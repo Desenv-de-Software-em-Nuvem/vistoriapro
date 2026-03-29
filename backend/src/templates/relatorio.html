@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Laudo de Vistoria: Locação de Imóvel Residencial</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 30mm 18mm 25mm 18mm;
+      background: #fff;
+      color: #222;
+      /* sem padding-top, header só no Puppeteer */
+      box-sizing: border-box;
+    }
+    .section {
+      margin-bottom: 22px;
+    }
+    .section-title {
+      background: #e3eafc;
+      color: #ff6933;
+      padding: 6px 12px;
+      font-size: 1.1em;
+      font-weight: bold;
+      border-left: 5px solid #ff6933;
+      margin-bottom: 10px;
+    }
+    .dados, .pessoa, .contrato {
+      margin-bottom: 7px;
+      font-size: 1em;
+    }
+    .dados strong, .contrato strong {
+      display: inline-block;
+      min-width: 120px;
+      color: #ff6933;
+    }
+    .comodos-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 0.98em;
+    }
+    .comodos-table th {
+      background: #ff6933;
+      color: #fff;
+      padding: 8px;
+      border: 1px solid #ff6933;
+      font-weight: 600;
+    }
+    .comodos-table td {
+      border: 1px solid #b0bec5;
+      padding: 7px 8px;
+      background: #f7fafd;
+    }
+    .fotos {
+      margin-top: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+    }
+    .foto-item {
+      width: 200px;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .foto-item img {
+      width: 100%;
+      border: 2px solid #a1370d;
+      border-radius: 4px;
+      margin-bottom: 4px;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #b0bec5;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="section" style="margin-bottom: 32px;">
+    <div class="texto-abertura" style="white-space: pre-line; font-size: 1.08em; text-align: justify;">
+      {{{texto_abertura}}}
+    </div>
+  </div>
+  <div class="section">
+    <div class="section-title">Checklist de Cômodos</div>
+    {{#comodos}}
+      <div class="comodo" style="margin-bottom: 24px;">
+        <div class="comodo-nome"><strong>{{nome}}</strong></div>
+        <div class="fotos">
+          {{#fotos}}
+            <div class="foto-item">
+              <img src="{{url}}" alt="Foto do cômodo" />
+              <div class="foto-descricao">{{descricao}}</div>
+            </div>
+          {{/fotos}}
+        </div>
+        {{^fotos}}
+          <div style="color:#888; font-size:0.95em;">Nenhuma foto cadastrada para este cômodo.</div>
+        {{/fotos}}
+        <div class="comodo-observacoes"><strong>Descrição:</strong> {{descricao}}</div>
+      </div>
+      <hr/>
+    {{/comodos}}
+    {{^comodos}}
+      <div style="color:#888; font-size:0.95em;">Nenhum cômodo cadastrado para esta vistoria.</div>
+    {{/comodos}}
+  </div>
+
+  {{#fotos_sem_comodo}}
+    <div class="section fotos">
+      <div class="section-title">Fotos sem cômodo vinculado</div>
+      <div class="foto-item">
+        <img src="{{url}}" alt="Foto">
+        <p>{{descricao}}</p>
+      </div>
+    </div>
+  {{/fotos_sem_comodo}}
+</body>
+</html>
