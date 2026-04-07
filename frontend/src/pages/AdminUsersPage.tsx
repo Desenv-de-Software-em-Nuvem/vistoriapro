@@ -326,7 +326,7 @@ const AdminUsersPage: React.FC = () => {
               <option value="admin">Administrador</option>
               <option value="vistoriador">Vistoriador</option>
             </PapelSelect>
-            <TabButton type="submit" active><UserPlus size={18}/> Criar Usuário</TabButton>
+            <TabButton type="submit" $active><UserPlus size={18}/> Criar Usuário</TabButton>
           </Form>
         )}
       </ContentWrapper>

@@ -115,7 +115,6 @@ export const InspectionPage: React.FC = () => {
   // O tipo selecionado vem como enum (ex: 'CASA_RESIDENCIAL'), precisa converter para o label do banco (ex: 'Casa Residencial')
   const tipoSelecionadoEnum = location.state?.tipoSelecionado || '';
   const tipoSelecionadoKey = tipoSelecionadoEnum ? getCanonicalPropertyType(tipoSelecionadoEnum) : '';
-  const tipoSelecionado = tipoSelecionadoKey ? getTipoDisplay(tipoSelecionadoKey) : '';
   
   // Imóveis
   const [imoveis, setImoveis] = useState<Imovel[]>([]);
