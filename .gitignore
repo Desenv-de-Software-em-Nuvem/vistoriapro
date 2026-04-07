@@ -108,7 +108,7 @@ frontend/android/local.properties
 *.sqlite
 *.sqlite3
 *.db
-databases/
+
 
 # ===========================
 # Outros

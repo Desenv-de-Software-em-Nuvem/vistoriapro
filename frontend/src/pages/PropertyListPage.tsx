@@ -31,7 +31,7 @@ import api from '../services/api'
 import { ConfirmationModal } from '../components/ConfirmationModal'
 import { AppHeader } from '../components/AppHeader'
 import { MobileTabBar } from '../components/MobileTabBar'
-import { getTipoDisplay } from '../constants/propertyTypes'
+import { PROPERTY_TYPES, getCanonicalPropertyType } from '../constants/propertyTypes'
 
 const Container = styled.div`
   min-height: 100vh;
@@ -315,6 +315,7 @@ export const PropertyListPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [imovelToDelete, setImovelToDelete] = useState<{id: number, nome: string} | null>(null)
   const [activeType, setActiveType] = useState<string>('')
+  const categoryOptions = PROPERTY_TYPES
 
   const loadImoveis = async () => {
     try {
@@ -336,7 +337,9 @@ export const PropertyListPage: React.FC = () => {
 
   // Filtro de busca
   useEffect(() => {
-    const base = activeType ? imoveis.filter(i => i.tipo === activeType) : imoveis
+    const base = activeType
+      ? imoveis.filter(i => getCanonicalPropertyType(i.tipo) === activeType)
+      : imoveis
     if (searchTerm.trim() === '') {
       setFilteredImoveis(base)
     } else {
@@ -399,9 +402,9 @@ export const PropertyListPage: React.FC = () => {
       {imoveis.length > 0 && (
         <FiltersRow>
           <FilterChip $active={!activeType} onClick={() => setActiveType('')}>Todos</FilterChip>
-          {Array.from(new Set(imoveis.map(i => i.tipo))).map(tipo => (
-            <FilterChip key={tipo} $active={activeType === tipo} onClick={() => setActiveType(tipo)}>
-                {getTipoDisplay(tipo)}
+          {categoryOptions.map(tipo => (
+            <FilterChip key={tipo.value} $active={activeType === tipo.value} onClick={() => setActiveType(tipo.value)}>
+                {tipo.label}
             </FilterChip>
           ))}
         </FiltersRow>
@@ -417,7 +420,7 @@ export const PropertyListPage: React.FC = () => {
           <StatLabel>Resultados</StatLabel>
         </StatItem>
         <StatItem>
-          <StatNumber>{new Set(imoveis.map(i => i.tipo)).size}</StatNumber>
+          <StatNumber>{new Set(imoveis.map(i => getCanonicalPropertyType(i.tipo))).size}</StatNumber>
           <StatLabel>Tipos Diferentes</StatLabel>
         </StatItem>
       </StatsBar>
