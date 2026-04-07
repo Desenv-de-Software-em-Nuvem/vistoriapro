@@ -30,7 +30,7 @@ import { deletarFoto } from '../services/deletarFotoService';
 import type { Imovel } from '../services/imovelService';
 import styled from 'styled-components';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getCanonicalPropertyType, getTipoDisplay } from '../constants/propertyTypes';
+import { getCanonicalPropertyType } from '../constants/propertyTypes';
 import { roomChecklists } from '../data/roomChecklists';
 import { AppHeader } from '../components/AppHeader';
 import { Snackbar } from '../components/Snackbar';
