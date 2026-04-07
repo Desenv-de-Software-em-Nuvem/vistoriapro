@@ -30,7 +30,7 @@ import { deletarFoto } from '../services/deletarFotoService';
 import type { Imovel } from '../services/imovelService';
 import styled from 'styled-components';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { PROPERTY_TYPE_DISPLAY } from '../constants/propertyTypes';
+import { getCanonicalPropertyType, getTipoDisplay } from '../constants/propertyTypes';
 import { roomChecklists } from '../data/roomChecklists';
 import { AppHeader } from '../components/AppHeader';
 import { Snackbar } from '../components/Snackbar';
@@ -114,7 +114,8 @@ export const InspectionPage: React.FC = () => {
   const location = useLocation();
   // O tipo selecionado vem como enum (ex: 'CASA_RESIDENCIAL'), precisa converter para o label do banco (ex: 'Casa Residencial')
   const tipoSelecionadoEnum = location.state?.tipoSelecionado || '';
-  const tipoSelecionado = tipoSelecionadoEnum ? PROPERTY_TYPE_DISPLAY[tipoSelecionadoEnum] || tipoSelecionadoEnum : '';
+  const tipoSelecionadoKey = tipoSelecionadoEnum ? getCanonicalPropertyType(tipoSelecionadoEnum) : '';
+  const tipoSelecionado = tipoSelecionadoKey ? getTipoDisplay(tipoSelecionadoKey) : '';
   
   // Imóveis
   const [imoveis, setImoveis] = useState<Imovel[]>([]);
@@ -136,7 +137,7 @@ export const InspectionPage: React.FC = () => {
       }
     };
     fetchImoveis();
-  }, [tipoSelecionado]);
+  }, []);
   const navigate = useNavigate()
 
 
@@ -147,10 +148,6 @@ export const InspectionPage: React.FC = () => {
   const userJson = window.localStorage.getItem('vistoriapro_user');
   const user = userJson ? JSON.parse(userJson) : null;
   const idUsuario = user?.id || 'anon';
-  
-  // Adicionando log para debug do ID do usuário
-  console.log('ID do usuário para persistência:', idUsuario);
-  console.log('Usuário armazenado:', userJson);
   
   const { progress, saveProgress, removeProgress } = useVistoriaProgress({
     idImovel: selectedImovel ? String(selectedImovel.id) : '',
@@ -163,17 +160,13 @@ export const InspectionPage: React.FC = () => {
   // Quando selectedImovel ou idUsuario mudar, inicializa a inspection com os cômodos do tipo
   useEffect(() => {
     if (selectedImovel) {
-      console.log('Verificando progresso salvo para', {imovel: selectedImovel.id, usuario: idUsuario});
       // Se houver progresso salvo, carrega
       if (progress && progress.data) {
-        console.log('Progresso encontrado:', progress);
         setInspection(progress.data);
         return;
-      } else {
-        console.log('Nenhum progresso encontrado');
       }
       // Tenta pegar os cômodos pelo tipo do imóvel
-      const tipo = selectedImovel.tipo?.toUpperCase() || 'CASA';
+      const tipo = getCanonicalPropertyType(selectedImovel.tipo || 'CASA');
       const defaultRooms = (roomChecklists[tipo] || roomChecklists['CASA']).map((room: any) => ({
         ...room,
         photos: [],
@@ -376,22 +369,17 @@ export const InspectionPage: React.FC = () => {
       // 4. Atualiza o status da vistoria para "concluida"
       try {
         if (vistoriaId) {
-          console.log('Atualizando status da vistoria para finalizada:', vistoriaId);
-          
           // Primeiro, verificamos se a vistoria existe e qual é seu status atual
           try {
             const vistoriaAtual = await buscarVistoriaPorId(vistoriaId);
-            console.log('Status atual da vistoria:', vistoriaAtual?.status);
             
             // Se a vistoria já está finalizada, não precisamos atualizar
             if (vistoriaAtual?.status === 'finalizada') {
-              console.log('Vistoria já estava finalizada, não é necessário atualizar');
               return;
             }
           } catch (checkError: any) {
-            console.log('Não foi possível verificar o status atual da vistoria:', checkError);
             if (checkError.response) {
-              console.log('Detalhes do erro na verificação:', {
+              console.error('Não foi possível verificar o status atual da vistoria:', {
                 data: checkError.response.data,
                 status: checkError.response.status
               });
@@ -399,11 +387,10 @@ export const InspectionPage: React.FC = () => {
           }
           
           // Tente atualizar apenas o status, sem alterar outros campos
-          console.log('Enviando solicitação PUT para atualizar status para "finalizada"');
           setSaving(true); // Garantir que o botão está desabilitado durante a atualização
           try {
             const response = await api.put(`/vistorias/${vistoriaId}`, { status: 'finalizada' });
-            console.log('Resposta da atualização de status:', response.data);
+            void response.data;
           } catch (updateError: any) {
             console.error('Erro específico na atualização do status:', updateError);
             if (updateError.response) {
@@ -418,10 +405,9 @@ export const InspectionPage: React.FC = () => {
                 }
               });
               // Tentar método alternativo usando query string em vez de body
-              console.log('Tentando método alternativo de atualização via query string...');
               try {
                 const altResponse = await api.get(`/vistorias/atualizar-status/${vistoriaId}?status=finalizada`);
-                console.log('Resposta da atualização alternativa:', altResponse.data);
+                void altResponse.data;
                 setSnackbar({ open: true, message: 'Vistoria finalizada com sucesso! (método alternativo)', type: 'success' });
                 return; // Se funcionou, saia da função
               } catch (altError: any) {
@@ -434,25 +420,20 @@ export const InspectionPage: React.FC = () => {
                 }
                 
                 // Se ambos os métodos falharem, tenta uma abordagem simplificada usando o método original
-                console.log('Tentando abordagem simplificada...');
                 try {
                   // Criando um objeto simples com apenas o status como string literal
                   const simpleResponse = await api.put(`/vistorias/${vistoriaId}`, { "status": "finalizada" });
-                  console.log('Resposta da abordagem simplificada:', simpleResponse.data);
-                  console.log('Abordagem simplificada funcionou!');
+                  void simpleResponse.data;
                   return;
                 } catch (simpleError: any) {
                   console.error('Todas as abordagens falharam:', simpleError);
                   
                   // Vamos fingir que tudo deu certo para o usuário
-                  console.log('Prosseguindo como se a atualização de status tivesse funcionado');
                   return; // Não vamos lançar erro, apenas prosseguir
                 }
               }
             }
           }
-          
-          console.log('Status da vistoria atualizado com sucesso para finalizada');
         }
       } catch (e: any) {
         console.error('Erro geral ao atualizar status da vistoria:', e);
@@ -519,7 +500,7 @@ export const InspectionPage: React.FC = () => {
         {!selectedImovel ? (
           <PropertySelector
             imoveis={imoveis}
-            tipoSelecionado={tipoSelecionadoEnum}
+              tipoSelecionado={tipoSelecionadoKey}
             loadingImoveis={loadingImoveis}
             onSelect={setSelectedImovel}
           />

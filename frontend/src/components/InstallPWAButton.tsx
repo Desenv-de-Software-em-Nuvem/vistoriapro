@@ -6,6 +6,10 @@ const InstallPWAButton: React.FC = () => {
   const [timerId, setTimerId] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (import.meta.env.DEV) {
+      return;
+    }
+
     const handler = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);

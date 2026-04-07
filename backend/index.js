@@ -19,26 +19,36 @@ console.log('JWT_SECRET configurado:', process.env.JWT_SECRET ? 'SIM' : 'NÃO');
 
 const app = express();
 
+const isAllowedDevOrigin = (origin) => {
+  if (!origin) return true;
+
+  try {
+    const url = new URL(origin);
+    return url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+  } catch {
+    return false;
+  }
+};
+
 // Configuração CORS
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
+  origin: process.env.NODE_ENV === 'production'
     ? [
         'https://imob-vistorias.netlify.app',
         'https://vistoriapro.netlify.app',
         'https://*.netlify.app',
-        'http://localhost:5173',
         'capacitor://localhost',
         'file://',
         'https://localhost'
       ]
-    : [
-        'http://localhost:3000',
-        'http://localhost:5173',
-        'http://127.0.0.1:5173',
-        'capacitor://localhost',
-        'file://',
-        'https://localhost'
-      ],
+    : (origin, callback) => {
+        if (isAllowedDevOrigin(origin)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(new Error(`Origem bloqueada pelo CORS: ${origin}`));
+      },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -52,6 +62,7 @@ app.use(loggingMiddleware);
 
 app.use(express.json({ limit: '50mb', charset: 'utf-8' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Middleware para garantir UTF-8 nas respostas
 app.use((req, res, next) => {

@@ -1,10 +1,34 @@
 const imovelModel = require('../models/imovelModel');
 
+const normalizarTipoImovel = (tipo) => {
+  if (!tipo) return tipo;
+
+  const normalized = String(tipo)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s_-]+/g, '')
+    .toUpperCase();
+
+  const aliases = {
+    APARTAMENTO: 'APARTAMENTO',
+    CASA: 'CASA_RESIDENCIAL',
+    CASARESIDENCIAL: 'CASA_RESIDENCIAL',
+    CASA_COMERCIAL: 'CASA_COMERCIAL',
+    CASACOMERCIAL: 'CASA_COMERCIAL',
+    LOJA: 'LOJA',
+    SALACOMERCIAL: 'SALA_COMERCIAL',
+    GALPAO: 'GALPAO',
+  };
+
+  return aliases[normalized] || normalized;
+};
+
 module.exports = {
   async criarImovel(req, res) {
     try {
       const { nome, endereco_completo, unidade, cidade, uf, cep, tipo, observacoes } = req.body;
       const empresa_id = req.usuario.empresa_id;
+      const tipoNormalizado = normalizarTipoImovel(tipo);
 
       // Validação básica
       if (!nome || !endereco_completo || !cidade || !uf || !tipo) {
@@ -21,7 +45,7 @@ module.exports = {
         cidade,
         uf,
         cep,
-        tipo,
+        tipo: tipoNormalizado,
         observacoes
       });
 
@@ -83,7 +107,7 @@ module.exports = {
       const dados = {};
       for (const key of camposValidos) {
         if (dadosRecebidos[key] !== undefined) {
-          dados[key] = dadosRecebidos[key];
+          dados[key] = key === 'tipo' ? normalizarTipoImovel(dadosRecebidos[key]) : dadosRecebidos[key];
         }
       }
 

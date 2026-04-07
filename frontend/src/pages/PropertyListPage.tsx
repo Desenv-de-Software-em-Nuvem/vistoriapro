@@ -31,6 +31,7 @@ import api from '../services/api'
 import { ConfirmationModal } from '../components/ConfirmationModal'
 import { AppHeader } from '../components/AppHeader'
 import { MobileTabBar } from '../components/MobileTabBar'
+import { getTipoDisplay } from '../constants/propertyTypes'
 
 const Container = styled.div`
   min-height: 100vh;
@@ -85,10 +86,10 @@ const FiltersRow = styled.div`
   margin: 8px 0 16px 0;
 `;
 
-const FilterChip = styled.button<{active?: boolean}>`
+const FilterChip = styled.button<{ $active?: boolean }>`
   border: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme, active }) => active ? theme.colors.primary + '20' : theme.colors.backgroundTertiary};
-  color: ${({ theme, active }) => active ? theme.colors.primary : theme.colors.textSecondary};
+  background: ${({ theme, $active }) => $active ? theme.colors.primary + '20' : theme.colors.backgroundTertiary};
+  color: ${({ theme, $active }) => $active ? theme.colors.primary : theme.colors.textSecondary};
   padding: 6px 10px;
   border-radius: 999px;
   font-size: 12px;
@@ -397,10 +398,10 @@ export const PropertyListPage: React.FC = () => {
 
       {imoveis.length > 0 && (
         <FiltersRow>
-          <FilterChip active={!activeType} onClick={() => setActiveType('')}>Todos</FilterChip>
+          <FilterChip $active={!activeType} onClick={() => setActiveType('')}>Todos</FilterChip>
           {Array.from(new Set(imoveis.map(i => i.tipo))).map(tipo => (
-            <FilterChip key={tipo} active={activeType === tipo} onClick={() => setActiveType(tipo)}>
-              {tipo.toUpperCase()}
+            <FilterChip key={tipo} $active={activeType === tipo} onClick={() => setActiveType(tipo)}>
+                {getTipoDisplay(tipo)}
             </FilterChip>
           ))}
         </FiltersRow>
@@ -450,14 +451,14 @@ export const PropertyListPage: React.FC = () => {
                 </div>
                 <PropertyActionsRow>
                   <ActionButton 
-                    variant="edit" 
+                    $variant="edit" 
                     title="Editar"
                     onClick={() => navigate(`/property-edit/${imovel.id}`)}
                   >
                     ✏️
                   </ActionButton>
                   <ActionButton 
-                    variant="delete" 
+                    $variant="delete" 
                     title="Excluir"
                     onClick={() => handleDelete(imovel.id, imovel.nome)}
                   >
@@ -465,14 +466,12 @@ export const PropertyListPage: React.FC = () => {
                   </ActionButton>
                 </PropertyActionsRow>
               </PropertyHeader>
-
               <PropertyAddress>
                 <MapPin size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
                 <div>
                   {imovel.endereco_completo}
                   <br />
                   {imovel.cidade} - {imovel.uf}
-                  {imovel.cep && ` • CEP: ${imovel.cep}`}
                 </div>
               </PropertyAddress>
 
@@ -506,7 +505,8 @@ export const PropertyListPage: React.FC = () => {
         />
       )}
 
-      <FabButton onClick={() => navigate('/property-registration')} aria-label="Novo Imóvel">+
+      <FabButton onClick={() => navigate('/property-registration')} aria-label="Novo Imóvel">
+        +
       </FabButton>
 
       <MobileTabBar />
@@ -542,7 +542,7 @@ const FabButton = styled.button`
   cursor: pointer;
 `;
 
-const ActionButton = styled.button<{ variant?: 'view' | 'edit' | 'delete' }>`
+const ActionButton = styled.button<{ $variant?: 'view' | 'edit' | 'delete' }>`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -563,8 +563,8 @@ const ActionButton = styled.button<{ variant?: 'view' | 'edit' | 'delete' }>`
 
   &:hover {
     background: #f3f3f3;
-    color: ${({ variant }) =>
-      variant === 'edit' ? '#f59e0b' : variant === 'delete' ? '#ef4444' : '#2563eb'};
+    color: ${({ $variant }) =>
+      $variant === 'edit' ? '#f59e0b' : $variant === 'delete' ? '#ef4444' : '#2563eb'};
     transform: scale(1.1);
   }
 

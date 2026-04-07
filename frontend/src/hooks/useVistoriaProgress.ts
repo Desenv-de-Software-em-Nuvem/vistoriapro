@@ -20,9 +20,7 @@ export function useVistoriaProgress({ idImovel, idUsuario }: UseVistoriaProgress
 
   const loadProgress = useCallback(async () => {
     setLoading(true);
-    console.log('Carregando progresso para ID:', id);
     const data = await getVistoriaProgress(id);
-    console.log('Progresso carregado:', data);
     setProgress(data || null);
     setLoading(false);
   }, [id]);

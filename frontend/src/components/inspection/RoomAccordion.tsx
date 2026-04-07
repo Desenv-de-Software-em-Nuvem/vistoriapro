@@ -121,11 +121,11 @@ const RoomTitle = styled.div`
   font-weight: 600;
 `;
 
-const AccordionContent = styled.div<{ expanded: boolean }>`
-  max-height: ${({ expanded }) => (expanded ? '1000px' : '0')};
+const AccordionContent = styled.div<{ $expanded: boolean }>`
+  max-height: ${({ $expanded }) => ($expanded ? '1000px' : '0')};
   overflow: hidden;
   transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  padding: ${({ expanded, theme }) => (expanded ? theme.spacing.lg : '0')};
+  padding: ${({ $expanded, theme }) => ($expanded ? theme.spacing.lg : '0')};
 `;
 
 const Menu = styled.div`
@@ -214,7 +214,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
           {expanded ? <ChevronUp /> : <ChevronDown />}
         </div>
       </AccordionHeader>
-      <AccordionContent expanded={expanded}>
+      <AccordionContent $expanded={expanded}>
         <Menu>
          <MenuButton onClick={() => setCameraOpen(true)}>
            <Camera size={18} /> Câmera

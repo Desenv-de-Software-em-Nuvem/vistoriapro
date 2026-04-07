@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 
-const SidebarContainer = styled.aside<{ open: boolean }>`
+const SidebarContainer = styled.aside<{ $open: boolean }>`
   position: fixed;
   top: 0;
   left: 0;
   height: 100vh;
-  width: ${({ open }) => (open ? '220px' : '60px')};
+  width: ${({ $open }) => ($open ? '220px' : '60px')};
   background: #18171c;
   box-shadow: 2px 0 8px rgba(0,0,0,0.08);
   transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
   z-index: 100;
   display: flex;
   flex-direction: column;
-  align-items: ${({ open }) => (open ? 'flex-start' : 'center')};
+  align-items: ${({ $open }) => ($open ? 'flex-start' : 'center')};
 `;
 
 const ToggleButton = styled.button`
@@ -26,12 +26,12 @@ const ToggleButton = styled.button`
   outline: none;
 `;
 
-const MenuList = styled.ul<{ open: boolean }>`
+const MenuList = styled.ul<{ $open: boolean }>`
   list-style: none;
   padding: 0;
   margin-top: 40px;
   width: 100%;
-  opacity: ${({ open }) => (open ? 1 : 0)};
+  opacity: ${({ $open }) => ($open ? 1 : 0)};
   transition: opacity 0.2s;
 `;
 
@@ -50,14 +50,14 @@ const AdminSidebar: React.FC = () => {
   const [open, setOpen] = useState(false);
 
   return (
-    <SidebarContainer open={open}>
+    <SidebarContainer $open={open}>
       <ToggleButton
         aria-label={open ? 'Fechar menu' : 'Abrir menu'}
         onClick={() => setOpen((prev) => !prev)}
       >
         {open ? '←' : '☰'}
       </ToggleButton>
-      <MenuList open={open}>
+      <MenuList $open={open}>
         <MenuItem>Cadastrar Usuário</MenuItem>
         <MenuItem>Editar Usuário</MenuItem>
         <MenuItem>Deletar Usuário</MenuItem>

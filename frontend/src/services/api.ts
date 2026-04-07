@@ -3,13 +3,14 @@ import axios from 'axios';
 // Adicionando logs para depuração
 const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const baseURL = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
+const apiTimeout = Number(import.meta.env.VITE_API_TIMEOUT || 30000);
 
 // Removidos logs de URL em produção para evitar exposição de variáveis sensíveis
 
 // Configuração base da API
 const api = axios.create({
   baseURL: baseURL,
-  timeout: 10000,
+  timeout: apiTimeout,
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
     'Accept': 'application/json; charset=utf-8'

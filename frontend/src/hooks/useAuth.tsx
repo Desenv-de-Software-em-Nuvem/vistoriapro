@@ -1,24 +1,8 @@
-import { useState, useEffect, createContext, useContext } from 'react'
+import { useState, useEffect, useContext } from 'react'
 import type { ReactNode } from 'react'
 import api from '../services/api'
-
-interface User {
-  id: string
-  name: string
-  email: string
-  empresa_id: number
-  permitidoVistoria?: boolean
-}
-
-interface AuthContextType {
-  user: User | null
-  isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<boolean>
-  logout: () => void
-  loading: boolean
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+import { AuthContext } from './authContext'
+import type { AuthContextType, User } from './authContext'
 
 interface AuthProviderProps {
   children: ReactNode

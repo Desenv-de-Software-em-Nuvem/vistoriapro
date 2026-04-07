@@ -1,186 +1,129 @@
-# VistoriaPro Unifor
+# VistoriaPro
 
-Sistema de vistorias imobiliárias com API REST backend.
+Sistema de vistorias imobiliárias
 
-## 📋 Visão Geral
+## Visão Geral
 
-O VistoriaPro é uma aplicação para gestão de vistorias imobiliárias, permitindo que empresas realizem inspeções estruturais, documentem cômodos, façam upload de fotos e gerem laudos técnicos.
+O VistoriaPro permite registrar vistorias imobiliárias, organizar cômodos, anexar fotos e gerar laudos técnicos. O projeto está dividido em dois aplicativos:
 
-## 🏗️ Arquitetura
+- Backend em Node.js com Express e PostgreSQL
+- Frontend em React com Vite, TypeScript, Styled Components e PWA
 
-- **Backend:** Node.js + Express + TypeORM
-- **Banco:** PostgreSQL
-- **Autenticação:** JWT com controle de acesso por papéis
-- **Documentação:** Swagger UI
-- **Containerização:** Docker
+## Arquitetura
 
-## 🚀 Funcionalidades
+- Backend: Node.js + Express + PostgreSQL + JWT
+- Frontend: React + Vite + TypeScript
+- Documentação da API: Swagger UI
+- Persistência local: PostgreSQL via Docker ou instância própria
 
-### ✅ Implementadas
-- 🔐 **Autenticação JWT** - Sistema completo de login e controle de acesso
-- 🔒 **Criptografia de Senhas** - Hash bcrypt para segurança
-- 📚 **Documentação Swagger** - API documentada interativamente
-- 🗄️ **Banco PostgreSQL** - Persistência com TypeORM
-- 🔄 **Migrations** - Controle de versão do banco
-- 👥 **Controle de Acesso** - Papéis: Admin, Vistoriador, Cliente
+## Funcionalidades
 
-### 📋 Recursos Disponíveis
-- **Usuários** - Gestão de usuários do sistema
-- **Empresas** - Cadastro de empresas imobiliárias
-- **Imóveis** - Controle de propriedades
-- **Vistorias** - Inspeções e laudos técnicos
-- **Cômodos** - Detalhamento por ambiente
-- **Fotos** - Upload e organização de imagens
-- **Transcrições** - Documentação textual
-- **Locatários** - Gestão de inquilinos
+### Backend
+- Autenticação JWT com controle por papéis
+- Cadastro de usuários, empresas, imóveis, vistorias, cômodos, fotos, transcrições e locatários
+- Documentação interativa da API
+- Upload de imagens e geração de laudos
 
-## 🛠️ Instalação e Execução
+### Frontend
+- Interface web para operação diária da vistoria
+- Fluxo de login e navegação protegida
+- Suporte a instalação como PWA
+- Integração com a API via `VITE_API_URL`
 
-### Pré-requisitos
-- Docker e Docker Compose
-- Node.js 18+ (opcional, para desenvolvimento)
-- PostgreSQL 12+ (opcional, para desenvolvimento)
+## Requisitos
 
-### Com Docker (Recomendado)
+- Node.js 20+ recomendado
+- npm 9+
+- PostgreSQL 12+ para execução local sem Docker
+- Docker e Docker Compose opcionais
+
+## Execução Local
+
+### 1. Backend
+
 ```bash
-# Clonar repositório
-git clone <repository-url>
-cd vistoriaprounifor
-
-# Construir e executar
-docker-compose up --build
-
-# API disponível em: http://localhost:3000
-# Documentação: http://localhost:3000/api/docs/
+cd backend
+npm ci
+copy .env.example .env
 ```
 
-### Desenvolvimento Local
+No arquivo `.env`, informe uma destas opções:
+
+- `DATABASE_URL=postgresql://usuario:senha@localhost:5432/vistoriapro`
+- ou `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` e `DB_NAME`
+
+O schema canônico do sistema está em [databases/banco.sql](databases/banco.sql). Se você estiver usando PostgreSQL localmente, aplique esse arquivo uma vez antes de iniciar a API.
+
+Depois inicie a API:
+
 ```bash
-# Backend
-cd backend
-npm install
-npm run db:recreate
-npm run db:create-test-user
 npm start
 ```
 
-## 🔐 Autenticação
+API local:
 
-### Usuário de Teste
-- **Email:** `admin@example.com`
-- **Senha:** `admin123`
-- **Papel:** Admin
+- `http://localhost:3000`
+- `http://localhost:3000/health`
+- `http://localhost:3000/docs/`
 
-### Login via API
+### 2. Frontend
+
+Em outro terminal:
+
 ```bash
-curl -X POST http://localhost:3000/api/usuarios/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@example.com","password":"admin123"}'
+cd frontend
+npm ci
+copy .env.example .env.local
+npm run dev
 ```
 
-### Usar Token
+Frontend local:
+
+- `http://localhost:5173`
+
+Em `.env.local`, ajuste se necessário:
+
+- `VITE_API_URL=http://localhost:3000`
+
+## Docker
+
+O `docker-compose.yml` sobe PostgreSQL e backend. O frontend continua sendo executado separadamente com Vite.
+
+O Postgres do compose inicializa o banco com [databases/banco.sql](databases/banco.sql) na primeira criação do volume.
+
+Se você usar o backend via Docker Compose, a API ficará em `http://localhost:3001`; nesse caso, ajuste `VITE_API_URL` para essa porta no frontend.
+
 ```bash
-curl -H "Authorization: Bearer SEU_TOKEN_JWT" \
-  http://localhost:3000/api/usuarios
+docker compose up --build
 ```
 
-## 📁 Estrutura do Projeto
+Serviços expostos:
+
+- API: `http://localhost:3001`
+- Banco: `localhost:5433`
+
+## Autenticação
+
+O projeto inclui endpoints de autenticação via JWT. Se o seu banco estiver populado com os dados iniciais, use as credenciais criadas no ambiente correspondente.
+
+## Estrutura
 
 ```
-vistoriaprounifor/
-├── backend/              # API Node.js
-│   ├── src/
-│   │   ├── controllers/  # Lógica dos endpoints
-│   │   ├── entities/     # Modelos TypeORM
-│   │   ├── middlewares/  # Autenticação JWT
-│   │   ├── repositories/ # Camada de dados
-│   │   ├── routes/       # Definição das rotas
-│   │   └── services/     # Serviços auxiliares
-│   ├── migrations/       # Scripts SQL
-│   └── scripts/          # Utilitários
-├── docker-compose.yml    # Orquestração
-├── Dockerfile           # Containerização
+vistoriapro/
+├── backend/
+├── frontend/
+├── docker-compose.yml
+├── Dockerfile
 └── README.md
 ```
 
-## 🔑 Papéis e Permissões
+## Documentação
 
-- **Admin**: Acesso total ao sistema
-- **Vistoriador**: Leitura e algumas operações específicas
-- **Cliente**: Acesso limitado aos próprios dados
+- API: `http://localhost:3000/docs/`
+- Swagger JSON: `http://localhost:3000/swagger.json`
 
-## 📚 Documentação
+## Observações
 
-- **API Swagger:** `http://localhost:3000/api/docs/`
-- **Guia de Autenticação:** `backend/AUTH.md`
-- **Migrations:** `backend/MIGRATIONS.md`
-
-## 🧪 Testes
-
-```bash
-# Testar conectividade
-curl http://localhost:3000/api/
-
-# Testar banco de dados
-curl http://localhost:3000/test-db
-
-# Testar autenticação
-curl -X POST http://localhost:3000/api/usuarios/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@example.com","password":"admin123"}'
-```
-
-## 📋 Scripts Úteis
-
-```bash
-# Backend
-cd backend
-
-# Recriar banco do zero
-npm run db:recreate
-
-# Criar usuário de teste
-npm run db:create-test-user
-
-# Executar migration específica
-npm run db:migrate alter-usuarios-senha-hash.sql
-
-# Gerar documentação Swagger
-npm run swagger:generate
-```
-
-## 🐳 Docker
-
-### Comandos Úteis
-```bash
-# Construir imagens
-docker-compose build
-
-# Executar em background
-docker-compose up -d
-
-# Ver logs
-docker-compose logs -f backend
-
-# Parar serviços
-docker-compose down
-
-# Limpar volumes
-docker-compose down -v
-```
-
-## 🤝 Contribuição
-
-1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/nova-feature`)
-3. Commit suas mudanças (`git commit -am 'Adiciona nova feature'`)
-4. Push para a branch (`git push origin feature/nova-feature`)
-5. Abra um Pull Request
-
-## 📝 Licença
-
-MIT
-
-## 📞 Suporte
-
-Para dúvidas ou problemas, consulte a documentação.
+- O banco local precisa estar criado antes de iniciar o backend.
+- As variáveis de ambiente do backend aceitam tanto `DATABASE_URL` quanto o conjunto `DB_*`.
+- O frontend lê a URL da API por `VITE_API_URL`.

@@ -1,4 +1,6 @@
 const fotoModel = require('../models/fotoModel');
+const fs = require('fs');
+const path = require('path');
 
 module.exports = {
   async uploadFoto(req, res) {
@@ -14,13 +16,12 @@ module.exports = {
         return res.status(400).json({ error: 'vistoria_id e foto (arquivo) são obrigatórios.' });
       }
 
-      // Upload para Supabase Storage
       let urlPublica;
       try {
-        urlPublica = await uploadToSupabase(req.file.buffer, req.file.originalname, 'fotos');
+        urlPublica = await uploadToSupabase(req.file.buffer, req.file.originalname, 'fotos', req.file.mimetype);
       } catch (uploadErr) {
-        console.error('Erro ao fazer upload para o Supabase:', uploadErr);
-        return res.status(500).json({ error: 'Erro ao fazer upload da foto para o Supabase', details: uploadErr.message });
+        console.error('Erro ao salvar imagem:', uploadErr);
+        return res.status(500).json({ error: 'Erro ao salvar a foto', details: uploadErr.message });
       }
 
       const foto = await fotoModel.salvar({ 

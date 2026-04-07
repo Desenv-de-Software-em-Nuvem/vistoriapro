@@ -86,7 +86,7 @@ const ValidationSchemas = {
     papel: {
       required: true,
       validator: (v) => {
-        const validRoles = ['admin', 'vistoriador', 'locatario'];
+        const validRoles = ['admin', 'vistoriador', 'cliente'];
         if (!validRoles.includes(v)) {
           throw new ValidationError('papel', 'Papel inválido');
         }

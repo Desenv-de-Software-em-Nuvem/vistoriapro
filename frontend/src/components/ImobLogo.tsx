@@ -30,12 +30,12 @@ const SystemTitle = styled.div<{ size: string }>`
   text-transform: uppercase;
 `
 
-const LogoFrame = styled.div<{ size: string; withBackground?: boolean }>`
+const LogoFrame = styled.div<{ size: string; $withBackground?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 0;
-  ${({ withBackground }) => withBackground && `
+  ${({ $withBackground }) => $withBackground && `
     background: rgba(255,255,255,0.85);
     border-radius: 0.75em;
     padding: clamp(0.5em, 2vw, 1.2em);
@@ -81,7 +81,7 @@ export const ImobLogo: React.FC<LogoProps> = ({
 }) => {
   if (variant === 'icon-only') {
     return (
-      <LogoFrame size={size} className={className} withBackground={withBackground}>
+      <LogoFrame size={size} className={className} $withBackground={withBackground}>
         <LogoImage 
           src="/VistoriaPro.png" 
           alt="VistoriaPro" 
@@ -96,7 +96,7 @@ export const ImobLogo: React.FC<LogoProps> = ({
       <SystemTitle size={size}>
         Vistorias Sistema Profissional
       </SystemTitle>
-      <LogoFrame size={size} withBackground={withBackground}>
+      <LogoFrame size={size} $withBackground={withBackground}>
         <LogoImage 
           src="/VistoriaPro.png" 
           alt="VistoriaPro" 

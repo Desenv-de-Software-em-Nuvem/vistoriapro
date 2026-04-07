@@ -28,7 +28,88 @@ const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 const mustache = require('mustache');
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+const COMMON_CHROME_PATHS = process.platform === 'win32'
+  ? [
+      process.env.PUPPETEER_EXECUTABLE_PATH,
+      process.env.CHROME_PATH,
+      process.env.CHROMIUM_PATH,
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+      'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+    ]
+  : [
+      process.env.PUPPETEER_EXECUTABLE_PATH,
+      process.env.CHROME_PATH,
+      process.env.CHROMIUM_PATH,
+      '/usr/bin/chromium-browser',
+      '/usr/bin/chromium',
+      '/usr/bin/google-chrome',
+      '/usr/bin/google-chrome-stable',
+      '/usr/bin/microsoft-edge'
+    ]
+  .filter(Boolean);
+
+const findChromeExecutable = () => {
+  for (const executablePath of COMMON_CHROME_PATHS) {
+    if (typeof executablePath === 'string' && fs.existsSync(executablePath)) {
+      return executablePath;
+    }
+  }
+
+  return undefined;
+};
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_API_KEY;
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+const relatoriosDir = path.join(__dirname, '../../uploads/relatorios');
+const FOTO_MAX_WIDTH = 900;
+const FOTO_MAX_HEIGHT = 900;
+const FOTO_JPEG_QUALITY = 42;
+const logoCandidates = [
+  path.join(__dirname, '../../public/VistoriaPro.png'),
+  path.join(process.cwd(), 'public/VistoriaPro.png'),
+  path.join(__dirname, '../../../frontend/public/VistoriaPro.png')
+];
+
+function getRelatorioBaseUrl(req) {
+  const internalPort = process.env.PORT || '3000';
+  const host = process.env.INTERNAL_BASE_URL || `http://127.0.0.1:${internalPort}`;
+  return host.replace(/\/$/, '');
+}
+
+function getLogoDataUri() {
+  for (const candidate of logoCandidates) {
+    if (fs.existsSync(candidate)) {
+      const extension = path.extname(candidate).toLowerCase();
+      const mimeType = extension === '.png' ? 'image/png' : 'image/svg+xml';
+      const buffer = fs.readFileSync(candidate);
+      return `data:${mimeType};base64,${buffer.toString('base64')}`;
+    }
+  }
+
+  return '';
+}
+
+function normalizarUrlImagem(req, url) {
+  if (!url) return '';
+  if (/^data:|^https?:\/\//i.test(url)) return url;
+
+  const baseUrl = getRelatorioBaseUrl(req);
+  try {
+    return new URL(url, `${baseUrl}/`).toString();
+  } catch {
+    return url;
+  }
+}
+
+async function carregarImagemCompactada(req, url) {
+  const resolvedUrl = normalizarUrlImagem(req, url);
+  if (!resolvedUrl) return '';
+
+  return resolvedUrl;
+}
 
 const vistoriaModel = require('../models/vistoriaModel');
 const imovelModel = require('../models/imovelModel');
@@ -85,13 +166,14 @@ module.exports = {
 
       // Agrupa fotos por cômodo (garantindo tipo string para id)
       const fotosPorComodo = {};
-      fotos.forEach(f => {
+      for (const f of fotos) {
         const key = f.comodo_id ? String(f.comodo_id) : (f.comodo_nome || 'outros');
         if (!fotosPorComodo[key]) fotosPorComodo[key] = [];
         // Usa a transcrição como descrição, se existir
         const descricao = transcricaoPorFoto[String(f.id)] || f.descricao;
-        fotosPorComodo[key].push({ url: f.url, descricao });
-      });
+        const urlCompacta = await carregarImagemCompactada(req, f.url);
+        fotosPorComodo[key].push({ url: urlCompacta, descricao });
+      }
 
 
       // Monta array de cômodos com fotos (id como string) e sempre força array
@@ -132,6 +214,7 @@ module.exports = {
         comodos: comodosCompletos,
         fotos_sem_comodo: fotosSemComodo,
         data_geracao: new Date().toLocaleDateString('pt-BR'),
+        logo_data_uri: getLogoDataUri(),
       };
 
       // Gera o texto de abertura formatado
@@ -149,18 +232,29 @@ module.exports = {
       const html = htmlFinalDebug;
       const browser = await puppeteer.launch({
         headless: 'new',
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        executablePath: findChromeExecutable(),
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
       });
       const page = await browser.newPage();
-      await page.setContent(html);
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      await page.evaluate(async () => {
+        await Promise.all(Array.from(document.images).map((img) => {
+          if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+          if (typeof img.decode === 'function') {
+            return img.decode().catch(() => undefined);
+          }
+          return new Promise((resolve) => {
+            img.onload = resolve;
+            img.onerror = resolve;
+          });
+        }));
+      });
       const nomeArquivo = `relatorio_vistoria_${vistoria_id}_${Date.now()}.pdf`;
       const pdfBuffer = await page.pdf({
         format: 'A4',
         displayHeaderFooter: true,
         headerTemplate: `
-          <div style='width:100%; text-align:left; padding-left:0; margin-left:0;'>
-            <img src='data:image/svg+xml;utf8,<svg width="600" height="200" viewBox="0 0 400 200" fill="none" xmlns="http://www.w3.org/2000/svg"><g transform="translate(50, 50)"><rect x="0" y="30" width="15" height="40" fill="%23ff6b35"/><rect x="15" y="20" width="15" height="50" fill="%23ff4500"/><rect x="30" y="35" width="15" height="35" fill="%23ff8c42"/></g><text x="120" y="90" font-family="Arial, sans-serif" font-size="96" font-weight="900" fill="%23000000">Imob</text><text x="120" y="110" font-family="Arial, sans-serif" font-size="24" font-weight="500" fill="%23000000" letter-spacing="2px">EMPREENDIMENTOS</text></svg>' style='height:110px; width:auto; margin-top:0;' />
-          </div>
+          <div style='width:100%; padding:0; margin:0; height:12px; font-size:1px; line-height:1px;'></div>
         `,
         footerTemplate: `
           <div style='width:100%; text-align:center; font-size:12px; color:#888; padding:8px 0;'>
@@ -181,23 +275,30 @@ module.exports = {
       });
       await browser.close();
 
-      // Salva no Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('relatorios')
-        .upload(nomeArquivo, pdfBuffer, {
-          contentType: 'application/pdf',
-          upsert: true
-        });
+      let pdfUrl;
+      if (supabase) {
+        // Salva no Supabase Storage quando configurado
+        const { error: uploadError } = await supabase.storage
+          .from('relatorios')
+          .upload(nomeArquivo, pdfBuffer, {
+            contentType: 'application/pdf',
+            upsert: true
+          });
         if (uploadError) {
           throw new Error('Erro ao salvar PDF no Supabase Storage: ' + uploadError.message);
         }
 
-      // Pega a URL pública
-      const { data: publicUrlData } = supabase
-        .storage
-        .from('relatorios')
-        .getPublicUrl(nomeArquivo);
-      const pdfUrl = publicUrlData.publicUrl;
+        const { data: publicUrlData } = supabase
+          .storage
+          .from('relatorios')
+          .getPublicUrl(nomeArquivo);
+        pdfUrl = publicUrlData.publicUrl;
+      } else {
+        fs.mkdirSync(relatoriosDir, { recursive: true });
+        const localPath = path.join(relatoriosDir, nomeArquivo);
+        fs.writeFileSync(localPath, pdfBuffer);
+        pdfUrl = `${req.protocol}://${req.get('host')}/uploads/relatorios/${nomeArquivo}`;
+      }
 
       // Salva no banco
       const relatorio = await relatorioModel.gerar({ vistoria_id, url_arquivo: nomeArquivo, dados_adicionais: data });
@@ -236,33 +337,39 @@ module.exports = {
       res.status(500).json({ error: err.message });
     }
   },
-  async listarRelatorios(req, res) {
-    try {
-      const relatorios = await relatorioModel.listarTodos();
-      res.json(relatorios);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  },
   async downloadRelatorio(req, res) {
     try {
       const relatorio = await relatorioModel.buscarPorId(req.params.id);
       if (!relatorio || !relatorio.url_arquivo) {
         return res.status(404).json({ error: 'Relatório não encontrado.' });
       }
-      // Busca a URL pública do Supabase Storage
-      const { createClient } = require('@supabase/supabase-js');
-      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-      const { data: publicUrlData } = supabase
-        .storage
-        .from('relatorios')
-        .getPublicUrl(relatorio.url_arquivo);
-      const pdfUrl = publicUrlData.publicUrl;
-      if (!pdfUrl) {
-        return res.status(404).json({ error: 'Arquivo do relatório não encontrado no storage.' });
+
+      if (supabase) {
+        const { data: publicUrlData } = supabase
+          .storage
+          .from('relatorios')
+          .getPublicUrl(relatorio.url_arquivo);
+        const pdfUrl = publicUrlData.publicUrl;
+        if (!pdfUrl) {
+          return res.status(404).json({ error: 'Arquivo do relatório não encontrado no storage.' });
+        }
+        return res.redirect(pdfUrl);
       }
-      // Redireciona para a URL pública do PDF
-      return res.redirect(pdfUrl);
+
+      const localPath = path.join(relatoriosDir, relatorio.url_arquivo);
+      if (!fs.existsSync(localPath)) {
+        return res.status(404).json({ error: 'Arquivo do relatório não encontrado no armazenamento local.' });
+      }
+
+      return res.download(localPath);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+  async listarRelatorios(req, res) {
+    try {
+      const relatorios = await relatorioModel.listarTodos();
+      res.json(relatorios);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

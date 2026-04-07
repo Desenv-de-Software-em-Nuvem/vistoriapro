@@ -2,6 +2,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { Building2 } from 'lucide-react';
 import type { Imovel } from '../../services/imovelService';
+import { getTipoDisplay, matchesPropertyType } from '../../constants/propertyTypes';
 
 const SectionTitle = styled.h2`
   font-size: ${({ theme }) => theme.fontSizes.xl};
@@ -19,14 +20,14 @@ const RoomGrid = styled.div`
   margin-bottom: ${({ theme }) => theme.spacing.xl};
 `;
 
-const RoomCard = styled.button<{ isSelected: boolean; isCompleted: boolean }>`
-  background: ${({ theme, isSelected, isCompleted }) => 
-    isCompleted ? theme.colors.success + '20' :
-    isSelected ? theme.colors.primary + '20' : 
+const RoomCard = styled.button<{ $isSelected: boolean; $isCompleted: boolean }>`
+  background: ${({ theme, $isSelected, $isCompleted }) => 
+    $isCompleted ? theme.colors.success + '20' :
+    $isSelected ? theme.colors.primary + '20' : 
     theme.colors.backgroundGlass};
-  border: 2px solid ${({ theme, isSelected, isCompleted }) => 
-    isCompleted ? theme.colors.success :
-    isSelected ? theme.colors.primary : 
+  border: 2px solid ${({ theme, $isSelected, $isCompleted }) => 
+    $isCompleted ? theme.colors.success :
+    $isSelected ? theme.colors.primary : 
     theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.xl};
   padding: ${({ theme }) => theme.spacing.lg};
@@ -47,10 +48,10 @@ const RoomCard = styled.button<{ isSelected: boolean; isCompleted: boolean }>`
   backdrop-filter: blur(10px);
 `;
 
-const RoomIcon = styled.div<{ isCompleted: boolean }>`
+const RoomIcon = styled.div<{ $isCompleted: boolean }>`
   font-size: 2rem;
-  color: ${({ theme, isCompleted }) => 
-    isCompleted ? theme.colors.success : theme.colors.primary};
+  color: ${({ theme, $isCompleted }) => 
+    $isCompleted ? theme.colors.success : theme.colors.primary};
   margin-bottom: ${({ theme }) => theme.spacing.xs};
 `;
 
@@ -73,44 +74,47 @@ interface PropertySelectorProps {
   onSelect: (imovel: Imovel) => void;
 }
 
-export const PropertySelector: React.FC<PropertySelectorProps> = ({ imoveis, tipoSelecionado, loadingImoveis, onSelect }) => (
-  <section>
-    <SectionTitle>
-      <Building2 size={24} /> Selecione o imóvel a ser vistoriado
-    </SectionTitle>
-    {loadingImoveis ? (
-      <p>Carregando imóveis...</p>
-    ) : imoveis.filter(imovel => tipoSelecionado ? imovel.tipo === tipoSelecionado : true).length === 0 ? (
-      <EmptyState>
-        <Building2 size={48} />
-        <p>
-          {tipoSelecionado 
-            ? `Nenhum imóvel do tipo "${tipoSelecionado}" encontrado.` 
-            : 'Nenhum imóvel cadastrado.'}
-        </p>
-        <p>Cadastre um imóvel primeiro para iniciar uma vistoria.</p>
-      </EmptyState>
-    ) : (
-      <RoomGrid>
-        {imoveis
-          .filter(imovel => tipoSelecionado
-            ? String(imovel.tipo).toLowerCase() === String(tipoSelecionado).toLowerCase()
-            : true)
-          .map(imovel => (
+export const PropertySelector: React.FC<PropertySelectorProps> = ({ imoveis, tipoSelecionado, loadingImoveis, onSelect }) => {
+  const selectedTypeLabel = tipoSelecionado ? getTipoDisplay(tipoSelecionado) : '';
+  const filteredImoveis = imoveis.filter((imovel) =>
+    tipoSelecionado ? matchesPropertyType(imovel.tipo, tipoSelecionado) : true
+  );
+
+  return (
+    <section>
+      <SectionTitle>
+        <Building2 size={24} /> Selecione o imóvel a ser vistoriado
+      </SectionTitle>
+      {loadingImoveis ? (
+        <p>Carregando imóveis...</p>
+      ) : filteredImoveis.length === 0 ? (
+        <EmptyState>
+          <Building2 size={48} />
+          <p>
+            {tipoSelecionado 
+              ? `Nenhum imóvel do tipo "${selectedTypeLabel}" encontrado.` 
+              : 'Nenhum imóvel cadastrado.'}
+          </p>
+          <p>Cadastre um imóvel primeiro para iniciar uma vistoria.</p>
+        </EmptyState>
+      ) : (
+        <RoomGrid>
+          {filteredImoveis.map(imovel => (
             <RoomCard
               key={imovel.id}
-              isSelected={false}
-              isCompleted={false}
+              $isSelected={false}
+              $isCompleted={false}
               onClick={() => onSelect(imovel)}
             >
-              <RoomIcon isCompleted={false}>
+              <RoomIcon $isCompleted={false}>
                 <Building2 size={32} />
               </RoomIcon>
               <RoomName>{imovel.nome}</RoomName>
-              <div style={{ fontSize: 14, color: '#888', marginTop: 4 }}>{imovel.tipo}</div>
+              <div style={{ fontSize: 14, color: '#888', marginTop: 4 }}>{getTipoDisplay(imovel.tipo)}</div>
             </RoomCard>
           ))}
-      </RoomGrid>
-    )}
-  </section>
-);
+        </RoomGrid>
+      )}
+    </section>
+  );
+};
