@@ -88,8 +88,6 @@ export interface InspectionDetailsFormProps {
 }
 
 export const InspectionDetailsForm: React.FC<InspectionDetailsFormProps> = ({ inspectionId, propertyId, onDetailsSaved, onAllRequiredFilled }) => {
-  // Debug dos IDs recebidos
-  console.log('[InspectionDetailsForm] inspectionId:', inspectionId, 'propertyId:', propertyId);
   // Estados para dados do imóvel, vistoria e locatários
   const [locatarios, setLocatarios] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

@@ -111,15 +111,15 @@ const CategoryGrid = styled.div`
   }
 `
 
-const CategoryCard = styled.button<{ selected: boolean }>`
+const CategoryCard = styled.button<{ $selected: boolean }>`
   background: ${({ theme }) => theme.colors.backgroundCard};
   backdrop-filter: blur(20px);
-  border: 2px solid ${({ theme, selected }) => 
-    selected ? theme.colors.primary : theme.colors.border};
+  border: 2px solid ${({ theme, $selected }) => 
+    $selected ? theme.colors.primary : theme.colors.border};
   padding: ${({ theme }) => theme.spacing['2xl']};
   border-radius: ${({ theme }) => theme.borderRadius['2xl']};
-  box-shadow: ${({ theme, selected }) => 
-    selected 
+  box-shadow: ${({ theme, $selected }) => 
+    $selected 
       ? `0 20px 40px ${theme.colors.shadowDark}, 0 0 40px ${theme.colors.shadowGlow}`
       : `0 4px 20px ${theme.colors.shadowDark}`};
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -140,7 +140,7 @@ const CategoryCard = styled.button<{ selected: boolean }>`
     right: 0;
     height: 3px;
     background: ${({ theme }) => theme.colors.gradient.primary};
-    transform: ${({ selected }) => selected ? 'scaleX(1)' : 'scaleX(0)'};
+    transform: ${({ $selected }) => $selected ? 'scaleX(1)' : 'scaleX(0)'};
     transform-origin: left;
     transition: transform 0.3s ease;
   }
@@ -186,20 +186,20 @@ const CategoryCard = styled.button<{ selected: boolean }>`
   }
 `
 
-const CategoryIcon = styled.div<{ selected: boolean }>`
+const CategoryIcon = styled.div<{ $selected: boolean }>`
   width: 80px;
   height: 80px;
   border-radius: ${({ theme }) => theme.borderRadius.xl};
-  background: ${({ theme, selected }) => 
-    selected 
+  background: ${({ theme, $selected }) => 
+    $selected 
       ? theme.colors.gradient.primary 
       : theme.colors.backgroundGlass};
   border: 1px solid ${({ theme }) => theme.colors.border};
   display: flex;
   align-items: center;
   justify-content: center;
-  color: ${({ theme, selected }) => 
-    selected ? theme.colors.textWhite : theme.colors.primary};
+  color: ${({ theme, $selected }) => 
+    $selected ? theme.colors.textWhite : theme.colors.primary};
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(10px);
 
@@ -214,11 +214,11 @@ const CategoryIcon = styled.div<{ selected: boolean }>`
   }
 `
 
-const CategoryName = styled.h3<{ selected: boolean }>`
+const CategoryName = styled.h3<{ $selected: boolean }>`
   font-size: ${({ theme }) => theme.fontSizes.xl};
   font-weight: 700;
-  color: ${({ theme, selected }) => 
-    selected ? theme.colors.primary : theme.colors.text};
+  color: ${({ theme, $selected }) => 
+    $selected ? theme.colors.primary : theme.colors.text};
   margin: 0;
   transition: color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -239,9 +239,9 @@ const CategoryDescription = styled.p`
   }
 `
 
-const ContinueButton = styled.button<{ disabled: boolean }>`
-  background: ${({ theme, disabled }) => 
-    disabled ? theme.colors.textLight : theme.colors.gradient.primary};
+const ContinueButton = styled.button<{ $disabled: boolean }>`
+  background: ${({ theme, $disabled }) => 
+    $disabled ? theme.colors.textLight : theme.colors.gradient.primary};
   color: ${({ theme }) => theme.colors.textWhite};
   padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing['2xl']};
   border-radius: ${({ theme }) => theme.borderRadius.xl};
@@ -318,13 +318,13 @@ export const PropertyCategoryPage: React.FC = () => {
           {propertyCategories.map((category) => (
             <CategoryCard
               key={category.id}
-              selected={selectedCategory === category.id}
+              $selected={selectedCategory === category.id}
               onClick={() => setSelectedCategory(category.id)}
             >
-              <CategoryIcon selected={selectedCategory === category.id}>
+              <CategoryIcon $selected={selectedCategory === category.id}>
                 {category.icon}
               </CategoryIcon>
-              <CategoryName selected={selectedCategory === category.id}>
+              <CategoryName $selected={selectedCategory === category.id}>
                 {category.name}
               </CategoryName>
               <CategoryDescription>
@@ -335,7 +335,7 @@ export const PropertyCategoryPage: React.FC = () => {
         </CategoryGrid>
 
         <ContinueButton
-          disabled={!selectedCategory}
+          $disabled={!selectedCategory}
           onClick={handleContinue}
         >
           Continuar

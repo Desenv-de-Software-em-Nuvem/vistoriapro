@@ -28,10 +28,10 @@ const ProgressBar = styled.div`
   margin-bottom: ${({ theme }) => theme.spacing.sm};
 `;
 
-const ProgressFill = styled.div<{ percentage: number }>`
+const ProgressFill = styled.div<{ $percentage: number }>`
   background: ${({ theme }) => theme.colors.gradient.primary};
   height: 100%;
-  width: ${({ percentage }) => percentage}%;
+  width: ${({ $percentage }) => $percentage}%;
   transition: width 0.3s ease;
 `;
 
@@ -53,7 +53,7 @@ export const InspectionProgress: React.FC<InspectionProgressProps> = ({ complete
       Progresso da Vistoria
     </ProgressTitle>
     <ProgressBar>
-      <ProgressFill percentage={total > 0 ? (completed / total) * 100 : 0} />
+      <ProgressFill $percentage={total > 0 ? (completed / total) * 100 : 0} />
     </ProgressBar>
     <ProgressText>
       {completed} de {total} cômodos concluídos

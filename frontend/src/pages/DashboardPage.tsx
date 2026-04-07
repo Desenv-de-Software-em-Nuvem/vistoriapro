@@ -7,7 +7,7 @@ import { VistoriaProLogo } from '../components/VistoriaProLogo';
 import { v4 as uuidv4 } from 'uuid';
 import AdminSidebarMotion from '../components/AdminSidebarMotion';
 
-const Container = styled.div<{ sidebarOpen: boolean }>`
+const Container = styled.div<{ $sidebarOpen: boolean }>`
   min-height: 100dvh;
   height: 100dvh;
   background: ${({ theme }) => theme.colors.background};
@@ -22,7 +22,7 @@ const Container = styled.div<{ sidebarOpen: boolean }>`
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  padding-left: ${({ sidebarOpen }) => (sidebarOpen ? '220px' : '0')};
+  padding-left: ${({ $sidebarOpen }) => ($sidebarOpen ? '220px' : '0')};
   transition: padding-left 0.3s cubic-bezier(0.4,0,0.2,1);
   will-change: transform;
   @media (max-width: 640px) {
@@ -345,7 +345,7 @@ export const DashboardPage: React.FC = () => {
   return (
     <>
       {sidebarOpen && <AdminSidebarMotion sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />}
-      <Container sidebarOpen={sidebarOpen}>
+      <Container $sidebarOpen={sidebarOpen}>
         <FixedHeader>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <button

@@ -5,7 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VistoriaPro</title>
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/png" href="/VistoriaPro.png" />
+    <script>
+      (function () {
+        if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+          return;
+        }
+
+        if (!('serviceWorker' in navigator) || sessionStorage.getItem('vistoriapro-sw-cleanup-done')) {
+          return;
+        }
+
+        sessionStorage.setItem('vistoriapro-sw-cleanup-done', '1');
+
+        navigator.serviceWorker.getRegistrations().then(function (registrations) {
+          if (!registrations.length) {
+            return;
+          }
+
+          Promise.all(registrations.map(function (registration) {
+            return registration.unregister();
+          })).then(function () {
+            if ('caches' in window) {
+              caches.keys().then(function (keys) {
+                return Promise.all(keys.map(function (key) {
+                  return caches.delete(key);
+                }));
+              });
+            }
+
+            window.location.reload();
+          });
+        }).catch(function () {
+          // Ignora falhas de limpeza em desenvolvimento.
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -23,7 +23,7 @@ const TabBar = styled.nav`
   padding-bottom: env(safe-area-inset-bottom, 0);
 `;
 
-const TabButton = styled.button<{ active?: boolean }>`
+const TabButton = styled.button<{ $active?: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -31,7 +31,7 @@ const TabButton = styled.button<{ active?: boolean }>`
   gap: 2px;
   background: transparent;
   border: none;
-  color: ${({ theme, active }) => (active ? theme.colors.primary : theme.colors.textSecondary)};
+  color: ${({ theme, $active }) => ($active ? theme.colors.primary : theme.colors.textSecondary)};
   font-size: 11px;
   font-weight: 600;
   padding: 6px 10px;
@@ -74,17 +74,17 @@ export const MobileTabBar: React.FC = () => {
 
   return (
     <TabBar role="navigation" aria-label="Navegação principal">
-      <TabButton active={isDashboard} onClick={go('/dashboard')} aria-current={isDashboard ? 'page' : undefined}>
+      <TabButton $active={isDashboard} onClick={go('/dashboard')} aria-current={isDashboard ? 'page' : undefined}>
         <Home />
         <span>Início</span>
       </TabButton>
 
-      <TabButton active={isList} onClick={go('/property-list')} aria-current={isList ? 'page' : undefined}>
+      <TabButton $active={isList} onClick={go('/property-list')} aria-current={isList ? 'page' : undefined}>
         <Building2 />
         <span>Imóveis</span>
       </TabButton>
 
-      <TabButton active={isInspection} onClick={startInspectionFlow} aria-current={isInspection ? 'page' : undefined}>
+      <TabButton $active={isInspection} onClick={startInspectionFlow} aria-current={isInspection ? 'page' : undefined}>
         <FileText />
         <span>Vistoria</span>
       </TabButton>

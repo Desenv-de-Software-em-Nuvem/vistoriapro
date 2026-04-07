@@ -27,12 +27,12 @@ const Tabs = styled.div`
   flex-wrap: wrap;
 `;
 
-const TabButton = styled.button<{ active?: boolean }>`
+const TabButton = styled.button<{ $active?: boolean }>`
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: ${({ active, theme }) => active ? theme.colors.gradient.primary : theme.colors.backgroundGlass};
-  color: ${({ active, theme }) => active ? theme.colors.textWhite : theme.colors.textSecondary};
+  background: ${({ $active, theme }) => $active ? theme.colors.gradient.primary : theme.colors.backgroundGlass};
+  color: ${({ $active, theme }) => $active ? theme.colors.textWhite : theme.colors.textSecondary};
   border: none;
   border-radius: 8px;
   padding: 0.75rem 1.5rem;
@@ -239,8 +239,8 @@ const AdminUsersPage: React.FC = () => {
       <HeaderSpacer />
       <ContentWrapper>
         <Tabs>
-          <TabButton active={activeTab === 'listar'} onClick={() => handleTabChange('listar')}><List size={18}/> Listar Usuários</TabButton>
-          <TabButton active={activeTab === 'criar'} onClick={() => handleTabChange('criar')}><UserPlus size={18}/> Criar Usuário</TabButton>
+          <TabButton $active={activeTab === 'listar'} onClick={() => handleTabChange('listar')}><List size={18}/> Listar Usuários</TabButton>
+          <TabButton $active={activeTab === 'criar'} onClick={() => handleTabChange('criar')}><UserPlus size={18}/> Criar Usuário</TabButton>
         </Tabs>
         {activeTab === 'listar' && (
           <>

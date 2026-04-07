@@ -136,14 +136,14 @@ const VistoriaTitle = styled.h4`
   flex: 1;
 `
 
-const VistoriaStatus = styled.span<{ status: string }>`
+const VistoriaStatus = styled.span<{ $status: string }>`
   padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.sm};
   border-radius: ${({ theme }) => theme.borderRadius.md};
   font-size: ${({ theme }) => theme.fontSizes.xs};
   font-weight: 600;
   text-transform: uppercase;
-  ${({ status, theme }) => {
-    switch (status) {
+  ${({ $status, theme }) => {
+    switch ($status) {
       case 'concluida':
         return `
           background: ${theme.colors.success}20;
@@ -179,7 +179,7 @@ const VistoriaActions = styled.div`
   border-top: 1px solid ${({ theme }) => theme.colors.border};
 `
 
-const ActionButton = styled.button<{ variant?: 'primary' | 'secondary' | 'success' }>`
+const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'success' }>`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.xs};
@@ -192,8 +192,8 @@ const ActionButton = styled.button<{ variant?: 'primary' | 'secondary' | 'succes
   flex: 1;
   justify-content: center;
 
-  ${({ variant, theme }) => {
-    switch (variant) {
+  ${({ $variant, theme }) => {
+    switch ($variant) {
       case 'primary':
         return `
           background: ${theme.colors.primary};
@@ -373,6 +373,8 @@ export const PropertyLaudoPage: React.FC = () => {
       // 1. Gera o laudo e pega a URL do PDF
       const response = await api.post('/relatorios/gerar', {
         vistoria_id: vistoriaId
+      }, {
+        timeout: 120000,
       });
 
       const pdfUrl = response.data.url;
@@ -451,7 +453,7 @@ export const PropertyLaudoPage: React.FC = () => {
           {allRequiredFilled && (
             <div style={{ marginTop: '2rem', textAlign: 'center' }}>
               <ActionButton 
-                variant="success" 
+                $variant="success" 
                 onClick={() => handleGerarLaudo(selectedVistoria)}
                 style={{ maxWidth: '300px', margin: '0 auto' }}
               >
@@ -511,7 +513,7 @@ export const PropertyLaudoPage: React.FC = () => {
               <VistoriaCard key={vistoria.id}>
                 <VistoriaHeader>
                   <VistoriaTitle>{vistoria.descricao}</VistoriaTitle>
-                  <VistoriaStatus status={vistoria.status}>
+                  <VistoriaStatus $status={vistoria.status}>
                     {getStatusDisplay(vistoria.status)}
                   </VistoriaStatus>
                 </VistoriaHeader>
@@ -533,14 +535,14 @@ export const PropertyLaudoPage: React.FC = () => {
                     Dados do Laudo
                   </ActionButton>
                   <ActionButton 
-                    variant="success" 
+                    $variant="success" 
                     onClick={() => handleGerarLaudo(vistoria.id)}
                   >
                     <FileText size={14} />
                     Gerar PDF
                   </ActionButton>
                   <ActionButton
-                    variant="secondary"
+                    $variant="secondary"
                     style={{ color: '#dc2626', borderColor: '#dc2626' }}
                     onClick={() => handleExcluirVistoria(vistoria.id)}
                     disabled={deletingId === vistoria.id}
