@@ -9,7 +9,7 @@ router.use('/imoveis', require('./imoveis'));
 router.use('/vistorias', require('./vistorias'));
 router.use('/fotos', require('./fotos'));
 router.use('/transcricoes', require('./transcricoes'));
-router.use('/media', require('./media'));
+router.use('/media', require('./fotos'));
 
 router.use('/relatorios', require('./relatorios'));
 router.use('/locatarios-vistoria', require('./locatariosVistoria'));
