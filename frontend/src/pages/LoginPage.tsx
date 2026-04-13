@@ -350,7 +350,7 @@ export const LoginPage: React.FC = () => {
           transform: preInit ? 'translateY(40px)' : 'translateY(0)',
           transition: 'opacity 0.7s 0.6s, transform 0.7s 0.6s'
         }}>
-          Faça login para acessar o sistema de vistorias da Imob Empreendimentos
+          Faça login para acessar o sistema de vistorias Imobiliárias
         </Subtitle>
         <Form onSubmit={handleSubmit} style={{
           opacity: preInit ? 0 : 1,
