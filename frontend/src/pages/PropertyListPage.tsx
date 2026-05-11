@@ -285,6 +285,8 @@ const PropertyCard = styled.div`
 const PropertyHeader = styled.div`
   display: flex;
   align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
 `
 
 const PropertyTitleBlock = styled.div`
@@ -300,6 +302,41 @@ const PropertyName = styled.h3`
   line-height: 1.2;
   margin: 0;
   overflow-wrap: anywhere;
+`
+
+const MobileCardActions = styled.div`
+  display: none;
+
+  @media (max-width: 520px) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex: 0 0 auto;
+  }
+`
+
+const CompactActionButton = styled.button<{ $variant?: 'edit' | 'delete' }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  background: ${({ theme }) => theme.colors.backgroundSecondary};
+  color: ${({ theme, $variant }) => $variant === 'delete' ? theme.colors.error : theme.colors.textSecondary};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+  overflow: hidden;
+
+  &::before {
+    content: none;
+    display: none;
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
 `
 
 const TypeBadge = styled.span`
@@ -414,6 +451,10 @@ const ActionButton = styled.button<{ $variant?: 'edit' | 'delete' }>`
 
   @media (max-width: 420px) {
     width: 100%;
+  }
+
+  @media (max-width: 520px) {
+    display: none;
   }
 `
 
@@ -658,6 +699,24 @@ export const PropertyListPage: React.FC = () => {
                       {getTipoDisplay(imovel.tipo)}
                     </TypeBadge>
                   </PropertyTitleBlock>
+                  <MobileCardActions>
+                    <CompactActionButton
+                      $variant="edit"
+                      title="Editar imóvel"
+                      aria-label={`Editar ${imovel.nome}`}
+                      onClick={() => navigate(`/property-edit/${imovel.id}`)}
+                    >
+                      <Pencil size={17} />
+                    </CompactActionButton>
+                    <CompactActionButton
+                      $variant="delete"
+                      title="Excluir imóvel"
+                      aria-label={`Excluir ${imovel.nome}`}
+                      onClick={() => handleDelete(imovel.id, imovel.nome)}
+                    >
+                      <Trash2 size={17} />
+                    </CompactActionButton>
+                  </MobileCardActions>
                 </PropertyHeader>
 
                 <PropertyDetails>

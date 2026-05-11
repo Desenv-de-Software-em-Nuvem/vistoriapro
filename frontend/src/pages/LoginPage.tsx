@@ -7,17 +7,12 @@ import { VistoriaProLogo } from '../components/VistoriaProLogo'
 const Container = styled.div`
   min-height: 100vh;
   min-height: 100dvh;
-  height: 100dvh;
-  width: 100vw;
-  max-width: 100vw;
+  width: 100%;
+  max-width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: clamp(1rem, 4vw, 2.5rem);
-  padding-top: 72px;
-  @media (max-width: 600px) {
-    padding-top: 60px;
-  }
+  padding: clamp(0.75rem, 3vw, 1.5rem);
   background: ${({ theme }) => theme.colors.background};
   position: relative;
   overflow-y: auto;
@@ -44,27 +39,24 @@ const Container = styled.div`
   }
 
   @media (max-width: 600px) {
-    align-items: flex-start;
-    padding: 0.5rem 0.5rem 1.5rem 0.5rem;
+    align-items: center;
+    padding: 2rem 0.5rem;
     min-height: 100dvh;
-    height: 100dvh;
   }
 `;
 const LoginCard = styled.div`
   background: ${({ theme }) => theme.colors.backgroundCard};
   backdrop-filter: blur(20px);
   border: 1px solid ${({ theme }) => theme.colors.border};
-  padding: clamp(1.5rem, 5vw, 3rem);
+  padding: clamp(1rem, 3vw, 1.75rem);
   border-radius: ${({ theme }) => theme.borderRadius['2xl']};
   box-shadow: 
     0 25px 50px -12px ${({ theme }) => theme.colors.shadowDark},
     0 0 40px ${({ theme }) => theme.colors.shadowGlow};
   width: 100%;
-  max-width: min(500px, 96vw);
-  max-height: 100dvh;
-  overflow-y: auto;
+  max-width: min(420px, 94vw);
+  overflow: hidden;
   animation: fadeIn 0.8s ease-out;
-  width: 100%;
   position: relative;
   z-index: 10;
   box-sizing: border-box;
@@ -81,9 +73,8 @@ const LoginCard = styled.div`
   }
 
   @media (max-width: 600px) {
-    padding: 1.2rem 0.5rem 1.5rem 0.5rem;
-    max-width: 100vw;
-    min-height: 90dvh;
+    padding: 2.75rem 1.15rem;
+    max-width: min(100%, 390px);
     border-radius: ${({ theme }) => theme.borderRadius.lg};
     box-shadow: 0 8px 24px -8px ${({ theme }) => theme.colors.shadowDark};
     margin: 0 auto;
@@ -94,32 +85,40 @@ const Logo = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: ${({ theme }) => theme.spacing['2xl']};
-  padding: clamp(0.5em, 2vw, 1.5em) clamp(0.25em, 1vw, 0.75em);
-  max-width: 320px;
+  margin-bottom: 1rem;
+  padding: 0;
+  max-width: 220px;
   width: 100%;
   margin-left: auto;
   margin-right: auto;
   position: relative;
 
   @media (max-width: 600px) {
-    max-width: 180px;
-    padding: 0.5em 0.2em;
-    margin-bottom: ${({ theme }) => theme.spacing.lg};
+    max-width: 230px;
+    margin-bottom: 1.35rem;
+
+    img {
+      height: clamp(100px, 30vw, 135px);
+    }
   }
 `;
 
 const Subtitle = styled.p`
   color: ${({ theme }) => theme.colors.textSecondary};
-  margin-bottom: ${({ theme }) => theme.spacing.xl};
+  margin-bottom: 1rem;
   text-align: center;
-  font-size: ${({ theme }) => theme.fontSizes.sm};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  line-height: 1.35;
 `
 
 const Form = styled.form`
   display: flex;
   flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.lg};
+  gap: 0.85rem;
+
+  @media (max-width: 600px) {
+    gap: 1.15rem;
+  }
 `
 
 const InputGroup = styled.div`
@@ -140,7 +139,8 @@ const InputWrapper = styled.div`
 
 const Input = styled.input`
   width: 100%;
-  padding: ${({ theme }) => theme.spacing.lg};
+  min-height: 46px;
+  padding: 0.75rem 0.9rem;
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.lg};
   font-size: ${({ theme }) => theme.fontSizes.base};
@@ -164,6 +164,11 @@ const Input = styled.input`
   &::placeholder {
     color: ${({ theme }) => theme.colors.textLight};
   }
+
+  @media (max-width: 600px) {
+    min-height: 56px;
+    padding: 1rem;
+  }
 `
 
 const PasswordToggle = styled.button`
@@ -172,6 +177,9 @@ const PasswordToggle = styled.button`
   top: 50%;
   transform: translateY(-50%);
   color: ${({ theme }) => theme.colors.textSecondary};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   
   &:hover {
     color: ${({ theme }) => theme.colors.text};
@@ -180,7 +188,8 @@ const PasswordToggle = styled.button`
 
 const SubmitButton = styled.button`
   width: 100%;
-  padding: ${({ theme }) => theme.spacing.lg};
+  min-height: 48px;
+  padding: 0.8rem 1rem;
   background: ${({ theme }) => theme.colors.gradient.primary};
   color: ${({ theme }) => theme.colors.textWhite};
   border-radius: ${({ theme }) => theme.borderRadius.lg};
@@ -194,6 +203,11 @@ const SubmitButton = styled.button`
   text-transform: uppercase;
   letter-spacing: 0.5px;
   position: relative;
+
+  @media (max-width: 600px) {
+    min-height: 60px;
+    font-size: ${({ theme }) => theme.fontSizes.lg};
+  }
 
   &:hover:not(:disabled) {
     transform: translateY(-3px);
@@ -230,12 +244,12 @@ const DemoCredentials = styled.div`
   background: ${({ theme }) => theme.colors.backgroundGlass};
   border: 1px solid ${({ theme }) => theme.colors.borderLight};
   backdrop-filter: blur(15px);
-  padding: ${({ theme }) => theme.spacing.lg};
+  padding: 0.85rem;
   border-radius: ${({ theme }) => theme.borderRadius.lg};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
   color: ${({ theme }) => theme.colors.textSecondary};
   text-align: center;
-  margin-top: ${({ theme }) => theme.spacing.lg};
+  margin-top: 0.9rem;
   word-break: break-word;
   overflow-wrap: anywhere;
   max-width: 100%;
@@ -273,11 +287,13 @@ const PreInitText = styled.h2`
   align-items: center;
   justify-content: center;
   min-height: 3.5rem;
+
   @media (max-width: 600px) {
     font-size: 1.2rem;
     min-height: 2.2rem;
     padding: 0 0.5rem;
   }
+
   @keyframes blink {
     0% { opacity: 1; }
     100% { opacity: 0.7; }
@@ -343,7 +359,7 @@ export const LoginPage: React.FC = () => {
           transform: preInit ? 'translateY(40px)' : 'translateY(0)',
           transition: 'opacity 0.7s 0.4s, transform 0.7s 0.4s'
         }}>
-          <VistoriaProLogo size="large" variant="icon-only" withBackground={true} />
+          <VistoriaProLogo size="medium" variant="icon-only" withBackground={true} />
         </Logo>
         <Subtitle style={{
           opacity: preInit ? 0 : 1,
