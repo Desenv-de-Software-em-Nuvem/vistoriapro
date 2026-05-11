@@ -190,7 +190,7 @@ module.exports = {
       // Monta dados para o template
       const data = {
         numero_contrato: vistoria.numero_contrato || '',
-        objeto: imovel?.objeto || '',
+        objeto: vistoria.objeto || '',
         data_vistoria: vistoria.data_vistoria || vistoria.data || '',
         imovel_endereco: imovel?.endereco_completo || vistoria.endereco || '',
         imovel_matricula: imovel?.imovel_matricula || imovel?.matricula || '',

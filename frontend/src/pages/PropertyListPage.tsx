@@ -1,17 +1,140 @@
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import styled from 'styled-components'
+import { Building2, FileText, Home, ListFilter, MapPin, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import api from '../services/api'
+import { ConfirmationModal } from '../components/ConfirmationModal'
+import { AppHeader } from '../components/AppHeader'
+import { MobileTabBar } from '../components/MobileTabBar'
+import { PROPERTY_TYPES, getCanonicalPropertyType, getTipoDisplay } from '../constants/propertyTypes'
+
+const Container = styled.div`
+  min-height: 100vh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at top left, rgba(255, 69, 0, 0.16), transparent 32rem),
+    ${({ theme }) => theme.colors.background};
+  width: 100vw;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  padding: 80px clamp(1rem, 4vw, 2.5rem) 96px;
+
+  @media (max-width: 768px) {
+    padding: 76px 1rem 96px;
+  }
+`
+
+const ContentWrapper = styled.main`
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+`
+
+const PageIntro = styled.section`
+  display: flex;
+  justify-content: flex-end;
+`
+
+const PrimaryAction = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border: 0;
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  background: ${({ theme }) => theme.colors.gradient.primary};
+  color: ${({ theme }) => theme.colors.textWhite};
+  padding: 0.9rem 1.15rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 12px 24px ${({ theme }) => theme.colors.shadowGlow};
+  transition: transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 22px 45px ${({ theme }) => theme.colors.shadowGlow};
+  }
+
+  @media (max-width: 860px) {
+    width: 100%;
+  }
+`
+
+const StatsGrid = styled.section`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+`
+
+const StatCard = styled.div`
+  background: ${({ theme }) => theme.colors.gradient.card};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  padding: 0.85rem 1rem;
+  box-shadow: 0 10px 24px ${({ theme }) => theme.colors.shadow};
+`
+
+const StatNumber = styled.strong`
+  display: block;
+  color: ${({ theme }) => theme.colors.text};
+  font-size: ${({ theme }) => theme.fontSizes['2xl']};
+  line-height: 1;
+`
+
+const StatLabel = styled.span`
+  display: block;
+  color: ${({ theme }) => theme.colors.textLight};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 700;
+  margin-top: 0.35rem;
+`
+
+const ControlsPanel = styled.section`
+  background: ${({ theme }) => theme.colors.backgroundCard};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  box-shadow: 0 14px 34px ${({ theme }) => theme.colors.shadow};
+  padding: 1rem;
+  backdrop-filter: blur(18px);
+`
+
+const SearchContainer = styled.label`
+  position: relative;
+  width: 100%;
+  display: block;
+`
+
+const SearchIcon = styled.div`
+  position: absolute;
+  left: 0.95rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: ${({ theme }) => theme.colors.textLight};
+  pointer-events: none;
+`
+
 const SearchInput = styled.input`
   width: 100%;
-  padding: 1.25rem 1.25rem 1.25rem 3rem;
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  font-size: 0.98rem;
-  background: ${({ theme }) => theme.colors.backgroundCard};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  background: ${({ theme }) => theme.colors.backgroundSecondary};
   color: ${({ theme }) => theme.colors.text};
-  transition: all 0.3s ease;
-  padding-left: 2.5rem;
+  padding: 0.95rem 1rem 0.95rem 2.8rem;
+  font-size: ${({ theme }) => theme.fontSizes.base};
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
 
   &:focus {
-    border-color: ${({ theme }) => theme.colors.primary};
-    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.primary}40;
+    border-color: ${({ theme }) => theme.colors.primaryLight};
+    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.backgroundGlass};
   }
 
   &::placeholder {
@@ -20,244 +143,245 @@ const SearchInput = styled.input`
 
   @media (max-width: 768px) {
     font-size: ${({ theme }) => theme.fontSizes.sm};
-    padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.sm} 2.5rem;
   }
-`;
-import React, { useState, useEffect } from 'react'
-import styled from 'styled-components'
-import { Search, MapPin, Building2 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import api from '../services/api'
-import { ConfirmationModal } from '../components/ConfirmationModal'
-import { AppHeader } from '../components/AppHeader'
-import { MobileTabBar } from '../components/MobileTabBar'
-import { PROPERTY_TYPES, getCanonicalPropertyType } from '../constants/propertyTypes'
-
-const Container = styled.div`
-  min-height: 100vh;
-  min-height: 100dvh;
-  height: 100dvh;
-  background: ${({ theme }) => theme.colors.background};
-  width: 100vw;
-  max-width: 100vw;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior-y: contain;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-  box-sizing: border-box;
-  padding: ${({ theme }) => theme.spacing.lg};
-  padding-top: 80px;
-  padding-bottom: 88px; /* espaço para tab bar fixa */
-
-  @media (max-width: 768px) {
-    padding: ${({ theme }) => theme.spacing.md};
-    padding-top: 72px;
-  }
-`
-
-
-
-const SearchContainer = styled.div`
-  position: relative;
-  max-width: 400px;
-  width: 100%;
-  margin-bottom: ${({ theme }) => theme.spacing.lg};
-
-  @media (max-width: 768px) {
-    max-width: 100%;
-    margin-bottom: ${({ theme }) => theme.spacing.md};
-  }
-`
-
-const SearchIcon = styled.div`
-  position: absolute;
-  left: ${({ theme }) => theme.spacing.md};
-  top: 50%;
-  transform: translateY(-50%);
-  color: ${({ theme }) => theme.colors.textLight};
 `
 
 const FiltersRow = styled.div`
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 8px 0 16px 0;
-`;
+  gap: 0.55rem;
+  margin-top: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+
+  @media (min-width: 900px) {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+`
 
 const FilterChip = styled.button<{ $active?: boolean }>`
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  background: ${({ theme, $active }) => $active ? theme.colors.primary + '20' : theme.colors.backgroundTertiary};
-  color: ${({ theme, $active }) => $active ? theme.colors.primary : theme.colors.textSecondary};
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-`;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid ${({ theme, $active }) => $active ? theme.colors.borderGlow : theme.colors.borderLight};
+  background: ${({ theme, $active }) => $active ? theme.colors.backgroundGlass : theme.colors.backgroundSecondary};
+  color: ${({ theme, $active }) => $active ? theme.colors.primaryLight : theme.colors.textSecondary};
+  padding: 0.58rem 0.85rem;
+  border-radius: ${({ theme }) => theme.borderRadius.full};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
 
-const StatsBar = styled.div`
+  &:hover {
+    transform: translateY(-1px);
+    color: ${({ theme }) => theme.colors.textWhite};
+    background: ${({ theme }) => theme.colors.backgroundGlass};
+  }
+`
+
+const ResultsHeader = styled.div`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing.lg};
-  padding: ${({ theme }) => theme.spacing.md};
-  background: ${({ theme }) => theme.colors.backgroundCard};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  margin-bottom: ${({ theme }) => theme.spacing.lg};
-  flex-wrap: wrap;
-
-  @media (max-width: 768px) {
-    flex-direction: row;
-    gap: ${({ theme }) => theme.spacing.xs};
-    padding: ${({ theme }) => theme.spacing.sm};
-    justify-content: center;
-  }
-`
-
-const StatItem = styled.div`
-  text-align: center;
-  min-width: 90px;
-  white-space: nowrap;
-  @media (max-width: 768px) {
-    min-width: 70px;
-    font-size: 0.92em;
-  }
-`
-
-const StatNumber = styled.div`
-  font-size: ${({ theme }) => theme.fontSizes.lg};
-  font-weight: 700;
-  color: ${({ theme }) => theme.colors.primary};
-`
-
-const StatLabel = styled.div`
-  font-size: ${({ theme }) => theme.fontSizes.sm};
+  justify-content: space-between;
+  gap: 1rem;
   color: ${({ theme }) => theme.colors.textSecondary};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+
+  strong {
+    color: ${({ theme }) => theme.colors.text};
+  }
+
+  @media (max-width: 640px) {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
 `
 
 const PropertyGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: ${({ theme }) => theme.spacing.lg};
-  min-width: 0;
-  overflow-x: auto;
-  box-sizing: border-box;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: ${({ theme }) => theme.spacing.md};
-  }
+  grid-template-columns: 1fr;
+  gap: 0.9rem;
 `
 
 const PropertyCard = styled.div`
-  background: ${({ theme }) => theme.colors.backgroundCard};
+  background: ${({ theme }) => theme.colors.gradient.card};
   backdrop-filter: blur(20px);
-  border: 2px solid ${({ theme }) => theme.colors.primary}40;
-  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
-  padding: ${({ theme }) => theme.spacing.xl};
-  transition: box-shadow 0.3s, border-color 0.3s;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  padding: 1rem;
+  transition: box-shadow 0.25s, border-color 0.25s, transform 0.25s;
   position: relative;
-  box-shadow: 0 8px 32px ${({ theme }) => theme.colors.shadowGlow};
-  margin-bottom: ${({ theme }) => theme.spacing.lg};
+  box-shadow: 0 10px 28px ${({ theme }) => theme.colors.shadow};
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(260px, 1.2fr) minmax(220px, auto);
+  gap: 1rem;
+  align-items: center;
+  min-width: 0;
 
   &:hover {
-    box-shadow: 0 16px 48px ${({ theme }) => theme.colors.primary}40;
-    border-color: ${({ theme }) => theme.colors.primary};
-    transform: translateY(-2px) scale(1.01);
+    box-shadow: 0 14px 36px ${({ theme }) => theme.colors.shadowDark};
+    border-color: ${({ theme }) => theme.colors.borderGlow};
+    transform: translateY(-1px);
+  }
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
 `
 
 const PropertyHeader = styled.div`
   display: flex;
-  flex-direction: row;
   align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: ${({ theme }) => theme.spacing.md};
-`;
+`
 
-const PropertyActionsRow = styled.div`
+const PropertyTitleBlock = styled.div`
   display: flex;
-  gap: ${({ theme }) => theme.spacing.sm};
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+`
+
+const PropertyName = styled.h3`
+  color: ${({ theme }) => theme.colors.text};
+  font-size: ${({ theme }) => theme.fontSizes.lg};
+  line-height: 1.2;
+  margin: 0;
+  overflow-wrap: anywhere;
+`
+
+const TypeBadge = styled.span`
+  display: inline-flex;
+  width: fit-content;
   align-items: center;
-`;
-
-const LaudoButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 36px;
-  min-width: 160px;
-  padding: 0 24px;
-  background: linear-gradient(90deg, ${({ theme }) => theme.colors.primary} 0%, ${({ theme }) => theme.colors.primaryDark || theme.colors.primary} 100%);
-  color: #fff;
-  border: none;
-  border-radius: 999px;
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 0.5px;
-  transition: background 0.2s, transform 0.2s;
-  cursor: pointer;
-  margin-left: 0;
-  white-space: nowrap;
-  gap: 8px;
-
-  &:hover {
-    background: linear-gradient(90deg, ${({ theme }) => theme.colors.primaryDark || theme.colors.primary} 0%, ${({ theme }) => theme.colors.primary} 100%);
-    transform: translateY(-2px) scale(1.04);
-  }
-
-  @media (max-width: 600px) {
-    height: 28px;
-    font-size: 13px;
-    min-width: 110px;
-    padding: 0 12px;
-  }
+  gap: 0.35rem;
+  border-radius: ${({ theme }) => theme.borderRadius.full};
+  background: ${({ theme }) => theme.colors.backgroundGlass};
+  color: ${({ theme }) => theme.colors.primaryLight};
+  padding: 0.35rem 0.7rem;
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 800;
 `
 
 const PropertyAddress = styled.div`
   display: flex;
   align-items: flex-start;
-  gap: ${({ theme }) => theme.spacing.sm};
-  margin: ${({ theme }) => theme.spacing.md} 0;
+  gap: 0.6rem;
   color: ${({ theme }) => theme.colors.textSecondary};
   font-size: ${({ theme }) => theme.fontSizes.sm};
-  line-height: 1.4;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 `
 
 const PropertyUnit = styled.div`
-  margin-top: ${({ theme }) => theme.spacing.sm};
-  padding: ${({ theme }) => theme.spacing.sm};
+  padding: 0.75rem;
   background: ${({ theme }) => theme.colors.backgroundTertiary};
-  border-radius: ${({ theme }) => theme.borderRadius.md};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
   font-size: ${({ theme }) => theme.fontSizes.sm};
   color: ${({ theme }) => theme.colors.textSecondary};
 `
 
 const PropertyMeta = styled.div`
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  margin-top: ${({ theme }) => theme.spacing.md};
-  padding-top: ${({ theme }) => theme.spacing.md};
-  border-top: 1px solid ${({ theme }) => theme.colors.border};
+  gap: 0.45rem;
   font-size: ${({ theme }) => theme.fontSizes.xs};
   color: ${({ theme }) => theme.colors.textLight};
 `
 
+const CardActions = styled.div`
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.55rem;
+  align-items: center;
+
+  @media (max-width: 520px) {
+    grid-template-columns: 1fr;
+  }
+`
+
+const LaudoButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 42px;
+  padding: 0 1rem;
+  background: ${({ theme }) => theme.colors.gradient.primary};
+  color: ${({ theme }) => theme.colors.textWhite};
+  border: none;
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  font-weight: 800;
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px ${({ theme }) => theme.colors.shadowGlow};
+  }
+`
+
+const ActionButton = styled.button<{ $variant?: 'edit' | 'delete' }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 42px;
+  min-width: 42px;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  background: ${({ theme }) => theme.colors.backgroundSecondary};
+  color: ${({ theme, $variant }) => $variant === 'delete' ? theme.colors.error : theme.colors.textSecondary};
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+  cursor: pointer;
+  font-weight: 800;
+
+  &:hover {
+    background: ${({ theme, $variant }) => $variant === 'delete' ? 'rgba(239, 68, 68, 0.12)' : theme.colors.backgroundGlass};
+    color: ${({ theme, $variant }) => $variant === 'delete' ? theme.colors.error : theme.colors.primaryLight};
+    transform: translateY(-1px);
+  }
+
+  @media (max-width: 420px) {
+    width: 100%;
+  }
+`
+
+const PropertyDetails = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+`
+
 const EmptyState = styled.div`
   text-align: center;
-  padding: ${({ theme }) => theme.spacing['3xl']};
+  padding: clamp(2rem, 8vw, 4rem) 1rem;
   background: ${({ theme }) => theme.colors.backgroundCard};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
   color: ${({ theme }) => theme.colors.textSecondary};
+  box-shadow: 0 22px 55px ${({ theme }) => theme.colors.shadowDark};
 `
 
 const EmptyIcon = styled.div`
-  font-size: 64px;
-  margin-bottom: ${({ theme }) => theme.spacing.lg};
-  color: ${({ theme }) => theme.colors.textLight};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
+  margin-bottom: 1rem;
+  background: ${({ theme }) => theme.colors.backgroundGlass};
+  color: ${({ theme }) => theme.colors.primaryLight};
 `
 
 const EmptyTitle = styled.h3`
@@ -309,7 +433,6 @@ interface Imovel {
 export const PropertyListPage: React.FC = () => {
   const navigate = useNavigate()
   const [imoveis, setImoveis] = useState<Imovel[]>([])
-  const [filteredImoveis, setFilteredImoveis] = useState<Imovel[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -317,40 +440,36 @@ export const PropertyListPage: React.FC = () => {
   const [activeType, setActiveType] = useState<string>('')
   const categoryOptions = PROPERTY_TYPES
 
-  const loadImoveis = async () => {
+  const loadImoveis = useCallback(async () => {
     try {
       setLoading(true)
       const response = await api.get('/imoveis')
-      setImoveis(response.data.imoveis)
-      setFilteredImoveis(response.data.imoveis)
+      setImoveis(response.data.imoveis || [])
     } catch (error) {
       console.error('Erro ao carregar imóveis:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadImoveis()
-  }, [])
+  }, [loadImoveis])
 
-
-  // Filtro de busca
-  useEffect(() => {
+  const filteredImoveis = useMemo(() => {
     const base = activeType
       ? imoveis.filter(i => getCanonicalPropertyType(i.tipo) === activeType)
       : imoveis
-    if (searchTerm.trim() === '') {
-      setFilteredImoveis(base)
-    } else {
-      const filtered = base.filter(imovel =>
-        imovel.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        imovel.endereco_completo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        imovel.cidade.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        imovel.tipo.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-      setFilteredImoveis(filtered)
-    }
+
+    const normalizedSearch = searchTerm.trim().toLowerCase()
+    if (!normalizedSearch) return base
+
+    return base.filter(imovel =>
+      imovel.nome.toLowerCase().includes(normalizedSearch) ||
+      imovel.endereco_completo.toLowerCase().includes(normalizedSearch) ||
+      imovel.cidade.toLowerCase().includes(normalizedSearch) ||
+      getTipoDisplay(imovel.tipo).toLowerCase().includes(normalizedSearch)
+    )
   }, [searchTerm, imoveis, activeType])
 
   const handleDelete = (id: number, nome: string) => {
@@ -365,7 +484,7 @@ export const PropertyListPage: React.FC = () => {
       await api.delete(`/imoveis/${imovelToDelete.id}`)
       setIsModalOpen(false)
       setImovelToDelete(null)
-      await loadImoveis() // Recarregar lista
+      await loadImoveis()
     } catch (error) {
       console.error('Erro ao excluir imóvel:', error)
       alert('Erro ao excluir imóvel')
@@ -377,6 +496,10 @@ export const PropertyListPage: React.FC = () => {
     return new Date(dateString).toLocaleDateString('pt-BR')
   }
 
+  const selectedTypeLabel = activeType
+    ? categoryOptions.find(tipo => tipo.value === activeType)?.label || activeType
+    : 'Todos os tipos'
+
   return (
     <Container>
       <AppHeader
@@ -384,114 +507,146 @@ export const PropertyListPage: React.FC = () => {
         showBackButton
         onBack={() => navigate('/dashboard')}
       />
-      <SearchRow>
-        <SearchContainer style={{flex: 1}}>
-          <SearchIcon>
-            <Search size={20} />
-          </SearchIcon>
-          <SearchInput
-            type="text"
-            placeholder="Pesquisar imóvel, endereço, cidade ou tipo..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            aria-label="Pesquisar imóveis"
-          />
-        </SearchContainer>
-      </SearchRow>
 
-      {imoveis.length > 0 && (
-        <FiltersRow>
-          <FilterChip $active={!activeType} onClick={() => setActiveType('')}>Todos</FilterChip>
-          {categoryOptions.map(tipo => (
-            <FilterChip key={tipo.value} $active={activeType === tipo.value} onClick={() => setActiveType(tipo.value)}>
-                {tipo.label}
-            </FilterChip>
-          ))}
-        </FiltersRow>
-      )}
+      <ContentWrapper>
+        <PageIntro>
+          <PrimaryAction onClick={() => navigate('/property-registration')}>
+            <Plus size={18} />
+            Novo imóvel
+          </PrimaryAction>
+        </PageIntro>
 
-      <StatsBar>
-        <StatItem>
-          <StatNumber>{imoveis.length}</StatNumber>
-          <StatLabel>Total de Imóveis</StatLabel>
-        </StatItem>
-        <StatItem>
-          <StatNumber>{filteredImoveis.length}</StatNumber>
-          <StatLabel>Resultados</StatLabel>
-        </StatItem>
-        <StatItem>
-          <StatNumber>{new Set(imoveis.map(i => getCanonicalPropertyType(i.tipo))).size}</StatNumber>
-          <StatLabel>Tipos Diferentes</StatLabel>
-        </StatItem>
-      </StatsBar>
+        <StatsGrid>
+          <StatCard>
+            <StatNumber>{imoveis.length}</StatNumber>
+            <StatLabel>Total de imóveis</StatLabel>
+          </StatCard>
+          <StatCard>
+            <StatNumber>{filteredImoveis.length}</StatNumber>
+            <StatLabel>Resultados exibidos</StatLabel>
+          </StatCard>
+          <StatCard>
+            <StatNumber>{new Set(imoveis.map(i => getCanonicalPropertyType(i.tipo))).size}</StatNumber>
+            <StatLabel>Tipos diferentes</StatLabel>
+          </StatCard>
+        </StatsGrid>
 
-      {loading ? (
-        <LoadingContainer>
-          <LoadingSpinner />
-        </LoadingContainer>
-      ) : filteredImoveis.length === 0 ? (
-        <EmptyState>
-          <EmptyIcon>🏠</EmptyIcon>
-          <EmptyTitle>
-            {searchTerm ? 'Nenhum resultado encontrado' : 'Nenhum imóvel cadastrado'}
-          </EmptyTitle>
-          <EmptyDescription>
-            {searchTerm 
-              ? 'Tente ajustar sua busca ou cadastre um novo imóvel.'
-              : 'Use o botão "Novo Imóvel" acima para cadastrar imóveis.'
-            }
-          </EmptyDescription>
-        </EmptyState>
-      ) : (
-        <PropertyGrid>
-          {filteredImoveis.map((imovel) => (
-            <PropertyCard key={imovel.id}>
-              <PropertyHeader>
-                <div style={{ display: 'flex', flex: 1, alignItems: 'center' }}>
+        <ControlsPanel>
+          <SearchContainer>
+            <SearchIcon>
+              <Search size={20} />
+            </SearchIcon>
+            <SearchInput
+              type="search"
+              placeholder="Pesquisar por imóvel, endereço, cidade ou tipo..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              aria-label="Pesquisar imóveis"
+            />
+          </SearchContainer>
+
+          {imoveis.length > 0 && (
+            <FiltersRow aria-label="Filtrar imóveis por tipo">
+              <FilterChip $active={!activeType} onClick={() => setActiveType('')}>
+                <ListFilter size={15} />
+                Todos
+              </FilterChip>
+              {categoryOptions.map(tipo => (
+                <FilterChip key={tipo.value} $active={activeType === tipo.value} onClick={() => setActiveType(tipo.value)}>
+                  {tipo.label}
+                </FilterChip>
+              ))}
+            </FiltersRow>
+          )}
+        </ControlsPanel>
+
+        <ResultsHeader>
+          <span><strong>{filteredImoveis.length}</strong> resultado{filteredImoveis.length === 1 ? '' : 's'} em {selectedTypeLabel}</span>
+          {searchTerm && <span>Busca: "{searchTerm}"</span>}
+        </ResultsHeader>
+
+        {loading ? (
+          <LoadingContainer>
+            <LoadingSpinner />
+          </LoadingContainer>
+        ) : filteredImoveis.length === 0 ? (
+          <EmptyState>
+            <EmptyIcon>
+              <Home size={34} />
+            </EmptyIcon>
+            <EmptyTitle>
+              {searchTerm || activeType ? 'Nenhum resultado encontrado' : 'Nenhum imóvel cadastrado'}
+            </EmptyTitle>
+            <EmptyDescription>
+              {searchTerm || activeType
+                ? 'Tente ajustar sua busca ou limpar os filtros para ver mais imóveis.'
+                : 'Cadastre seu primeiro imóvel para iniciar as vistorias.'
+              }
+            </EmptyDescription>
+          </EmptyState>
+        ) : (
+          <PropertyGrid>
+            {filteredImoveis.map((imovel) => (
+              <PropertyCard key={imovel.id}>
+                <PropertyHeader>
+                  <PropertyTitleBlock>
+                    <PropertyName>{imovel.nome}</PropertyName>
+                    <TypeBadge>
+                      <Building2 size={14} />
+                      {getTipoDisplay(imovel.tipo)}
+                    </TypeBadge>
+                  </PropertyTitleBlock>
+                </PropertyHeader>
+
+                <PropertyDetails>
+                  <PropertyAddress>
+                    <MapPin size={17} style={{ marginTop: '2px', flexShrink: 0 }} />
+                    <div>
+                      {imovel.endereco_completo}
+                      <br />
+                      {imovel.cidade} - {imovel.uf}
+                    </div>
+                  </PropertyAddress>
+
+                  {imovel.unidade && (
+                    <PropertyUnit>
+                      <strong>Unidade:</strong> {imovel.unidade}
+                    </PropertyUnit>
+                  )}
+
+                  <PropertyMeta>
+                    <Home size={15} />
+                    <span>Cadastrado em {formatDate(imovel.created_at)}</span>
+                  </PropertyMeta>
+                </PropertyDetails>
+
+                <CardActions>
                   <LaudoButton onClick={() => navigate(`/property-laudo/${imovel.id}`)}>
-                    Laudo de Vistoria
+                    <FileText size={17} />
+                    Laudo de vistoria
                   </LaudoButton>
-                </div>
-                <PropertyActionsRow>
-                  <ActionButton 
-                    $variant="edit" 
-                    title="Editar"
+                  <ActionButton
+                    $variant="edit"
+                    title="Editar imóvel"
+                    aria-label={`Editar ${imovel.nome}`}
                     onClick={() => navigate(`/property-edit/${imovel.id}`)}
                   >
-                    ✏️
+                    <Pencil size={17} />
                   </ActionButton>
-                  <ActionButton 
-                    $variant="delete" 
-                    title="Excluir"
+                  <ActionButton
+                    $variant="delete"
+                    title="Excluir imóvel"
+                    aria-label={`Excluir ${imovel.nome}`}
                     onClick={() => handleDelete(imovel.id, imovel.nome)}
                   >
-                    🗑️
+                    <Trash2 size={17} />
                   </ActionButton>
-                </PropertyActionsRow>
-              </PropertyHeader>
-              <PropertyAddress>
-                <MapPin size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
-                <div>
-                  {imovel.endereco_completo}
-                  <br />
-                  {imovel.cidade} - {imovel.uf}
-                </div>
-              </PropertyAddress>
-
-              {imovel.unidade && (
-                <PropertyUnit>
-                  <strong>Unidade:</strong> {imovel.unidade}
-                </PropertyUnit>
-              )}
-
-              <PropertyMeta>
-                <span>Cadastrado em {formatDate(imovel.created_at)}</span>
-                <Building2 size={14} />
-              </PropertyMeta>
-            </PropertyCard>
-          ))}
-        </PropertyGrid>
-      )}
+                </CardActions>
+              </PropertyCard>
+            ))}
+          </PropertyGrid>
+        )}
+      </ContentWrapper>
     
       {imovelToDelete && (
         <ConfirmationModal
@@ -508,74 +663,7 @@ export const PropertyListPage: React.FC = () => {
         />
       )}
 
-      <FabButton onClick={() => navigate('/property-registration')} aria-label="Novo Imóvel">
-        +
-      </FabButton>
-
       <MobileTabBar />
     </Container>
   )
 }
-
-const SearchRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin: 32px 0 24px 0;
-  width: 100%;
-  max-width: 1000px;
-`;
-
-const FabButton = styled.button`
-  position: fixed;
-  right: 20px;
-  bottom: 84px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: none;
-  background: ${({ theme }) => theme.colors.primary};
-  color: #fff;
-  font-size: 28px;
-  font-weight: 700;
-  box-shadow: 0 12px 24px ${({ theme }) => theme.colors.shadowGlow};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-`;
-
-const ActionButton = styled.button<{ $variant?: 'view' | 'edit' | 'delete' }>`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  background: transparent;
-  color: #444;
-  border-radius: 50%;
-  transition: background 0.2s, color 0.2s, transform 0.2s;
-  cursor: pointer;
-  font-size: 18px;
-  margin-right: 4px;
-  padding: 0;
-  min-width: 0;
-  min-height: 0;
-  box-shadow: none;
-
-  &:hover {
-    background: #f3f3f3;
-    color: ${({ $variant }) =>
-      $variant === 'edit' ? '#f59e0b' : $variant === 'delete' ? '#ef4444' : '#2563eb'};
-    transform: scale(1.1);
-  }
-
-  @media (max-width: 600px) {
-    width: 22px;
-    height: 22px;
-    margin-right: 6px;
-    margin-bottom: 6px;
-    font-size: 16px;
-  }
-`;

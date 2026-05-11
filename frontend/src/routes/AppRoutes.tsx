@@ -14,6 +14,7 @@ const PropertyListPage = lazy(() => import('../pages/PropertyListPage').then(mod
 const InspectionPage = lazy(() => import('../pages/InspectionPage').then(module => ({ default: module.InspectionPage })))
 const PropertyLaudoPage = lazy(() => import('../pages/PropertyLaudoPage').then(module => ({ default: module.PropertyLaudoPage })))
 const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage'))
+const AdminCompanyPage = lazy(() => import('../pages/AdminCompanyPage'))
 
 export const AppRoutes: React.FC = () => {
   const { isAuthenticated, loading, user } = useAuth()
@@ -91,6 +92,10 @@ export const AppRoutes: React.FC = () => {
       <Route 
         path="/admin/users" 
         element={renderAdminProtected(<AdminUsersPage />)}
+      />
+      <Route
+        path="/admin/company"
+        element={renderAdminProtected(<AdminCompanyPage />)}
       />
       <Route 
         path="/" 

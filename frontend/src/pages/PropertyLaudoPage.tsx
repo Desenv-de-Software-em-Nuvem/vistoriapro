@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useEffect } from 'react'
 import styled from 'styled-components'
-import { FileText, Eye, Calendar, User, Building2, MapPin } from 'lucide-react'
+import { FileText, Eye, Calendar, User, Building2, MapPin, Trash2 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '../services/api'
 import { InspectionDetailsForm } from '../components/InspectionDetailsForm'
@@ -12,136 +12,162 @@ import { MobileTabBar } from '../components/MobileTabBar'
 const Container = styled.div`
   min-height: 100vh;
   min-height: 100dvh;
-  height: 100dvh;
-  background: ${({ theme }) => theme.colors.background};
+  background:
+    radial-gradient(circle at top left, rgba(255, 69, 0, 0.14), transparent 30rem),
+    ${({ theme }) => theme.colors.background};
   width: 100vw;
   max-width: 100vw;
-  overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior-y: contain;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
   box-sizing: border-box;
-  padding: clamp(1rem, 4vw, 2.5rem);
-  padding-top: 72px;
-  padding-bottom: 88px; /* espaço para tab bar fixa */
+  padding: 80px clamp(1rem, 4vw, 2.5rem) 96px;
+
   @media (max-width: 600px) {
-    padding-top: 60px;
+    padding: 76px 1rem 96px;
   }
+`
+
+const ContentWrapper = styled.main`
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 `
 
 const PropertyInfo = styled.div`
   background: ${({ theme }) => theme.colors.backgroundCard};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
-  padding: ${({ theme }) => theme.spacing.xl};
-  margin-bottom: ${({ theme }) => theme.spacing.xl};
-  box-shadow: 0 25px 50px -12px ${({ theme }) => theme.colors.shadowDark};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  padding: clamp(1rem, 3vw, 1.35rem);
+  box-shadow: 0 14px 34px ${({ theme }) => theme.colors.shadow};
 `
 
 const PropertyHeader = styled.div`
   display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing.md};
-  margin-bottom: ${({ theme }) => theme.spacing.lg};
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+  }
 `
 
 const PropertyName = styled.h2`
-  font-size: ${({ theme }) => theme.fontSizes.xl};
-  font-weight: 600;
+  font-size: clamp(1.35rem, 4vw, 2rem);
+  line-height: 1.15;
+  font-weight: 800;
   color: ${({ theme }) => theme.colors.text};
   margin: 0;
-  flex: 1;
+  overflow-wrap: anywhere;
 `
 
 const PropertyType = styled.span`
-  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
-  background: ${({ theme }) => theme.colors.primary}20;
-  color: ${({ theme }) => theme.colors.primary};
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  font-weight: 600;
-  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  background: ${({ theme }) => theme.colors.backgroundGlass};
+  color: ${({ theme }) => theme.colors.primaryLight};
+  border-radius: ${({ theme }) => theme.borderRadius.full};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 800;
+  white-space: nowrap;
 `
 
 const PropertyAddress = styled.div`
   display: flex;
   align-items: flex-start;
-  gap: ${({ theme }) => theme.spacing.sm};
+  gap: 0.6rem;
   color: ${({ theme }) => theme.colors.textSecondary};
-  font-size: ${({ theme }) => theme.fontSizes.base};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
   line-height: 1.5;
+  overflow-wrap: anywhere;
 `
 
 const VistoriaSection = styled.div`
   background: ${({ theme }) => theme.colors.backgroundCard};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
-  padding: ${({ theme }) => theme.spacing.xl};
-  margin-bottom: ${({ theme }) => theme.spacing.xl};
-  box-shadow: 0 25px 50px -12px ${({ theme }) => theme.colors.shadowDark};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  padding: clamp(1rem, 3vw, 1.35rem);
+  box-shadow: 0 14px 34px ${({ theme }) => theme.colors.shadow};
 `
 
 const SectionTitle = styled.h3`
   font-size: ${({ theme }) => theme.fontSizes.lg};
-  font-weight: 600;
+  font-weight: 800;
   color: ${({ theme }) => theme.colors.text};
-  margin: 0 0 ${({ theme }) => theme.spacing.lg} 0;
+  margin: 0 0 1rem 0;
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing.sm};
+  gap: 0.6rem;
 `
 
 const VistoriaGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: ${({ theme }) => theme.spacing.lg};
-  margin-bottom: ${({ theme }) => theme.spacing.xl};
-  min-width: 0;
-  overflow-x: auto;
-  box-sizing: border-box;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
 `
 
 const VistoriaCard = styled.div`
   background: ${({ theme }) => theme.colors.backgroundTertiary};
-  border: 1px solid ${({ theme }) => theme.colors.border};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
   border-radius: ${({ theme }) => theme.borderRadius.xl};
-  padding: ${({ theme }) => theme.spacing.lg};
-  transition: all 0.3s ease;
-  cursor: pointer;
-  max-height: 100dvh;
-  overflow-y: auto;
+  padding: 1rem;
+  transition: box-shadow 0.2s, border-color 0.2s, transform 0.2s;
   box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
 
   &:hover {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
     box-shadow: 0 10px 25px ${({ theme }) => theme.colors.shadowDark};
-    border-color: ${({ theme }) => theme.colors.primary}40;
+    border-color: ${({ theme }) => theme.colors.borderGlow};
   }
+
+  @media (max-width: 820px) {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+`
+
+const VistoriaMain = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
 `
 
 const VistoriaHeader = styled.div`
   display: flex;
-  justify-content: space-between;
+  gap: 0.75rem;
   align-items: flex-start;
-  margin-bottom: ${({ theme }) => theme.spacing.md};
+
+  @media (max-width: 520px) {
+    flex-direction: column;
+  }
 `
 
 const VistoriaTitle = styled.h4`
   font-size: ${({ theme }) => theme.fontSizes.base};
-  font-weight: 600;
+  font-weight: 800;
   color: ${({ theme }) => theme.colors.text};
   margin: 0;
   flex: 1;
+  overflow-wrap: anywhere;
 `
 
 const VistoriaStatus = styled.span<{ $status: string }>`
-  padding: ${({ theme }) => theme.spacing.xs} ${({ theme }) => theme.spacing.sm};
-  border-radius: ${({ theme }) => theme.borderRadius.md};
+  padding: 0.35rem 0.65rem;
+  border-radius: ${({ theme }) => theme.borderRadius.full};
   font-size: ${({ theme }) => theme.fontSizes.xs};
-  font-weight: 600;
+  font-weight: 800;
   text-transform: uppercase;
+  white-space: nowrap;
   ${({ $status, theme }) => {
     switch ($status) {
       case 'concluida':
@@ -164,33 +190,69 @@ const VistoriaStatus = styled.span<{ $status: string }>`
 `
 
 const VistoriaInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: ${({ theme }) => theme.spacing.xs};
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  gap: 0.5rem 1rem;
   color: ${({ theme }) => theme.colors.textSecondary};
   font-size: ${({ theme }) => theme.fontSizes.sm};
+
+  div {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  @media (max-width: 520px) {
+    grid-template-columns: 1fr;
+  }
 `
 
 const VistoriaActions = styled.div`
-  display: flex;
-  gap: ${({ theme }) => theme.spacing.sm};
-  margin-top: ${({ theme }) => theme.spacing.md};
-  padding-top: ${({ theme }) => theme.spacing.md};
-  border-top: 1px solid ${({ theme }) => theme.colors.border};
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  gap: 0.55rem;
+  justify-content: end;
+
+  @media (max-width: 820px) {
+    grid-template-columns: repeat(3, 1fr);
+    justify-content: stretch;
+  }
+
+  @media (max-width: 520px) {
+    grid-template-columns: 1fr;
+  }
 `
 
-const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'success' }>`
+const DetailsGenerateActions = styled.div`
   display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+
+  @media (max-width: 520px) {
+    button {
+      width: 100%;
+    }
+  }
+`
+
+const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'success' | 'danger' }>`
+  display: inline-flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing.xs};
-  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+  gap: 0.4rem;
+  padding: 0.55rem 0.8rem;
   border-radius: ${({ theme }) => theme.borderRadius.lg};
   font-size: ${({ theme }) => theme.fontSizes.sm};
-  font-weight: 600;
+  font-weight: 800;
   transition: all 0.3s ease;
   cursor: pointer;
-  flex: 1;
   justify-content: center;
+  min-height: 38px;
+  white-space: nowrap;
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
 
   ${({ $variant, theme }) => {
     switch ($variant) {
@@ -206,11 +268,21 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'succe
         `;
       case 'success':
         return `
-          background: ${theme.colors.success};
-          color: ${theme.colors.textWhite};
-          border: none;
+          background: rgba(16, 185, 129, 0.12);
+          color: ${theme.colors.success};
+          border: 1px solid ${theme.colors.success};
           &:hover {
-            background: #16a34a;
+            background: rgba(16, 185, 129, 0.18);
+            transform: translateY(-1px);
+          }
+        `;
+      case 'danger':
+        return `
+          background: transparent;
+          color: ${theme.colors.error};
+          border: 1px solid ${theme.colors.error};
+          &:hover:not(:disabled) {
+            background: rgba(239, 68, 68, 0.12);
             transform: translateY(-1px);
           }
         `;
@@ -230,17 +302,23 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'succe
 
 const EmptyState = styled.div`
   text-align: center;
-  padding: ${({ theme }) => theme.spacing['3xl']};
+  padding: clamp(2rem, 8vw, 3rem) 1rem;
   background: ${({ theme }) => theme.colors.backgroundTertiary};
-  border: 1px solid ${({ theme }) => theme.colors.border};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
   border-radius: ${({ theme }) => theme.borderRadius.xl};
   color: ${({ theme }) => theme.colors.textSecondary};
 `
 
 const EmptyIcon = styled.div`
-  font-size: 64px;
-  margin-bottom: ${({ theme }) => theme.spacing.lg};
-  color: ${({ theme }) => theme.colors.textLight};
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  margin-bottom: 1rem;
+  background: ${({ theme }) => theme.colors.backgroundGlass};
+  color: ${({ theme }) => theme.colors.primaryLight};
 `
 
 const EmptyTitle = styled.h3`
@@ -408,9 +486,11 @@ export const PropertyLaudoPage: React.FC = () => {
   if (loading) {
     return (
       <Container>
-        <LoadingContainer>
-          <LoadingSpinner />
-        </LoadingContainer>
+        <ContentWrapper>
+          <LoadingContainer>
+            <LoadingSpinner />
+          </LoadingContainer>
+        </ContentWrapper>
       </Container>
     )
   }
@@ -424,11 +504,15 @@ export const PropertyLaudoPage: React.FC = () => {
           onBack={() => navigate('/property-list')}
         />
 
-        <EmptyState>
-          <EmptyIcon>⚠️</EmptyIcon>
-          <EmptyTitle>Erro ao carregar dados</EmptyTitle>
-          <EmptyDescription>{error || 'Imóvel não encontrado'}</EmptyDescription>
-        </EmptyState>
+        <ContentWrapper>
+          <EmptyState>
+            <EmptyIcon>
+              <FileText size={32} />
+            </EmptyIcon>
+            <EmptyTitle>Erro ao carregar dados</EmptyTitle>
+            <EmptyDescription>{error || 'Imóvel não encontrado'}</EmptyDescription>
+          </EmptyState>
+        </ContentWrapper>
       </Container>
     )
   }
@@ -442,27 +526,28 @@ export const PropertyLaudoPage: React.FC = () => {
           onBack={() => setShowDetailsForm(false)}
         />
         
-        <VistoriaSection>
-          <InspectionDetailsForm
-            inspectionId={selectedVistoria}
-            propertyId={imovel.id}
-            onDetailsSaved={handleDetailsFormSaved}
-            onAllRequiredFilled={setAllRequiredFilled}
-          />
-          
-          {allRequiredFilled && (
-            <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-              <ActionButton 
-                $variant="success" 
-                onClick={() => handleGerarLaudo(selectedVistoria)}
-                style={{ maxWidth: '300px', margin: '0 auto' }}
-              >
-                <FileText size={16} />
-                Gerar Laudo PDF
-              </ActionButton>
-            </div>
-          )}
-        </VistoriaSection>
+        <ContentWrapper>
+          <VistoriaSection>
+            <InspectionDetailsForm
+              inspectionId={selectedVistoria}
+              propertyId={imovel.id}
+              onDetailsSaved={handleDetailsFormSaved}
+              onAllRequiredFilled={setAllRequiredFilled}
+            />
+            
+            {allRequiredFilled && (
+              <DetailsGenerateActions>
+                <ActionButton 
+                  $variant="success" 
+                  onClick={() => handleGerarLaudo(selectedVistoria)}
+                >
+                  <FileText size={16} />
+                  Gerar Laudo PDF
+                </ActionButton>
+              </DetailsGenerateActions>
+            )}
+          </VistoriaSection>
+        </ContentWrapper>
       </Container>
     )
   }
@@ -475,86 +560,96 @@ export const PropertyLaudoPage: React.FC = () => {
         onBack={() => navigate(-1)}
       />
 
-      <PropertyInfo>
-        <PropertyHeader>
-          <Building2 size={24} color="#ff4500" />
-          <PropertyName>{imovel.nome}</PropertyName>
-          <PropertyType>{getTipoDisplay(imovel.tipo)}</PropertyType>
-        </PropertyHeader>
-        
-        <PropertyAddress>
-          <MapPin size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
-          <div>
-            {imovel.endereco_completo}
-            <br />
-            {imovel.cidade} - {imovel.uf}
-            {imovel.cep && ` • CEP: ${imovel.cep}`}
-          </div>
-        </PropertyAddress>
-      </PropertyInfo>
+      <ContentWrapper>
+        <PropertyInfo>
+          <PropertyHeader>
+            <div>
+              <PropertyName>{imovel.nome}</PropertyName>
+            </div>
+            <PropertyType>
+              <Building2 size={14} />
+              {getTipoDisplay(imovel.tipo)}
+            </PropertyType>
+          </PropertyHeader>
+          
+          <PropertyAddress>
+            <MapPin size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
+            <div>
+              {imovel.endereco_completo}
+              <br />
+              {imovel.cidade} - {imovel.uf}
+              {imovel.cep && ` • CEP: ${imovel.cep}`}
+            </div>
+          </PropertyAddress>
+        </PropertyInfo>
 
-      <VistoriaSection>
-        <SectionTitle>
-          <FileText size={24} />
-          Vistorias do Imóvel ({vistorias.length})
-        </SectionTitle>
+        <VistoriaSection>
+          <SectionTitle>
+            <FileText size={22} />
+            Vistorias do imóvel ({vistorias.length})
+          </SectionTitle>
 
-        {vistorias.length === 0 ? (
-          <EmptyState>
-            <EmptyIcon>📋</EmptyIcon>
-            <EmptyTitle>Nenhuma vistoria encontrada</EmptyTitle>
-            <EmptyDescription>
-              Este imóvel ainda não possui vistorias realizadas. Crie uma vistoria primeiro através do menu principal.
-            </EmptyDescription>
-          </EmptyState>
-        ) : (
-          <VistoriaGrid>
-            {vistorias.map((vistoria) => (
-              <VistoriaCard key={vistoria.id}>
-                <VistoriaHeader>
-                  <VistoriaTitle>{vistoria.descricao}</VistoriaTitle>
-                  <VistoriaStatus $status={vistoria.status}>
-                    {getStatusDisplay(vistoria.status)}
-                  </VistoriaStatus>
-                </VistoriaHeader>
-                
-                <VistoriaInfo>
-                  <div>
-                    <Calendar size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                    Data: {new Date(vistoria.data).toLocaleDateString('pt-BR')}
-                  </div>
-                  <div>
-                    <User size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                    Criada em: {new Date(vistoria.created_at).toLocaleDateString('pt-BR')}
-                  </div>
-                </VistoriaInfo>
+          {vistorias.length === 0 ? (
+            <EmptyState>
+              <EmptyIcon>
+                <FileText size={32} />
+              </EmptyIcon>
+              <EmptyTitle>Nenhuma vistoria encontrada</EmptyTitle>
+              <EmptyDescription>
+                Este imóvel ainda não possui vistorias realizadas. Crie uma vistoria primeiro através do menu principal.
+              </EmptyDescription>
+            </EmptyState>
+          ) : (
+            <VistoriaGrid>
+              {vistorias.map((vistoria) => (
+                <VistoriaCard key={vistoria.id}>
+                  <VistoriaMain>
+                    <VistoriaHeader>
+                      <VistoriaTitle>{vistoria.descricao || `Vistoria #${vistoria.id}`}</VistoriaTitle>
+                      <VistoriaStatus $status={vistoria.status}>
+                        {getStatusDisplay(vistoria.status)}
+                      </VistoriaStatus>
+                    </VistoriaHeader>
+                    
+                    <VistoriaInfo>
+                      <div>
+                        <Calendar size={14} />
+                        Data: {new Date(vistoria.data).toLocaleDateString('pt-BR')}
+                      </div>
+                      <div>
+                        <User size={14} />
+                        Criada em: {new Date(vistoria.created_at).toLocaleDateString('pt-BR')}
+                      </div>
+                    </VistoriaInfo>
+                  </VistoriaMain>
 
-                <VistoriaActions>
-                  <ActionButton onClick={() => handlePreencherDadosLaudo(vistoria.id)}>
-                    <Eye size={14} />
-                    Dados do Laudo
-                  </ActionButton>
-                  <ActionButton 
-                    $variant="success" 
-                    onClick={() => handleGerarLaudo(vistoria.id)}
-                  >
-                    <FileText size={14} />
-                    Gerar PDF
-                  </ActionButton>
-                  <ActionButton
-                    $variant="secondary"
-                    style={{ color: '#dc2626', borderColor: '#dc2626' }}
-                    onClick={() => handleExcluirVistoria(vistoria.id)}
-                    disabled={deletingId === vistoria.id}
-                  >
-                    {deletingId === vistoria.id ? 'Excluindo...' : 'Excluir'}
-                  </ActionButton>
-                </VistoriaActions>
-              </VistoriaCard>
-            ))}
-          </VistoriaGrid>
-        )}
-      </VistoriaSection>
+                  <VistoriaActions>
+                    <ActionButton onClick={() => handlePreencherDadosLaudo(vistoria.id)}>
+                      <Eye size={14} />
+                      Dados
+                    </ActionButton>
+                    <ActionButton 
+                      $variant="success" 
+                      onClick={() => handleGerarLaudo(vistoria.id)}
+                    >
+                      <FileText size={14} />
+                      PDF
+                    </ActionButton>
+                    <ActionButton
+                      $variant="danger"
+                      onClick={() => handleExcluirVistoria(vistoria.id)}
+                      disabled={deletingId === vistoria.id}
+                    >
+                      <Trash2 size={14} />
+                      {deletingId === vistoria.id ? 'Excluindo...' : 'Excluir'}
+                    </ActionButton>
+                  </VistoriaActions>
+                </VistoriaCard>
+              ))}
+            </VistoriaGrid>
+          )}
+        </VistoriaSection>
+      </ContentWrapper>
       <MobileTabBar />
     </Container>
   )

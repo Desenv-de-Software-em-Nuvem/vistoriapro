@@ -102,7 +102,10 @@ module.exports = {
       const camposValidos = [
         'nome', 'endereco_completo', 'unidade', 'cidade', 'uf', 'cep', 'tipo', 'observacoes',
         'proprietario_nome', 'proprietario_cpf', 'proprietario_rg', 'proprietario_endereco',
-        'administradora_nome', 'administradora_cnpj', 'imovel_matricula', 'imovel_cartorio'
+        'proprietario_nacionalidade', 'proprietario_profissao', 'proprietario_rg_orgao', 'proprietario_rg_uf',
+        'administradora_nome', 'administradora_cnpj', 'administradora_endereco',
+        'socio_nome', 'socio_cpf', 'socio_profissao', 'representante_tipo',
+        'imovel_matricula', 'imovel_cartorio'
       ];
       const dados = {};
       for (const key of camposValidos) {
