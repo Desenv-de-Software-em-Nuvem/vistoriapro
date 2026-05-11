@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useState, useEffect } from 'react'
 import styled from 'styled-components'
 import { ArrowLeft, Edit3, Trash2, MapPin, Building2, FileText } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -313,7 +313,7 @@ export const PropertyDetailPage: React.FC = () => {
   const [error, setError] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  const loadImovel = async () => {
+  const loadImovel = useCallback(async () => {
     if (!id) {
       setError('ID do imóvel não fornecido')
       setLoading(false)
@@ -329,11 +329,11 @@ export const PropertyDetailPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
 
   useEffect(() => {
     loadImovel()
-  }, [id])
+  }, [loadImovel])
 
   const handleDelete = async () => {
     if (!imovel) return

@@ -1,8 +1,6 @@
 /**
  * Testes para funções utilitárias do frontend
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 // Utilitários para formatação
 export const formatCPF = (cpf: string): string => {
   return cpf

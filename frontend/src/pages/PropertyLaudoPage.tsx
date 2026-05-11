@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useState, useEffect } from 'react'
 import styled from 'styled-components'
 import { FileText, Eye, Calendar, User, Building2, MapPin } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -317,7 +317,7 @@ export const PropertyLaudoPage: React.FC = () => {
     }
   }
 
-  const loadPropertyData = async () => {
+  const loadPropertyData = useCallback(async () => {
     if (!id) {
       setError('ID do imóvel não fornecido')
       setLoading(false)
@@ -345,11 +345,11 @@ export const PropertyLaudoPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [id])
 
   useEffect(() => {
     loadPropertyData()
-  }, [id])
+  }, [loadPropertyData])
 
   const getStatusDisplay = (status: string) => {
     const statusMap: Record<string, string> = {

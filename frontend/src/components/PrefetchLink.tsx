@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 interface PrefetchLinkProps {
@@ -26,7 +26,7 @@ const PrefetchLink: React.FC<PrefetchLinkProps> = ({
 }) => {
   const navigate = useNavigate();
   
-  const prefetchPage = () => {
+  const prefetchPage = useCallback(() => {
     // Simula uma navegação para a rota sem realmente navegar
     // Isso faz o React Router carregar os chunks Lazy relacionados
     const tempNavigate = () => {
@@ -34,7 +34,7 @@ const PrefetchLink: React.FC<PrefetchLinkProps> = ({
       
       if (typeof to === 'string' && to !== currentPath) {
         navigate(to, { replace: false, state: { prefetch: true } });
-        navigate(-1 as any, { replace: true });
+        navigate(-1);
       }
     };
     
@@ -44,7 +44,7 @@ const PrefetchLink: React.FC<PrefetchLinkProps> = ({
     } else {
       tempNavigate();
     }
-  };
+  }, [navigate, prefetchTimeout, to]);
   
   useEffect(() => {
     // Se prefetch automático após renderização for habilitado
@@ -53,7 +53,7 @@ const PrefetchLink: React.FC<PrefetchLinkProps> = ({
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [to]);
+  }, [prefetch, prefetchPage, prefetchTimeout]);
   
   const handleMouseEnter = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (prefetch) {
