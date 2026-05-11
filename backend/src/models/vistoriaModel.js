@@ -26,11 +26,15 @@ module.exports = {
     const result = await pool.query('SELECT id, empresa_id, usuario_id, descricao, data, created_at, imovel_id FROM vistorias ORDER BY id');
     return result.rows;
   },
-  async buscarPorId(id) {
-    const result = await pool.query('SELECT * FROM vistorias WHERE id = $1', [id]);
+  async buscarPorId(id, empresa_id) {
+    const query = empresa_id
+      ? 'SELECT * FROM vistorias WHERE id = $1 AND empresa_id = $2'
+      : 'SELECT * FROM vistorias WHERE id = $1';
+    const values = empresa_id ? [id, empresa_id] : [id];
+    const result = await pool.query(query, values);
     return result.rows[0];
   },
-  async atualizar(id, dados) {
+  async atualizar(id, empresa_id, dados) {
     const campos = [];
     const valores = [];
     let i = 1;
@@ -39,14 +43,19 @@ module.exports = {
       valores.push(dados[key]);
       i++;
     }
-    valores.push(id);
+    if (campos.length === 0) {
+      return this.buscarPorId(id, empresa_id);
+    }
+
+    valores.push(id, empresa_id);
     const result = await pool.query(
-      `UPDATE vistorias SET ${campos.join(', ')} WHERE id = $${i} RETURNING *`,
+      `UPDATE vistorias SET ${campos.join(', ')} WHERE id = $${i} AND empresa_id = $${i + 1} RETURNING *`,
       valores
     );
     return result.rows[0];
   },
-  async deletar(id) {
-    await pool.query('DELETE FROM vistorias WHERE id = $1', [id]);
+  async deletar(id, empresa_id) {
+    const result = await pool.query('DELETE FROM vistorias WHERE id = $1 AND empresa_id = $2 RETURNING id', [id, empresa_id]);
+    return result.rowCount > 0;
   },
 };

@@ -1,6 +1,7 @@
 const fotoModel = require('../models/fotoModel');
 const fs = require('fs');
 const path = require('path');
+const vistoriaModel = require('../models/vistoriaModel');
 
 module.exports = {
   async uploadFoto(req, res) {
@@ -14,6 +15,11 @@ module.exports = {
       if (!vistoria_id || !req.file) {
         console.error('Faltando campos obrigatórios: vistoria_id ou foto');
         return res.status(400).json({ error: 'vistoria_id e foto (arquivo) são obrigatórios.' });
+      }
+
+      const vistoria = await vistoriaModel.buscarPorId(vistoria_id, req.usuario.empresa_id);
+      if (!vistoria) {
+        return res.status(404).json({ error: 'Vistoria não encontrada.' });
       }
 
       let urlPublica;
@@ -43,10 +49,10 @@ module.exports = {
       let fotos;
       const vistoriaId = req.query.vistoria_id || req.params.vistoriaId;
       if (vistoriaId) {
-        fotos = await fotoModel.listarPorVistoria(vistoriaId);
+        fotos = await fotoModel.listarPorVistoria(vistoriaId, req.usuario.empresa_id);
       } else {
         // Listar todas as fotos se não passar vistoria_id
-        const result = await fotoModel.listarTodas();
+        const result = await fotoModel.listarTodas(req.usuario.empresa_id);
         fotos = result;
       }
       res.json(fotos);
@@ -60,7 +66,8 @@ module.exports = {
   },
   async deletarFoto(req, res) {
     try {
-      await fotoModel.deletar(req.params.id);
+      const deletada = await fotoModel.deletar(req.params.id, req.usuario.empresa_id);
+      if (!deletada) return res.status(404).json({ error: 'Foto não encontrada' });
       res.json({ message: 'Foto deletada' });
     } catch (err) {
       res.status(500).json({ error: err.message });

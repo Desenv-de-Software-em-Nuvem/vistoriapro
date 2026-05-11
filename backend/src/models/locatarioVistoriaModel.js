@@ -10,14 +10,18 @@ module.exports = {
     );
     return result.rows[0];
   },
-  async listarPorVistoria(vistoriaId) {
+  async listarPorVistoria(vistoriaId, empresa_id) {
     const result = await pool.query(
-      'SELECT id, vistoria_id, nome, nacionalidade, profissao, cpf, rg, rg_orgao, rg_uf, endereco FROM locatarios_vistoria WHERE vistoria_id = $1 ORDER BY id',
-      [vistoriaId]
+      `SELECT l.id, l.vistoria_id, l.nome, l.nacionalidade, l.profissao, l.cpf, l.rg, l.rg_orgao, l.rg_uf, l.endereco
+       FROM locatarios_vistoria l
+       INNER JOIN vistorias v ON v.id = l.vistoria_id
+       WHERE l.vistoria_id = $1 AND v.empresa_id = $2
+       ORDER BY l.id`,
+      [vistoriaId, empresa_id]
     );
     return result.rows;
   },
-  async atualizar(id, dados) {
+  async atualizar(id, empresa_id, dados) {
     const campos = [];
     const valores = [];
     let i = 1;
@@ -26,18 +30,40 @@ module.exports = {
       valores.push(dados[key]);
       i++;
     }
-    valores.push(id);
+
+    if (campos.length === 0) {
+      return this.buscarPorId(id, empresa_id);
+    }
+
+    valores.push(id, empresa_id);
     const result = await pool.query(
-      `UPDATE locatarios_vistoria SET ${campos.join(', ')} WHERE id = $${i} RETURNING *`,
+      `UPDATE locatarios_vistoria l
+       SET ${campos.join(', ')}
+       FROM vistorias v
+       WHERE l.vistoria_id = v.id AND l.id = $${i} AND v.empresa_id = $${i + 1}
+       RETURNING l.*`,
       valores
     );
     return result.rows[0];
   },
-  async deletar(id) {
-    await pool.query('DELETE FROM locatarios_vistoria WHERE id = $1', [id]);
+  async deletar(id, empresa_id) {
+    const result = await pool.query(
+      `DELETE FROM locatarios_vistoria l
+       USING vistorias v
+       WHERE l.vistoria_id = v.id AND l.id = $1 AND v.empresa_id = $2
+       RETURNING l.id`,
+      [id, empresa_id]
+    );
+    return result.rowCount > 0;
   },
-  async buscarPorId(id) {
-    const result = await pool.query('SELECT * FROM locatarios_vistoria WHERE id = $1', [id]);
+  async buscarPorId(id, empresa_id) {
+    const result = await pool.query(
+      `SELECT l.*
+       FROM locatarios_vistoria l
+       INNER JOIN vistorias v ON v.id = l.vistoria_id
+       WHERE l.id = $1 AND v.empresa_id = $2`,
+      [id, empresa_id]
+    );
     return result.rows[0];
   },
 };

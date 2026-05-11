@@ -128,7 +128,7 @@ module.exports = {
       }
 
       // Busca dados da vistoria
-      const vistoria = await vistoriaModel.buscarPorId(vistoria_id);
+      const vistoria = await vistoriaModel.buscarPorId(vistoria_id, req.usuario.empresa_id);
       if (!vistoria) return res.status(404).json({ error: 'Vistoria não encontrada.' });
 
       // Busca imóvel relacionado
@@ -137,13 +137,13 @@ module.exports = {
 
 
       // Busca fotos
-      const fotos = await fotoModel.listarPorVistoria(vistoria_id);
+      const fotos = await fotoModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id);
       // Busca transcrições
-      const transcricoes = await transcricaoModel.listarPorVistoria(vistoria_id);
+      const transcricoes = await transcricaoModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id);
       // Busca cômodos
-      const comodos = await comodoVistoriaModel.listarPorVistoria(vistoria_id);
+      const comodos = await comodoVistoriaModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id);
       // Busca locatários detalhados
-      let locatarios = await locatarioVistoriaListModel.listarPorVistoria(vistoria_id);
+      let locatarios = await locatarioVistoriaListModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id);
       // Garante que todos os campos dos locatários sejam string (evita null no template)
       locatarios = locatarios.map(l => ({
         id: l.id,
@@ -310,11 +310,11 @@ module.exports = {
   },
   async listarRelatoriosPorVistoria(req, res) {
     try {
-      const vistoriaId = req.query.vistoria_id || req.params.vistoria_id;
+      const vistoriaId = req.query.vistoria_id || req.params.vistoria_id || req.params.vistoriaId;
       if (!vistoriaId) {
         return res.status(400).json({ error: 'vistoria_id é obrigatório.' });
       }
-      const relatorios = await relatorioModel.listarPorVistoria(vistoriaId);
+      const relatorios = await relatorioModel.listarPorVistoria(vistoriaId, req.usuario.empresa_id);
       res.json(relatorios);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -322,7 +322,7 @@ module.exports = {
   },
   async buscarRelatorioPorId(req, res) {
     try {
-      const relatorio = await relatorioModel.buscarPorId(req.params.id);
+      const relatorio = await relatorioModel.buscarPorId(req.params.id, req.usuario.empresa_id);
       if (!relatorio) return res.status(404).json({ error: 'Relatório não encontrado' });
       res.json(relatorio);
     } catch (err) {
@@ -331,7 +331,8 @@ module.exports = {
   },
   async deletarRelatorio(req, res) {
     try {
-      await relatorioModel.deletar(req.params.id);
+      const deletado = await relatorioModel.deletar(req.params.id, req.usuario.empresa_id);
+      if (!deletado) return res.status(404).json({ error: 'Relatório não encontrado' });
       res.json({ message: 'Relatório deletado' });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -339,7 +340,7 @@ module.exports = {
   },
   async downloadRelatorio(req, res) {
     try {
-      const relatorio = await relatorioModel.buscarPorId(req.params.id);
+      const relatorio = await relatorioModel.buscarPorId(req.params.id, req.usuario.empresa_id);
       if (!relatorio || !relatorio.url_arquivo) {
         return res.status(404).json({ error: 'Relatório não encontrado.' });
       }
@@ -368,7 +369,7 @@ module.exports = {
   },
   async listarRelatorios(req, res) {
     try {
-      const relatorios = await relatorioModel.listarTodos();
+      const relatorios = await relatorioModel.listarTodos(req.usuario.empresa_id);
       res.json(relatorios);
     } catch (err) {
       res.status(500).json({ error: err.message });

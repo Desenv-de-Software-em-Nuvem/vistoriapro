@@ -1,4 +1,5 @@
 const vistoriaModel = require('../models/vistoriaModel');
+const imovelModel = require('../models/imovelModel');
 
 module.exports = {
   // Método alternativo para atualizar apenas o status da vistoria
@@ -20,8 +21,10 @@ module.exports = {
         });
       }
       
+      const empresa_id = req.usuario.empresa_id;
+
       // Busca a vistoria antes de atualizar para verificar
-      const vistoriaAtual = await vistoriaModel.buscarPorId(req.params.id);
+      const vistoriaAtual = await vistoriaModel.buscarPorId(req.params.id, empresa_id);
       if (!vistoriaAtual) {
         return res.status(404).json({ error: 'Vistoria não encontrada' });
       }
@@ -29,7 +32,7 @@ module.exports = {
       console.log('[atualizarStatusVistoria] status atual:', vistoriaAtual.status);
       
       // Atualiza apenas o status
-      const vistoria = await vistoriaModel.atualizar(req.params.id, { status: req.query.status });
+      const vistoria = await vistoriaModel.atualizar(req.params.id, empresa_id, { status: req.query.status });
       console.log('[atualizarStatusVistoria] resultado do update:', vistoria);
       
       res.json({ 
@@ -52,6 +55,11 @@ module.exports = {
       
       if (!descricao || !data || !imovel_id) {
         return res.status(400).json({ error: 'Dados obrigatórios: descricao, data, imovel_id' });
+      }
+
+      const imovel = await imovelModel.buscarPorId(imovel_id, empresa_id);
+      if (!imovel) {
+        return res.status(404).json({ error: 'Imóvel não encontrado' });
       }
       
       const vistoria = await vistoriaModel.criar({ 
@@ -89,7 +97,7 @@ module.exports = {
   },
   async buscarVistoriaPorId(req, res) {
     try {
-      const vistoria = await vistoriaModel.buscarPorId(req.params.id);
+      const vistoria = await vistoriaModel.buscarPorId(req.params.id, req.usuario.empresa_id);
       if (!vistoria) return res.status(404).json({ error: 'Vistoria não encontrada' });
       res.json(vistoria);
     } catch (err) {
@@ -113,7 +121,15 @@ module.exports = {
         }
       }
 
-      const vistoria = await vistoriaModel.atualizar(req.params.id, dados);
+      if (dados.imovel_id) {
+        const imovel = await imovelModel.buscarPorId(dados.imovel_id, req.usuario.empresa_id);
+        if (!imovel) {
+          return res.status(404).json({ error: 'Imóvel não encontrado' });
+        }
+      }
+
+      const vistoria = await vistoriaModel.atualizar(req.params.id, req.usuario.empresa_id, dados);
+      if (!vistoria) return res.status(404).json({ error: 'Vistoria não encontrada' });
       console.log('[atualizarVistoria] resultado do update:', vistoria);
       res.json({ message: 'Vistoria atualizada', vistoria });
     } catch (err) {
@@ -123,7 +139,8 @@ module.exports = {
   },
   async deletarVistoria(req, res) {
     try {
-      await vistoriaModel.deletar(req.params.id);
+      const deletada = await vistoriaModel.deletar(req.params.id, req.usuario.empresa_id);
+      if (!deletada) return res.status(404).json({ error: 'Vistoria não encontrada' });
       res.json({ message: 'Vistoria deletada' });
     } catch (err) {
       res.status(500).json({ error: err.message });

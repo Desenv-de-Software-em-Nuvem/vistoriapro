@@ -1,4 +1,5 @@
 const comodoVistoriaModel = require('../models/comodoVistoriaModel');
+const vistoriaModel = require('../models/vistoriaModel');
 
 module.exports = {
   async criarComodo(req, res) {
@@ -7,6 +8,12 @@ module.exports = {
       if (!vistoria_id || !nome) {
         return res.status(400).json({ error: 'vistoria_id e nome são obrigatórios' });
       }
+
+      const vistoria = await vistoriaModel.buscarPorId(vistoria_id, req.usuario.empresa_id);
+      if (!vistoria) {
+        return res.status(404).json({ error: 'Vistoria não encontrada' });
+      }
+
       const comodo = await comodoVistoriaModel.criar({ vistoria_id, nome, descricao });
       res.status(201).json(comodo);
     } catch (err) {
@@ -18,7 +25,7 @@ module.exports = {
   async listarPorVistoria(req, res) {
     try {
       const { vistoria_id } = req.params;
-      const comodos = await comodoVistoriaModel.listarPorVistoria(vistoria_id);
+      const comodos = await comodoVistoriaModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id);
       res.json(comodos);
     } catch (err) {
       res.status(500).json({ error: 'Erro ao listar cômodos' });
@@ -28,7 +35,7 @@ module.exports = {
   async buscarPorId(req, res) {
     try {
       const { id } = req.params;
-      const comodo = await comodoVistoriaModel.buscarPorId(id);
+      const comodo = await comodoVistoriaModel.buscarPorId(id, req.usuario.empresa_id);
       if (!comodo) return res.status(404).json({ error: 'Cômodo não encontrado' });
       res.json(comodo);
     } catch (err) {
@@ -39,7 +46,8 @@ module.exports = {
   async deletar(req, res) {
     try {
       const { id } = req.params;
-      await comodoVistoriaModel.deletar(id);
+      const deletado = await comodoVistoriaModel.deletar(id, req.usuario.empresa_id);
+      if (!deletado) return res.status(404).json({ error: 'Cômodo não encontrado' });
       res.status(204).end();
     } catch (err) {
       res.status(500).json({ error: 'Erro ao deletar cômodo' });

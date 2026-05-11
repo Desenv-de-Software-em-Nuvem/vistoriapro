@@ -8,18 +8,35 @@ module.exports = {
     );
     return result.rows[0];
   },
-  async listarPorVistoria(vistoriaId) {
+  async listarPorVistoria(vistoriaId, empresa_id) {
     const result = await pool.query(
-      'SELECT * FROM comodos_vistoria WHERE vistoria_id = $1 ORDER BY id',
-      [vistoriaId]
+      `SELECT c.*
+       FROM comodos_vistoria c
+       INNER JOIN vistorias v ON v.id = c.vistoria_id
+       WHERE c.vistoria_id = $1 AND v.empresa_id = $2
+       ORDER BY c.id`,
+      [vistoriaId, empresa_id]
     );
     return result.rows;
   },
-  async buscarPorId(id) {
-    const result = await pool.query('SELECT * FROM comodos_vistoria WHERE id = $1', [id]);
+  async buscarPorId(id, empresa_id) {
+    const result = await pool.query(
+      `SELECT c.*
+       FROM comodos_vistoria c
+       INNER JOIN vistorias v ON v.id = c.vistoria_id
+       WHERE c.id = $1 AND v.empresa_id = $2`,
+      [id, empresa_id]
+    );
     return result.rows[0];
   },
-  async deletar(id) {
-    await pool.query('DELETE FROM comodos_vistoria WHERE id = $1', [id]);
+  async deletar(id, empresa_id) {
+    const result = await pool.query(
+      `DELETE FROM comodos_vistoria c
+       USING vistorias v
+       WHERE c.vistoria_id = v.id AND c.id = $1 AND v.empresa_id = $2
+       RETURNING c.id`,
+      [id, empresa_id]
+    );
+    return result.rowCount > 0;
   },
 };
