@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'vistoriapro_secret';
+const { getJwtSecret } = require('../config/jwt');
+const JWT_SECRET = getJwtSecret();
 
 // Middleware de autenticação
 function autenticar(req, res, next) {

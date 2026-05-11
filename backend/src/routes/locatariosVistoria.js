@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const locatarioVistoriaController = require('../controllers/locatarioVistoriaController');
+const { autenticar, autorizar } = require('../middlewares/auth');
+
+router.use(autenticar, autorizar('admin', 'vistoriador'));
 
 // Criar locatário para uma vistoria
 router.post('/', locatarioVistoriaController.criarLocatario);

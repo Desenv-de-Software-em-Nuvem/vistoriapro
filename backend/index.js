@@ -81,17 +81,19 @@ app.get('/', (req, res) => {
   });
 });
 
-// Debug endpoint
-app.get('/debug', (req, res) => {
-  res.json({
-    timestamp: new Date().toISOString(),
-    port: process.env.PORT,
-    hasDatabase: !!process.env.DATABASE_URL,
-    hasJWT: !!process.env.JWT_SECRET,
-    nodeEnv: process.env.NODE_ENV,
-    databaseUrlPrefix: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 20) + '...' : 'undefined'
+if (process.env.NODE_ENV !== 'production') {
+  // Endpoints operacionais temporários ficam disponíveis apenas em desenvolvimento/teste.
+  app.get('/debug', (req, res) => {
+    res.json({
+      timestamp: new Date().toISOString(),
+      port: process.env.PORT,
+      hasDatabase: !!process.env.DATABASE_URL,
+      hasJWT: !!process.env.JWT_SECRET,
+      nodeEnv: process.env.NODE_ENV,
+      databaseUrlPrefix: process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 20) + '...' : 'undefined'
+    });
   });
-});
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -184,130 +186,132 @@ try {
   console.error('❌ Erro ao carregar swagger.yaml:', error.message);
 }
 
-// Migration endpoint (temporário)
-app.get('/migrate/imoveis', async (req, res) => {
-  try {
-    console.log('Executando migration da tabela imoveis...');
-    
-    // Criar tabela imoveis
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS imoveis (
-          id SERIAL PRIMARY KEY,
-          empresa_id INTEGER NOT NULL,
-          nome VARCHAR(255) NOT NULL,
-          endereco_completo TEXT NOT NULL,
-          unidade VARCHAR(50),
-          cidade VARCHAR(100) NOT NULL,
-          uf VARCHAR(2) NOT NULL,
-          cep VARCHAR(10),
-          tipo VARCHAR(50) NOT NULL,
-          observacoes TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          
-          FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE
-      )
-    `);
+if (process.env.NODE_ENV !== 'production') {
+  // Migration endpoint (temporário)
+  app.get('/migrate/imoveis', async (req, res) => {
+    try {
+      console.log('Executando migration da tabela imoveis...');
+      
+      // Criar tabela imoveis
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS imoveis (
+            id SERIAL PRIMARY KEY,
+            empresa_id INTEGER NOT NULL,
+            nome VARCHAR(255) NOT NULL,
+            endereco_completo TEXT NOT NULL,
+            unidade VARCHAR(50),
+            cidade VARCHAR(100) NOT NULL,
+            uf VARCHAR(2) NOT NULL,
+            cep VARCHAR(10),
+            tipo VARCHAR(50) NOT NULL,
+            observacoes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            
+            FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE CASCADE
+        )
+      `);
 
-    // Criar índices
-    await pool.query('CREATE INDEX IF NOT EXISTS idx_imoveis_empresa_id ON imoveis(empresa_id)');
-    await pool.query('CREATE INDEX IF NOT EXISTS idx_imoveis_tipo ON imoveis(tipo)');
-    await pool.query('CREATE INDEX IF NOT EXISTS idx_imoveis_cidade ON imoveis(cidade)');
+      // Criar índices
+      await pool.query('CREATE INDEX IF NOT EXISTS idx_imoveis_empresa_id ON imoveis(empresa_id)');
+      await pool.query('CREATE INDEX IF NOT EXISTS idx_imoveis_tipo ON imoveis(tipo)');
+      await pool.query('CREATE INDEX IF NOT EXISTS idx_imoveis_cidade ON imoveis(cidade)');
 
-    console.log('Migration executada com sucesso!');
-    res.json({ 
-      success: true, 
-      message: 'Tabela imoveis criada com sucesso!' 
-    });
-  } catch (error) {
-    console.error('Erro na migration:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
-  }
-});
-
-// Endpoint temporário para setup inicial
-app.get('/setup', async (req, res) => {
-  try {
-    // Verificar se existem usuários
-    const usuariosResult = await pool.query('SELECT COUNT(*) as count FROM usuarios');
-    const countUsuarios = parseInt(usuariosResult.rows[0].count);
-    
-    if (countUsuarios === 0) {
-      // Verificar se existe empresa
-      const empresasResult = await pool.query('SELECT COUNT(*) as count FROM empresas');
-      const countEmpresas = parseInt(empresasResult.rows[0].count);
-      
-      let empresaId;
-      if (countEmpresas === 0) {
-        // Criar empresa padrão
-        const empresaResult = await pool.query(
-          'INSERT INTO empresas (nome, cnpj, endereco, telefone, email) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-          ['Imobiliária VistoriaPro', '12.345.678/0001-90', 'Rua Principal, 123', '(11) 99999-9999', 'contato@vistoriapro.com']
-        );
-        empresaId = empresaResult.rows[0].id;
-      } else {
-        const empresaResult = await pool.query('SELECT id FROM empresas LIMIT 1');
-        empresaId = empresaResult.rows[0].id;
-      }
-      
-      // Criar usuário admin
-      const bcrypt = require('bcrypt');
-      const senhaHash = await bcrypt.hash('admin123', 10);
-      
-      await pool.query(
-        'INSERT INTO usuarios (empresa_id, nome, email, senha_hash, papel) VALUES ($1, $2, $3, $4, $5)',
-        [empresaId, 'Administrador', 'admin@vistoriapro.com', senhaHash, 'admin']
-      );
-      
-      res.json({
-        success: true,
-        message: 'Setup inicial realizado com sucesso!',
-        credentials: {
-          email: 'admin@vistoriapro.com',
-          senha: 'admin123'
-        }
+      console.log('Migration executada com sucesso!');
+      res.json({ 
+        success: true, 
+        message: 'Tabela imoveis criada com sucesso!' 
       });
-    } else {
-      // Listar usuários existentes (apenas emails)
-      const usuariosExistentes = await pool.query('SELECT email, papel FROM usuarios');
-      res.json({
-        success: true,
-        message: 'Usuários já existem no sistema',
-        usuarios: usuariosExistentes.rows
+    } catch (error) {
+      console.error('Erro na migration:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error.message 
       });
     }
-  } catch (err) {
-    console.error('Erro no setup:', err);
-    res.status(500).json({ 
-      success: false,
-      error: err.message 
-    });
-  }
-});
+  });
 
-// Exemplo de rota de teste com o banco
-app.get('/test-db', async (req, res) => {
-  try {
-    console.log('Testando conexão com o banco...');
-    const result = await pool.query('SELECT NOW() as current_time, version() as db_version');
-    console.log('Conexão com banco OK');
-    res.json({
-      success: true,
-      data: result.rows[0],
-      message: 'Conexão com banco de dados funcionando!'
-    });
-  } catch (err) {
-    console.error('Erro ao conectar com o banco:', err.message);
-    res.status(500).json({ 
-      success: false,
-      error: err.message,
-      message: 'Erro ao conectar com o banco de dados'
-    });
-  }
-});
+  // Endpoint temporário para setup inicial
+  app.get('/setup', async (req, res) => {
+    try {
+      // Verificar se existem usuários
+      const usuariosResult = await pool.query('SELECT COUNT(*) as count FROM usuarios');
+      const countUsuarios = parseInt(usuariosResult.rows[0].count);
+      
+      if (countUsuarios === 0) {
+        // Verificar se existe empresa
+        const empresasResult = await pool.query('SELECT COUNT(*) as count FROM empresas');
+        const countEmpresas = parseInt(empresasResult.rows[0].count);
+        
+        let empresaId;
+        if (countEmpresas === 0) {
+          // Criar empresa padrão
+          const empresaResult = await pool.query(
+            'INSERT INTO empresas (nome, cnpj, endereco, telefone, email) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+            ['Imobiliária VistoriaPro', '12.345.678/0001-90', 'Rua Principal, 123', '(11) 99999-9999', 'contato@vistoriapro.com']
+          );
+          empresaId = empresaResult.rows[0].id;
+        } else {
+          const empresaResult = await pool.query('SELECT id FROM empresas LIMIT 1');
+          empresaId = empresaResult.rows[0].id;
+        }
+        
+        // Criar usuário admin
+        const bcrypt = require('bcrypt');
+        const senhaHash = await bcrypt.hash('admin123', 10);
+        
+        await pool.query(
+          'INSERT INTO usuarios (empresa_id, nome, email, senha_hash, papel) VALUES ($1, $2, $3, $4, $5)',
+          [empresaId, 'Administrador', 'admin@vistoriapro.com', senhaHash, 'admin']
+        );
+        
+        res.json({
+          success: true,
+          message: 'Setup inicial realizado com sucesso!',
+          credentials: {
+            email: 'admin@vistoriapro.com',
+            senha: 'admin123'
+          }
+        });
+      } else {
+        // Listar usuários existentes (apenas emails)
+        const usuariosExistentes = await pool.query('SELECT email, papel FROM usuarios');
+        res.json({
+          success: true,
+          message: 'Usuários já existem no sistema',
+          usuarios: usuariosExistentes.rows
+        });
+      }
+    } catch (err) {
+      console.error('Erro no setup:', err);
+      res.status(500).json({ 
+        success: false,
+        error: err.message 
+      });
+    }
+  });
+
+  // Exemplo de rota de teste com o banco
+  app.get('/test-db', async (req, res) => {
+    try {
+      console.log('Testando conexão com o banco...');
+      const result = await pool.query('SELECT NOW() as current_time, version() as db_version');
+      console.log('Conexão com banco OK');
+      res.json({
+        success: true,
+        data: result.rows[0],
+        message: 'Conexão com banco de dados funcionando!'
+      });
+    } catch (err) {
+      console.error('Erro ao conectar com o banco:', err.message);
+      res.status(500).json({ 
+        success: false,
+        error: err.message,
+        message: 'Erro ao conectar com o banco de dados'
+      });
+    }
+  });
+}
 
 // Disponibilizar pool para outros módulos
 app.locals.pool = pool;

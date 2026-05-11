@@ -1,8 +1,9 @@
 const usuarioModel = require('../models/usuarioModel');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const { getJwtSecret } = require('../config/jwt');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'vistoriapro_secret';
+const JWT_SECRET = getJwtSecret();
 
 // Controller de Usuários
 module.exports = {
