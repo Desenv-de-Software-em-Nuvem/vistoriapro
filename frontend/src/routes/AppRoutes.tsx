@@ -16,7 +16,41 @@ const PropertyLaudoPage = lazy(() => import('../pages/PropertyLaudoPage').then(m
 const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage'))
 
 export const AppRoutes: React.FC = () => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, loading, user } = useAuth()
+
+  if (loading) {
+    return <LoadingSpinner />
+  }
+
+  const renderProtected = (element: React.ReactNode) => (
+    isAuthenticated ? (
+      <Suspense fallback={<LoadingSpinner />}>
+        {element}
+      </Suspense>
+    ) : <Navigate to="/login" replace />
+  )
+
+  const renderInspectionProtected = (element: React.ReactNode) => {
+    if (!isAuthenticated) return <Navigate to="/login" replace />
+    if (user?.permitidoVistoria === false) return <Navigate to="/dashboard" replace />
+
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        {element}
+      </Suspense>
+    )
+  }
+
+  const renderAdminProtected = (element: React.ReactNode) => {
+    if (!isAuthenticated) return <Navigate to="/login" replace />
+    if (user?.papel !== 'admin') return <Navigate to="/dashboard" replace />
+
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        {element}
+      </Suspense>
+    )
+  }
 
   return (
     <>
@@ -31,74 +65,32 @@ export const AppRoutes: React.FC = () => {
         />
       <Route 
         path="/property-registration" 
-        element={
-          isAuthenticated ? (
-            <Suspense fallback={<LoadingSpinner />}>
-              <PropertyRegistrationPage />
-            </Suspense>
-          ) : <Navigate to="/login" replace />
-        } 
+        element={renderProtected(<PropertyRegistrationPage />)}
       />
       <Route 
         path="/property-list" 
-        element={
-          isAuthenticated ? (
-            <Suspense fallback={<LoadingSpinner />}>
-              <PropertyListPage />
-            </Suspense>
-          ) : <Navigate to="/login" replace />
-        } 
+        element={renderProtected(<PropertyListPage />)}
       />
       <Route 
         path="/property-category/:inspectionId" 
-        element={
-          isAuthenticated ? (
-            <Suspense fallback={<LoadingSpinner />}>
-              <PropertyCategoryPage />
-            </Suspense>
-          ) : <Navigate to="/login" replace />
-        } 
+        element={renderInspectionProtected(<PropertyCategoryPage />)}
       />
       <Route 
         path="/inspection/:id?" 
-        element={
-          isAuthenticated ? (
-            <Suspense fallback={<LoadingSpinner />}>
-              <InspectionPage />
-            </Suspense>
-          ) : <Navigate to="/login" replace />
-        } 
+        element={renderInspectionProtected(<InspectionPage />)}
       />
 
       <Route 
         path="/property-edit/:id" 
-        element={
-          isAuthenticated ? (
-            <Suspense fallback={<LoadingSpinner />}>
-              <PropertyRegistrationPage />
-            </Suspense>
-          ) : <Navigate to="/login" replace />
-        } 
+        element={renderProtected(<PropertyRegistrationPage />)}
       />
       <Route 
         path="/property-laudo/:id" 
-        element={
-          isAuthenticated ? (
-            <Suspense fallback={<LoadingSpinner />}>
-              <PropertyLaudoPage />
-            </Suspense>
-          ) : <Navigate to="/login" replace />
-        } 
+        element={renderProtected(<PropertyLaudoPage />)}
       />
       <Route 
         path="/admin/users" 
-        element={
-          isAuthenticated ? (
-            <Suspense fallback={<LoadingSpinner />}>
-              <AdminUsersPage />
-            </Suspense>
-          ) : <Navigate to="/login" replace />
-        } 
+        element={renderAdminProtected(<AdminUsersPage />)}
       />
       <Route 
         path="/" 

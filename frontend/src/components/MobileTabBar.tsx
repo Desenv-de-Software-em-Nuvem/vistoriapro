@@ -55,7 +55,7 @@ export const MobileTabBar: React.FC = () => {
   const { user } = useAuth()
 
   // Se o backend não popular 'permitidoVistoria', permitimos por padrão
-  const permitidoVistoria = (user as any)?.permitidoVistoria !== false
+  const permitidoVistoria = user?.permitidoVistoria !== false
 
   const go = (path: string) => () => navigate(path)
 

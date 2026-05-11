@@ -40,6 +40,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         name: usuario.nome,
         email: usuario.email,
         empresa_id: usuario.empresa_id,
+        papel: usuario.papel,
         permitidoVistoria: usuario.permitidoVistoria
       })
       localStorage.setItem('vistoriapro_user', JSON.stringify({
@@ -47,6 +48,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         name: usuario.nome,
         email: usuario.email,
         empresa_id: usuario.empresa_id,
+        papel: usuario.papel,
         permitidoVistoria: usuario.permitidoVistoria
       }))
       localStorage.setItem('vistoriapro_token', token)

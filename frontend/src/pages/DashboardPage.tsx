@@ -327,13 +327,10 @@ export const DashboardPage: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-
-  // Adiciona permitidoVistoria à tipagem do usuário
-  type UserWithPermissao = typeof user & { permitidoVistoria?: boolean }
-  const userWithPermissao = user as UserWithPermissao
+  const isAdmin = user?.papel === 'admin'
 
   const handleNewInspection = () => {
-    if (!userWithPermissao?.permitidoVistoria) return;
+    if (user?.permitidoVistoria === false) return;
     const inspectionId = uuidv4();
     navigate(`/property-category/${inspectionId}`);
   }
@@ -344,27 +341,29 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <>
-      {sidebarOpen && <AdminSidebarMotion sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />}
+      {isAdmin && sidebarOpen && <AdminSidebarMotion sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />}
       <Container $sidebarOpen={sidebarOpen}>
         <FixedHeader>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <button
-              aria-label={sidebarOpen ? 'Fechar menu' : 'Abrir menu'}
-              onClick={() => setSidebarOpen((prev) => !prev)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#ff6600',
-                fontSize: '2rem',
-                cursor: 'pointer',
-                outline: 'none',
-                zIndex: 101,
-                position: 'relative',
-                display: 'block',
-              }}
-            >
-              {sidebarOpen ? '←' : '☰'}
-            </button>
+            {isAdmin && (
+              <button
+                aria-label={sidebarOpen ? 'Fechar menu' : 'Abrir menu'}
+                onClick={() => setSidebarOpen((prev) => !prev)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#ff6600',
+                  fontSize: '2rem',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  zIndex: 101,
+                  position: 'relative',
+                  display: 'block',
+                }}
+              >
+                {sidebarOpen ? '←' : '☰'}
+              </button>
+            )}
             <Logo>
               <VistoriaProLogo size="small" variant="icon-only" withBackground={true} />
             </Logo>
@@ -399,7 +398,7 @@ export const DashboardPage: React.FC = () => {
               </ActionCard>
               <ActionCard
                 onClick={handleNewInspection}
-                disabled={!userWithPermissao?.permitidoVistoria}
+                disabled={user?.permitidoVistoria === false}
               >
                 <ActionIcon>
                   <Plus size={24} />
@@ -411,7 +410,7 @@ export const DashboardPage: React.FC = () => {
                   </ActionDescription>
                 </div>
               </ActionCard>
-              {!userWithPermissao?.permitidoVistoria && (
+              {user?.permitidoVistoria === false && (
                 <p style={{ color: 'red', marginTop: 8 }}>
                   Você está bloqueado para iniciar novas vistorias.
                 </p>

@@ -1,5 +1,15 @@
 import api from './api';
 
+export interface Foto {
+  id: number;
+  vistoria_id: number;
+  url: string;
+  descricao?: string;
+  comodo_nome?: string;
+  comodo_id?: number;
+  created_at?: string;
+}
+
 // Faz upload de uma foto para o backend, retorna a foto criada
 export async function uploadFoto({ vistoria_id, file, descricao, comodo_nome, comodo_id }: {
   vistoria_id: string | number;
@@ -21,4 +31,11 @@ export async function uploadFoto({ vistoria_id, file, descricao, comodo_nome, co
     headers: { 'Content-Type': 'multipart/form-data' },
   });
   return response.data.foto;
+}
+
+export async function listarFotosPorVistoria(vistoriaId: string | number): Promise<Foto[]> {
+  const response = await api.get('/fotos', {
+    params: { vistoria_id: vistoriaId },
+  });
+  return response.data;
 }

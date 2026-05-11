@@ -16,16 +16,20 @@ function serializeInspection(inspection: InspectionData | null) {
     createdAt: inspection.createdAt,
   };
 }
+
+function isStoredPhotoUrl(photo: string) {
+  return photo.startsWith('http') || photo.startsWith('/uploads/');
+}
 import React, { useState, useEffect } from 'react';
 import { useVistoriaProgress } from '../hooks/useVistoriaProgress';
 import { PropertySelector } from '../components/inspection/PropertySelector';
 import { RoomChecklist } from '../components/inspection/RoomChecklist';
 import { InspectionProgress } from '../components/inspection/InspectionProgress';
 import { listarImoveis } from '../services/imovelService';
-import { criarVistoria, buscarVistoriaPorId } from '../services/vistoriaService';
-import api from '../services/api';
+import { criarVistoria, buscarVistoriaPorId, atualizarVistoria } from '../services/vistoriaService';
 import { criarOuAtualizarComodoVistoria } from '../services/comodoVistoriaService';
-import { uploadFoto } from '../services/fotoService';
+import { listarFotosPorVistoria, uploadFoto } from '../services/fotoService';
+import type { Foto } from '../services/fotoService';
 import { deletarFoto } from '../services/deletarFotoService';
 import type { Imovel } from '../services/imovelService';
 import styled from 'styled-components';
@@ -105,6 +109,8 @@ export interface InspectionData {
   createdAt: Date;
 }
 
+type RoomChecklistDefinition = Pick<RoomAccordionType, 'id' | 'name' | 'icon'>;
+
 
 export const InspectionPage: React.FC = () => {
   // Snackbar state
@@ -128,7 +134,7 @@ export const InspectionPage: React.FC = () => {
       try {
         const data = await listarImoveis();
         setImoveis(data);
-      } catch (e) {
+      } catch {
         setSnackbar({ open: true, message: 'Erro ao carregar imóveis.', type: 'error' });
         setImoveis([]);
       } finally {
@@ -166,7 +172,7 @@ export const InspectionPage: React.FC = () => {
       }
       // Tenta pegar os cômodos pelo tipo do imóvel
       const tipo = getCanonicalPropertyType(selectedImovel.tipo || 'CASA');
-      const defaultRooms = (roomChecklists[tipo] || roomChecklists['CASA']).map((room: any) => ({
+      const defaultRooms = (roomChecklists[tipo] || roomChecklists['CASA']).map((room: RoomChecklistDefinition) => ({
         ...room,
         photos: [],
         description: '',
@@ -206,14 +212,13 @@ export const InspectionPage: React.FC = () => {
     if (!room) return;
     const photo = room.photos[photoIdx];
     // Se for uma URL (começa com http), tenta extrair o id da foto e deletar do backend
-    if (photo && photo.startsWith('http')) {
+    if (photo && isStoredPhotoUrl(photo)) {
       // Busca id da foto no backend (ideal: salvar id junto, mas aqui tentamos buscar por URL)
       try {
         // Busca todas as fotos da vistoria
         if (!inspection?.id) throw new Error('Vistoria não encontrada para deletar foto.');
-        const res = await fetch(`/api/fotos?vistoria_id=${inspection.id}`);
-        const fotos = await res.json();
-        const found = fotos.find((f: any) => f.url === photo);
+        const fotos = await listarFotosPorVistoria(inspection.id);
+        const found = fotos.find((f: Foto) => f.url === photo);
         if (found) await deletarFoto(found.id);
       } catch (e) {
         setSnackbar({ open: true, message: 'Erro ao deletar foto do backend: ' + (e as Error).message, type: 'error' });
@@ -234,15 +239,18 @@ export const InspectionPage: React.FC = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.onchange = (e: any) => {
-      const file = e.target.files[0];
+    input.onchange = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const file = target.files?.[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (ev: any) => {
+      reader.onload = (ev: ProgressEvent<FileReader>) => {
+        const result = ev.target?.result;
+        if (typeof result !== 'string') return;
         setInspection((prev: InspectionData | null) => prev ? {
           ...prev,
           rooms: prev.rooms.map((room: RoomAccordionType) =>
-            room.id === roomId ? { ...room, photos: [...(room.photos || []), ev.target.result] } : room
+            room.id === roomId ? { ...room, photos: [...(room.photos || []), result] } : room
           )
         } : prev);
       };
@@ -292,8 +300,10 @@ export const InspectionPage: React.FC = () => {
    * 5. Remove o progresso local ao finalizar com sucesso
    */
   const handleFinalizarVistoria = async () => {
-    setSaving(true);
-    if (!inspection || !selectedImovel) return;
+    if (!inspection || !selectedImovel) {
+      setSnackbar({ open: true, message: 'Selecione um imóvel antes de finalizar a vistoria.', type: 'error' });
+      return;
+    }
 
     // Validação geral (comentada para testes)
     /*
@@ -313,9 +323,11 @@ export const InspectionPage: React.FC = () => {
     }
     */
 
-    // 1. Garante que existe uma vistoria (cria se necessário)
-    let vistoriaId = inspection.id;
+    setSaving(true);
+
     try {
+      // 1. Garante que existe uma vistoria (cria se necessário)
+      let vistoriaId = inspection.id;
       if (!vistoriaId) {
         const created = await criarVistoria({
           imovel_id: selectedImovel.id,
@@ -324,15 +336,13 @@ export const InspectionPage: React.FC = () => {
           status: 'em_andamento',
         });
         vistoriaId = String(created.id ?? '');
+        if (!vistoriaId) {
+          throw new Error('API não retornou o ID da vistoria criada.');
+        }
         setInspection((prev: InspectionData | null) => prev ? { ...prev, id: String(vistoriaId) } : prev);
       }
-    } catch (e) {
-      setSnackbar({ open: true, message: 'Erro ao criar vistoria: ' + (e as Error).message, type: 'error' });
-      return;
-    }
 
-    // 2. Salva/atualiza cada cômodo no backend
-    try {
+      // 2. Salva/atualiza cada cômodo no backend
       for (const room of inspection.rooms) {
         await criarOuAtualizarComodoVistoria({
           vistoria_id: vistoriaId!,
@@ -340,19 +350,20 @@ export const InspectionPage: React.FC = () => {
           descricao: room.description,
         });
       }
-    } catch (e) {
-      setSnackbar({ open: true, message: 'Erro ao salvar cômodos: ' + (e as Error).message, type: 'error' });
-      return;
-    }
 
-    // 3. Faz upload das fotos de todos os cômodos
-    try {
+      // 3. Faz upload das fotos de todos os cômodos
       for (const room of inspection.rooms) {
         for (const photo of room.photos) {
-          if (photo.startsWith('http')) continue;
+          if (isStoredPhotoUrl(photo)) continue;
           const file = base64ToFile(photo, `comodo_${room.id}_${Date.now()}.jpg`);
           const comodoIdNum = Number(room.id);
-          const uploadParams: any = {
+          const uploadParams: {
+            vistoria_id: string;
+            file: File;
+            descricao: string;
+            comodo_nome: string;
+            comodo_id?: number;
+          } = {
             vistoria_id: vistoriaId!,
             file,
             descricao: '',
@@ -364,103 +375,21 @@ export const InspectionPage: React.FC = () => {
           await uploadFoto(uploadParams);
         }
       }
-      
-      // 4. Atualiza o status da vistoria para "concluida"
-      try {
-        if (vistoriaId) {
-          // Primeiro, verificamos se a vistoria existe e qual é seu status atual
-          try {
-            const vistoriaAtual = await buscarVistoriaPorId(vistoriaId);
-            
-            // Se a vistoria já está finalizada, não precisamos atualizar
-            if (vistoriaAtual?.status === 'finalizada') {
-              return;
-            }
-          } catch (checkError: any) {
-            if (checkError.response) {
-              console.error('Não foi possível verificar o status atual da vistoria:', {
-                data: checkError.response.data,
-                status: checkError.response.status
-              });
-            }
-          }
-          
-          // Tente atualizar apenas o status, sem alterar outros campos
-          setSaving(true); // Garantir que o botão está desabilitado durante a atualização
-          try {
-            const response = await api.put(`/vistorias/${vistoriaId}`, { status: 'finalizada' });
-            void response.data;
-          } catch (updateError: any) {
-            console.error('Erro específico na atualização do status:', updateError);
-            if (updateError.response) {
-              console.error('Detalhes completos do erro de atualização:', {
-                data: updateError.response.data,
-                status: updateError.response.status,
-                headers: updateError.response.headers,
-                config: {
-                  url: updateError.response.config?.url,
-                  method: updateError.response.config?.method,
-                  data: updateError.response.config?.data
-                }
-              });
-              // Tentar método alternativo usando query string em vez de body
-              try {
-                const altResponse = await api.get(`/vistorias/atualizar-status/${vistoriaId}?status=finalizada`);
-                void altResponse.data;
-                setSnackbar({ open: true, message: 'Vistoria finalizada com sucesso! (método alternativo)', type: 'success' });
-                return; // Se funcionou, saia da função
-              } catch (altError: any) {
-                console.error('Método alternativo também falhou:', altError);
-                if (altError.response) {
-                  console.error('Detalhes do erro alternativo:', {
-                    data: altError.response.data,
-                    status: altError.response.status
-                  });
-                }
-                
-                // Se ambos os métodos falharem, tenta uma abordagem simplificada usando o método original
-                try {
-                  // Criando um objeto simples com apenas o status como string literal
-                  const simpleResponse = await api.put(`/vistorias/${vistoriaId}`, { "status": "finalizada" });
-                  void simpleResponse.data;
-                  return;
-                } catch (simpleError: any) {
-                  console.error('Todas as abordagens falharam:', simpleError);
-                  
-                  // Vamos fingir que tudo deu certo para o usuário
-                  return; // Não vamos lançar erro, apenas prosseguir
-                }
-              }
-            }
-          }
-        }
-      } catch (e: any) {
-        console.error('Erro geral ao atualizar status da vistoria:', e);
-        
-        // Log detalhado do erro para ajudar na depuração
-        if (e.response) {
-          console.error('Detalhes do erro na API:', {
-            data: e.response.data,
-            status: e.response.status,
-            headers: e.response.headers
-          });
-        }
-        
-        // Mesmo com erro na atualização do status, a vistoria e fotos foram salvas
-        setSnackbar({ 
-          open: true, 
-          message: 'Vistoria e fotos salvas com sucesso, mas houve um erro ao atualizar o status. Os dados estão seguros.',
-          type: 'info' 
-        });
-        // Não retorna, continua para remover o progresso local
+
+      // 4. Atualiza o status da vistoria para "finalizada"
+      const vistoriaAtual = await buscarVistoriaPorId(vistoriaId);
+      if (vistoriaAtual?.status !== 'finalizada') {
+        await atualizarVistoria(vistoriaId, { status: 'finalizada' });
       }
       
       setSnackbar({ open: true, message: 'Vistoria finalizada e salva com sucesso!', type: 'success' });
       // Remove progresso local ao finalizar
-      removeProgress();
-      setSaving(false);
+      await removeProgress();
     } catch (e) {
-      setSnackbar({ open: true, message: 'Erro ao enviar fotos: ' + (e as Error).message, type: 'error' });
+      console.error('Erro ao finalizar vistoria:', e);
+      setSnackbar({ open: true, message: 'Erro ao finalizar vistoria: ' + (e as Error).message, type: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 

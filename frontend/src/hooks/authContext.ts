@@ -5,6 +5,7 @@ export interface User {
   name: string
   email: string
   empresa_id: number
+  papel: 'admin' | 'vistoriador' | 'cliente'
   permitidoVistoria?: boolean
 }
 

@@ -38,7 +38,7 @@ export const buscarVistoriaPorId = async (id: string | number): Promise<Vistoria
   return response.data;
 };
 
-export const atualizarVistoria = async (id: number, dados: Partial<Vistoria>): Promise<Vistoria> => {
+export const atualizarVistoria = async (id: string | number, dados: Partial<Vistoria>): Promise<Vistoria> => {
   const response = await api.put(`/vistorias/${id}`, dados);
   return response.data.vistoria;
 };
