@@ -347,7 +347,7 @@ export const PropertyDetailPage: React.FC = () => {
       await api.delete(`/imoveis/${imovel.id}`)
       setIsModalOpen(false)
       navigate('/property-list')
-    } catch (error) {
+    } catch {
       alert('Erro ao excluir imóvel')
       setIsModalOpen(false)
     }

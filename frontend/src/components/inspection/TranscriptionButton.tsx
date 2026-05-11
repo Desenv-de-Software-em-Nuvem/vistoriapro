@@ -57,7 +57,7 @@ export const TranscriptionButton: React.FC<Props> = ({ onTranscription }) => {
             setRecording(false);
           }
         });
-      } catch (err) {
+      } catch {
         setRecording(false);
         setLoading(false);
         alert('Não foi possível transcrever o áudio no app.');

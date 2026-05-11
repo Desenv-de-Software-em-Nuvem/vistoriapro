@@ -181,7 +181,9 @@ const AdminUsersPage: React.FC = () => {
     try {
       const response = await api.get('/usuarios');
       setUsers(response.data);
-    } catch (err) {}
+    } catch (err) {
+      console.error('Erro ao buscar usuários:', err);
+    }
     setLoading(false);
   };
 
@@ -197,7 +199,9 @@ const AdminUsersPage: React.FC = () => {
     try {
       await api.delete(`/usuarios/${id}`);
       setUsers(users.filter(u => u.id !== id));
-    } catch (err) {}
+    } catch (err) {
+      console.error('Erro ao deletar usuário:', err);
+    }
   };
 
   const handleTogglePermissao = async (user: User) => {
@@ -208,7 +212,9 @@ const AdminUsersPage: React.FC = () => {
       setUsers(users.map(u =>
         u.id === user.id ? { ...u, permitidoVistoria: !u.permitidoVistoria } : u
       ));
-    } catch (err) {}
+    } catch (err) {
+      console.error('Erro ao atualizar permissão do usuário:', err);
+    }
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -219,7 +225,9 @@ const AdminUsersPage: React.FC = () => {
       setForm({ nome: '', email: '', senha: '', empresa_id: '', papel: '' });
       fetchUsers();
       setActiveTab('listar');
-    } catch (err) {}
+    } catch (err) {
+      console.error('Erro ao criar usuário:', err);
+    }
     setLoading(false);
   };
 

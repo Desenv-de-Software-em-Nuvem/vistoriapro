@@ -2,10 +2,51 @@ import { useState, useEffect, useContext } from 'react'
 import type { ReactNode } from 'react'
 import api from '../services/api'
 import { AuthContext } from './authContext'
-import type { AuthContextType, User } from './authContext'
+import type { AuthContextType, User, UserRole } from './authContext'
 
 interface AuthProviderProps {
   children: ReactNode
+}
+
+interface ApiUsuario {
+  id: string | number
+  nome: string
+  email: string
+  empresa_id: number
+  papel?: UserRole
+  permitidoVistoria?: boolean
+}
+
+interface JwtPayload {
+  papel?: UserRole
+}
+
+function decodeJwtPayload(token: string): JwtPayload | null {
+  try {
+    const payload = token.split('.')[1]
+    if (!payload) return null
+
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const paddedBase64 = base64.padEnd(base64.length + ((4 - base64.length % 4) % 4), '=')
+    const json = window.atob(paddedBase64)
+    return JSON.parse(json) as JwtPayload
+  } catch {
+    return null
+  }
+}
+
+function normalizeUser(usuario: ApiUsuario, token?: string | null): User | null {
+  const papel = usuario.papel || (token ? decodeJwtPayload(token)?.papel : undefined)
+  if (!papel) return null
+
+  return {
+    id: String(usuario.id),
+    name: usuario.nome,
+    email: usuario.email,
+    empresa_id: usuario.empresa_id,
+    papel,
+    permitidoVistoria: usuario.permitidoVistoria,
+  }
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
@@ -17,10 +58,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const savedUser = localStorage.getItem('vistoriapro_user')
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser))
+        const token = localStorage.getItem('vistoriapro_token')
+        const parsedUser = JSON.parse(savedUser) as Partial<User> & { nome?: string }
+        const restoredUser = normalizeUser({
+          id: parsedUser.id || '',
+          nome: parsedUser.name || parsedUser.nome || '',
+          email: parsedUser.email || '',
+          empresa_id: parsedUser.empresa_id || 0,
+          papel: parsedUser.papel,
+          permitidoVistoria: parsedUser.permitidoVistoria,
+        }, token)
+
+        if (!restoredUser) {
+          localStorage.removeItem('vistoriapro_user')
+          localStorage.removeItem('vistoriapro_token')
+          setLoading(false)
+          return
+        }
+
+        setUser(restoredUser)
+        localStorage.setItem('vistoriapro_user', JSON.stringify(restoredUser))
       } catch (error) {
         console.error('Erro ao carregar usuário salvo:', error)
         localStorage.removeItem('vistoriapro_user')
+        localStorage.removeItem('vistoriapro_token')
       }
     }
     setLoading(false)
@@ -35,22 +96,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         senha: password 
       })
       const { token, usuario } = response.data
-      setUser({
-        id: usuario.id,
-        name: usuario.nome,
-        email: usuario.email,
-        empresa_id: usuario.empresa_id,
-        papel: usuario.papel,
-        permitidoVistoria: usuario.permitidoVistoria
-      })
-      localStorage.setItem('vistoriapro_user', JSON.stringify({
-        id: usuario.id,
-        name: usuario.nome,
-        email: usuario.email,
-        empresa_id: usuario.empresa_id,
-        papel: usuario.papel,
-        permitidoVistoria: usuario.permitidoVistoria
-      }))
+      const normalizedUser = normalizeUser(usuario, token)
+      if (!normalizedUser) {
+        throw new Error('Usuário autenticado sem papel de acesso.')
+      }
+
+      setUser(normalizedUser)
+      localStorage.setItem('vistoriapro_user', JSON.stringify(normalizedUser))
       localStorage.setItem('vistoriapro_token', token)
       setLoading(false)
       return true

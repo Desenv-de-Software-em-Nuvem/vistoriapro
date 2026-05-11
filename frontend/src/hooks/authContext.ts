@@ -1,11 +1,13 @@
 import { createContext } from 'react'
 
+export type UserRole = 'admin' | 'vistoriador' | 'cliente'
+
 export interface User {
   id: string
   name: string
   email: string
   empresa_id: number
-  papel: 'admin' | 'vistoriador' | 'cliente'
+  papel: UserRole
   permitidoVistoria?: boolean
 }
 
