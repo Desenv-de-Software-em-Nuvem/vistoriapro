@@ -9,6 +9,8 @@ import { getTipoDisplay } from '../constants/propertyTypes'
 import { AppHeader } from '../components/AppHeader'
 import { MobileTabBar } from '../components/MobileTabBar'
 
+type ReportFormat = 'pdf' | 'word'
+
 const Container = styled.div`
   min-height: 100vh;
   min-height: 100dvh;
@@ -19,10 +21,10 @@ const Container = styled.div`
   max-width: 100vw;
   overflow-x: hidden;
   box-sizing: border-box;
-  padding: 80px clamp(1rem, 4vw, 2.5rem) 96px;
+  padding: 88px clamp(1rem, 4vw, 2.5rem) 96px;
 
   @media (max-width: 600px) {
-    padding: 76px 1rem 96px;
+    padding: 80px 1rem 96px;
   }
 `
 
@@ -209,12 +211,12 @@ const VistoriaInfo = styled.div`
 
 const VistoriaActions = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, max-content);
+  grid-template-columns: repeat(4, max-content);
   gap: 0.55rem;
   justify-content: end;
 
   @media (max-width: 820px) {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     justify-content: stretch;
   }
 
@@ -225,10 +227,14 @@ const VistoriaActions = styled.div`
 
 const DetailsGenerateActions = styled.div`
   display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
   justify-content: flex-end;
   margin-top: 0.75rem;
 
   @media (max-width: 520px) {
+    flex-direction: column;
+
     button {
       width: 100%;
     }
@@ -446,28 +452,42 @@ export const PropertyLaudoPage: React.FC = () => {
     setShowDetailsForm(true)
   }
 
-  const handleGerarLaudo = async (vistoriaId: number) => {
+  const handleGerarLaudo = async (vistoriaId: number, formato: ReportFormat) => {
     try {
-      // 1. Gera o laudo e pega a URL do PDF
+      // 1. Gera o laudo e pega a URL do arquivo
       const response = await api.post('/relatorios/gerar', {
-        vistoria_id: vistoriaId
+        vistoria_id: vistoriaId,
+        formato,
       }, {
         timeout: 120000,
       });
 
-      const pdfUrl = response.data.url;
-      if (!pdfUrl) {
-        alert('URL do PDF não retornada pelo backend.');
+      const fileUrl = response.data.url;
+      if (!fileUrl) {
+        alert('URL do laudo não retornada pelo backend.');
         return;
       }
 
-      // 2. Baixa o PDF via GET
-      const pdfResponse = await api.get(pdfUrl, { responseType: 'blob' });
-      const blob = new Blob([pdfResponse.data], { type: 'application/pdf' });
+      if (formato === 'word' && String(fileUrl).toLowerCase().includes('.pdf')) {
+        alert('O backend retornou um PDF ao solicitar Word. Reinicie o backend e tente gerar novamente.');
+        return;
+      }
+
+      // 2. Baixa o arquivo via GET
+      const fileResponse = await api.get(fileUrl, { responseType: 'blob' });
+      const extension = formato === 'word' ? 'docx' : 'pdf';
+      const mimeType = formato === 'word' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf';
+      const responseContentType = String(fileResponse.headers?.['content-type'] || '').toLowerCase();
+      if (formato === 'word' && responseContentType.includes('application/pdf')) {
+        alert('O backend retornou PDF ao solicitar Word. Reinicie o backend e tente gerar novamente.');
+        return;
+      }
+
+      const blob = new Blob([fileResponse.data], { type: mimeType });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `laudo-vistoria-${vistoriaId}-${Date.now()}.pdf`;
+      link.download = `laudo-vistoria-${vistoriaId}-${Date.now()}.${extension}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -539,10 +559,17 @@ export const PropertyLaudoPage: React.FC = () => {
               <DetailsGenerateActions>
                 <ActionButton 
                   $variant="success" 
-                  onClick={() => handleGerarLaudo(selectedVistoria)}
+                  onClick={() => handleGerarLaudo(selectedVistoria, 'pdf')}
                 >
                   <FileText size={16} />
                   Gerar Laudo PDF
+                </ActionButton>
+                <ActionButton
+                  $variant="success"
+                  onClick={() => handleGerarLaudo(selectedVistoria, 'word')}
+                >
+                  <FileText size={16} />
+                  Gerar Laudo Word
                 </ActionButton>
               </DetailsGenerateActions>
             )}
@@ -630,10 +657,17 @@ export const PropertyLaudoPage: React.FC = () => {
                     </ActionButton>
                     <ActionButton 
                       $variant="success" 
-                      onClick={() => handleGerarLaudo(vistoria.id)}
+                      onClick={() => handleGerarLaudo(vistoria.id, 'pdf')}
                     >
                       <FileText size={14} />
                       PDF
+                    </ActionButton>
+                    <ActionButton
+                      $variant="success"
+                      onClick={() => handleGerarLaudo(vistoria.id, 'word')}
+                    >
+                      <FileText size={14} />
+                      Word
                     </ActionButton>
                     <ActionButton
                       $variant="danger"

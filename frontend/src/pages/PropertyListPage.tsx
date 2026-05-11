@@ -14,14 +14,39 @@ const Container = styled.div`
   background:
     radial-gradient(circle at top left, rgba(255, 69, 0, 0.16), transparent 32rem),
     ${({ theme }) => theme.colors.background};
-  width: 100vw;
-  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  width: 100%;
+  max-width: 100%;
+  overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: ${({ theme }) => theme.colors.primary} transparent;
   box-sizing: border-box;
-  padding: 80px clamp(1rem, 4vw, 2.5rem) 96px;
+  padding: 88px clamp(1rem, 4vw, 2.5rem) 96px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 0;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.colors.primary};
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+  }
+
+  &::-webkit-scrollbar:horizontal {
+    display: none;
+    height: 0;
+  }
 
   @media (max-width: 768px) {
-    padding: 76px 1rem 96px;
+    padding: 80px 1rem 96px;
   }
 `
 
@@ -32,6 +57,7 @@ const ContentWrapper = styled.main`
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-width: 0;
 `
 
 const PageIntro = styled.section`
@@ -53,6 +79,12 @@ const PrimaryAction = styled.button`
   cursor: pointer;
   box-shadow: 0 12px 24px ${({ theme }) => theme.colors.shadowGlow};
   transition: transform 0.2s, box-shadow 0.2s;
+  overflow: hidden;
+
+  &::before {
+    content: none;
+    display: none;
+  }
 
   &:hover {
     transform: translateY(-2px);
@@ -151,7 +183,15 @@ const FiltersRow = styled.div`
   gap: 0.55rem;
   margin-top: 1rem;
   overflow-x: auto;
+  overflow-y: hidden;
   padding-bottom: 0.15rem;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
 
   @media (min-width: 900px) {
     flex-wrap: wrap;
@@ -174,6 +214,12 @@ const FilterChip = styled.button<{ $active?: boolean }>`
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.2s, color 0.2s, transform 0.2s;
+  overflow: hidden;
+
+  &::before {
+    content: none;
+    display: none;
+  }
 
   &:hover {
     transform: translateY(-1px);
@@ -205,6 +251,7 @@ const PropertyGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.9rem;
+  min-width: 0;
 `
 
 const PropertyCard = styled.div`
@@ -216,6 +263,7 @@ const PropertyCard = styled.div`
   transition: box-shadow 0.25s, border-color 0.25s, transform 0.25s;
   position: relative;
   box-shadow: 0 10px 28px ${({ theme }) => theme.colors.shadow};
+  overflow: hidden;
   display: grid;
   grid-template-columns: minmax(220px, 0.9fr) minmax(260px, 1.2fr) minmax(220px, auto);
   gap: 1rem;
@@ -300,6 +348,7 @@ const CardActions = styled.div`
   grid-template-columns: 1fr auto auto;
   gap: 0.55rem;
   align-items: center;
+  min-width: 0;
 
   @media (max-width: 520px) {
     grid-template-columns: 1fr;
@@ -322,6 +371,13 @@ const LaudoButton = styled.button`
   transition: transform 0.2s, box-shadow 0.2s;
   cursor: pointer;
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+
+  &::before {
+    content: none;
+    display: none;
+  }
 
   &:hover {
     transform: translateY(-1px);
@@ -343,6 +399,12 @@ const ActionButton = styled.button<{ $variant?: 'edit' | 'delete' }>`
   transition: background 0.2s, color 0.2s, transform 0.2s;
   cursor: pointer;
   font-weight: 800;
+  overflow: hidden;
+
+  &::before {
+    content: none;
+    display: none;
+  }
 
   &:hover {
     background: ${({ theme, $variant }) => $variant === 'delete' ? 'rgba(239, 68, 68, 0.12)' : theme.colors.backgroundGlass};

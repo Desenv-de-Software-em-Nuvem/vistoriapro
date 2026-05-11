@@ -4,6 +4,13 @@ import { Building2 } from 'lucide-react';
 import type { Imovel } from '../../services/imovelService';
 import { getTipoDisplay, matchesPropertyType } from '../../constants/propertyTypes';
 
+const SelectorSection = styled.section`
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+`
+
 const SectionTitle = styled.h2`
   font-size: ${({ theme }) => theme.fontSizes.xl};
   color: ${({ theme }) => theme.colors.text};
@@ -11,16 +18,30 @@ const SectionTitle = styled.h2`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
+  min-width: 0;
+  line-height: 1.35;
+
+  svg {
+    flex: 0 0 auto;
+  }
+
+  @media (max-width: 480px) {
+    font-size: ${({ theme }) => theme.fontSizes.lg};
+    align-items: flex-start;
+  }
 `;
 
 const RoomGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: ${({ theme }) => theme.spacing.md};
   margin-bottom: ${({ theme }) => theme.spacing.xl};
+  width: 100%;
+  min-width: 0;
 `;
 
 const RoomCard = styled.button<{ $isSelected: boolean; $isCompleted: boolean }>`
+  width: 100%;
   background: ${({ theme, $isSelected, $isCompleted }) => 
     $isCompleted ? theme.colors.success + '20' :
     $isSelected ? theme.colors.primary + '20' : 
@@ -32,10 +53,10 @@ const RoomCard = styled.button<{ $isSelected: boolean; $isCompleted: boolean }>`
   border-radius: ${({ theme }) => theme.borderRadius.xl};
   padding: ${({ theme }) => theme.spacing.lg};
   min-height: 72px;
-  min-width: 100px;
+  min-width: 0;
   @media (max-width: 600px) {
     min-height: 56px;
-    min-width: 80px;
+    min-width: 0;
     padding: ${({ theme }) => theme.spacing.md};
   }
   display: flex;
@@ -45,7 +66,14 @@ const RoomCard = styled.button<{ $isSelected: boolean; $isCompleted: boolean }>`
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
   backdrop-filter: blur(10px);
+
+  &::before {
+    content: none;
+    display: none;
+  }
 `;
 
 const RoomIcon = styled.div<{ $isCompleted: boolean }>`
@@ -81,7 +109,7 @@ export const PropertySelector: React.FC<PropertySelectorProps> = ({ imoveis, tip
   );
 
   return (
-    <section>
+    <SelectorSection>
       <SectionTitle>
         <Building2 size={24} /> Selecione o imóvel a ser vistoriado
       </SectionTitle>
@@ -115,6 +143,6 @@ export const PropertySelector: React.FC<PropertySelectorProps> = ({ imoveis, tip
           ))}
         </RoomGrid>
       )}
-    </section>
+    </SelectorSection>
   );
 };

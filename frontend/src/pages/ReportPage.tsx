@@ -19,9 +19,9 @@ const Container = styled.div`
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
   box-sizing: border-box;
-  padding-top: 72px;
+  padding-top: 88px;
   @media (max-width: 600px) {
-    padding-top: 60px;
+    padding-top: 80px;
   }
 `
 

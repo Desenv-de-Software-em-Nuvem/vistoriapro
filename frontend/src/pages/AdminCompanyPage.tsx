@@ -23,7 +23,7 @@ const EMPTY_FORM = {
 const Container = styled.div`
   width: 100vw;
   min-height: 100vh;
-  padding: 84px clamp(1rem, 4vw, 2.5rem) 2rem;
+  padding: 88px clamp(1rem, 4vw, 2.5rem) 2rem;
   background: ${({ theme }) => theme.colors.background};
   overflow-x: hidden;
 `;

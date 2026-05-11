@@ -13,13 +13,13 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 72px;
+  padding-top: 88px;
   background:
     radial-gradient(circle at top left, rgba(255, 69, 0, 0.16), transparent 32rem),
     ${({ theme }) => theme.colors.background};
   overflow-x: hidden;
   @media (max-width: 600px) {
-    padding: 76px 1rem 1.5rem;
+    padding: 80px 1rem 1.5rem;
   }
 `;
 

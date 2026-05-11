@@ -22,9 +22,9 @@ const Container = styled.div`
   scroll-behavior: smooth;
   box-sizing: border-box;
   padding: clamp(1rem, 4vw, 2.5rem);
-  padding-top: 72px;
+  padding-top: 88px;
   @media (max-width: 600px) {
-    padding-top: 60px;
+    padding-top: 80px;
   }
 `
 

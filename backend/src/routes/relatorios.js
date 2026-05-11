@@ -3,7 +3,7 @@ const router = express.Router();
 const relatorioController = require('../controllers/relatorioController');
 const { autenticar, autorizar } = require('../middlewares/auth');
 
-// Gerar relatório PDF (admin ou vistoriador)
+// Gerar relatório em PDF ou Word (admin ou vistoriador)
 router.post('/gerar', autenticar, autorizar('admin', 'vistoriador'), relatorioController.gerarRelatorio);
 // Listar relatórios de uma vistoria
 router.get('/vistoria/:vistoriaId', autenticar, autorizar('admin', 'vistoriador'), relatorioController.listarRelatoriosPorVistoria);

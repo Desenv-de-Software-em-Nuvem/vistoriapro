@@ -4,6 +4,7 @@ import { ArrowRight, Building, Home, Building2, Store, Briefcase, Warehouse } fr
 import { useNavigate, useParams } from 'react-router-dom'
 import { PROPERTY_TYPES } from '../constants/propertyTypes'
 import { AppHeader } from '../components/AppHeader'
+import { MobileTabBar } from '../components/MobileTabBar'
 
 interface PropertyCategory {
   id: string
@@ -34,145 +35,124 @@ const propertyCategories: PropertyCategory[] = PROPERTY_TYPES.map(type => ({
 const Container = styled.div`
   min-height: 100vh;
   min-height: 100dvh;
-  height: 100dvh;
-  background: ${({ theme }) => theme.colors.background};
+  background:
+    radial-gradient(circle at top left, rgba(255, 69, 0, 0.18), transparent 34rem),
+    radial-gradient(circle at bottom right, rgba(255, 140, 66, 0.11), transparent 28rem),
+    ${({ theme }) => theme.colors.background};
   color: ${({ theme }) => theme.colors.text};
   width: 100vw;
   max-width: 100vw;
-  overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior-y: contain;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
   box-sizing: border-box;
-  padding: clamp(1rem, 4vw, 2.5rem);
-  padding-top: 72px;
-  @media (max-width: 600px) {
-    padding-top: 60px;
+  padding: 82px clamp(1rem, 4vw, 2.5rem) 2.5rem;
+
+  @media (max-width: 768px) {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    padding: calc(56px + env(safe-area-inset-top, 0px) + 0.75rem) 0.9rem calc(64px + env(safe-area-inset-bottom, 0px) + 5.25rem);
   }
 `
 
 const Main = styled.main`
-  padding: ${({ theme }) => theme.spacing.xl};
-  max-width: 1000px;
+  width: 100%;
+  max-width: 1120px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 
   @media (max-width: 768px) {
-    padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing.md};
-  }
-
-  @media (max-width: 480px) {
-    padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.sm};
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
 `
 
-const WelcomeSection = styled.section`
-  text-align: center;
-  margin-bottom: ${({ theme }) => theme.spacing['2xl']};
-`
+const CategoryScroll = styled.section`
+  min-height: 0;
 
-const WelcomeTitle = styled.h2`
-  font-size: ${({ theme }) => theme.fontSizes['3xl']};
-  background: ${({ theme }) => theme.colors.gradient.primary};
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: ${({ theme }) => theme.spacing.md};
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  
-  @media (max-width: 640px) {
-    font-size: ${({ theme }) => theme.fontSizes['2xl']};
-  }
-`
-
-const WelcomeSubtitle = styled.p`
-  color: ${({ theme }) => theme.colors.textSecondary};
-  font-size: ${({ theme }) => theme.fontSizes.lg};
-  max-width: 600px;
-  margin: 0 auto;
-  line-height: 1.6;
-
-  @media (max-width: 640px) {
-    font-size: ${({ theme }) => theme.fontSizes.base};
+  @media (max-width: 768px) {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.25rem;
   }
 `
 
 const CategoryGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: ${({ theme }) => theme.spacing.xl};
-  margin-bottom: ${({ theme }) => theme.spacing['2xl']};
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 1rem;
 
-  @media (max-width: 768px) {
+  @media (max-width: 980px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 680px) {
     grid-template-columns: 1fr;
-    gap: ${({ theme }) => theme.spacing.lg};
+    gap: 0.75rem;
   }
 `
 
 const CategoryCard = styled.button<{ $selected: boolean }>`
-  background: ${({ theme }) => theme.colors.backgroundCard};
+  width: 100%;
+  min-height: 132px;
+  background: ${({ theme, $selected }) => 
+    $selected ? 'rgba(255, 69, 0, 0.13)' : theme.colors.backgroundCard};
   backdrop-filter: blur(20px);
-  border: 2px solid ${({ theme, $selected }) => 
-    $selected ? theme.colors.primary : theme.colors.border};
-  padding: ${({ theme }) => theme.spacing['2xl']};
+  border: 1px solid ${({ theme, $selected }) => 
+    $selected ? theme.colors.borderGlow : theme.colors.borderLight};
+  padding: 1.05rem;
   border-radius: ${({ theme }) => theme.borderRadius['2xl']};
   box-shadow: ${({ theme, $selected }) => 
     $selected 
-      ? `0 20px 40px ${theme.colors.shadowDark}, 0 0 40px ${theme.colors.shadowGlow}`
-      : `0 4px 20px ${theme.colors.shadowDark}`};
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
+      ? `0 18px 36px ${theme.colors.shadowDark}, 0 0 28px ${theme.colors.shadowGlow}`
+      : `0 10px 24px ${theme.colors.shadow}`};
+  transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
+  text-align: left;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: ${({ theme }) => theme.spacing.lg};
+  gap: 0.9rem;
   position: relative;
   overflow: hidden;
   cursor: pointer;
+  color: inherit;
 
   &:before {
     content: '';
     position: absolute;
-    top: 0;
+    top: 0.9rem;
     left: 0;
-    right: 0;
-    height: 3px;
+    width: 4px;
+    bottom: 0.9rem;
+    border-radius: 0 999px 999px 0;
     background: ${({ theme }) => theme.colors.gradient.primary};
-    transform: ${({ $selected }) => $selected ? 'scaleX(1)' : 'scaleX(0)'};
-    transform-origin: left;
-    transition: transform 0.3s ease;
+    opacity: ${({ $selected }) => $selected ? 1 : 0};
+    transition: opacity 0.2s ease;
   }
 
   &:hover {
-    transform: translateY(-8px);
-    border-color: ${({ theme }) => theme.colors.primary};
+    transform: translateY(-4px);
+    border-color: ${({ theme }) => theme.colors.borderGlow};
     box-shadow: 
-      0 20px 40px ${({ theme }) => theme.colors.shadowDark},
-      0 0 40px ${({ theme }) => theme.colors.shadowGlow};
+      0 18px 36px ${({ theme }) => theme.colors.shadowDark},
+      0 0 26px ${({ theme }) => theme.colors.shadowGlow};
 
     &:before {
-      transform: scaleX(1);
+      opacity: 1;
     }
   }
 
-  @media (max-width: 768px) {
-    padding: ${({ theme }) => theme.spacing.xl};
-    gap: ${({ theme }) => theme.spacing.md};
-
-    &:hover {
-      transform: translateY(-4px);
-    }
-  }
-
-  @media (max-width: 480px) {
-    padding: ${({ theme }) => theme.spacing.lg};
-    gap: ${({ theme }) => theme.spacing.sm};
-
-    &:hover {
-      transform: translateY(-2px);
-    }
+  @media (max-width: 680px) {
+    min-height: auto;
+    padding: 0.9rem;
+    gap: 0.75rem;
   }
 
   @media (hover: none) {
@@ -187,9 +167,9 @@ const CategoryCard = styled.button<{ $selected: boolean }>`
 `
 
 const CategoryIcon = styled.div<{ $selected: boolean }>`
-  width: 80px;
-  height: 80px;
-  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  width: 54px;
+  height: 54px;
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
   background: ${({ theme, $selected }) => 
     $selected 
       ? theme.colors.gradient.primary 
@@ -203,27 +183,34 @@ const CategoryIcon = styled.div<{ $selected: boolean }>`
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(10px);
 
-  @media (max-width: 768px) {
-    width: 64px;
-    height: 64px;
-  }
-
   @media (max-width: 480px) {
-    width: 56px;
-    height: 56px;
+    width: 48px;
+    height: 48px;
+
+    svg {
+      width: 26px;
+      height: 26px;
+    }
   }
 `
 
+const CategoryText = styled.div`
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+`
+
 const CategoryName = styled.h3<{ $selected: boolean }>`
-  font-size: ${({ theme }) => theme.fontSizes.xl};
-  font-weight: 700;
+  font-size: ${({ theme }) => theme.fontSizes.lg};
+  font-weight: 800;
   color: ${({ theme, $selected }) => 
-    $selected ? theme.colors.primary : theme.colors.text};
+    $selected ? theme.colors.primaryLight : theme.colors.text};
   margin: 0;
   transition: color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 
   @media (max-width: 480px) {
-    font-size: ${({ theme }) => theme.fontSizes.lg};
+    font-size: ${({ theme }) => theme.fontSizes.base};
   }
 `
 
@@ -231,21 +218,75 @@ const CategoryDescription = styled.p`
   color: ${({ theme }) => theme.colors.textSecondary};
   font-size: ${({ theme }) => theme.fontSizes.sm};
   margin: 0;
-  line-height: 1.6;
-  text-align: center;
+  line-height: 1.45;
 
   @media (max-width: 480px) {
-    font-size: ${({ theme }) => theme.fontSizes.xs};
+    font-size: 0.8rem;
   }
+`
+
+const ActionPanel = styled.section`
+  position: sticky;
+  bottom: 1rem;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: rgba(21, 21, 32, 0.92);
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
+  box-shadow: 0 18px 42px ${({ theme }) => theme.colors.shadowDark};
+  padding: 0.9rem;
+  backdrop-filter: blur(18px);
+
+  @media (max-width: 768px) {
+    position: fixed;
+    left: 0.9rem;
+    right: 0.9rem;
+    bottom: calc(var(--vistoriapro-vv-bottom, 0px) + 64px + env(safe-area-inset-bottom, 0px) + 0.75rem);
+    z-index: 1095;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+`
+
+const SelectedSummary = styled.div`
+  min-width: 0;
+
+  @media (max-width: 768px) {
+    display: none;
+  }
+`
+
+const SelectedLabel = styled.span`
+  display: block;
+  color: ${({ theme }) => theme.colors.textLight};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+`
+
+const SelectedValue = styled.strong`
+  display: block;
+  color: ${({ theme }) => theme.colors.text};
+  font-size: ${({ theme }) => theme.fontSizes.base};
+  margin-top: 0.2rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `
 
 const ContinueButton = styled.button<{ $disabled: boolean }>`
   background: ${({ theme, $disabled }) => 
-    $disabled ? theme.colors.textLight : theme.colors.gradient.primary};
+    $disabled ? 'rgba(136, 136, 163, 0.32)' : theme.colors.gradient.primary};
   color: ${({ theme }) => theme.colors.textWhite};
-  padding: ${({ theme }) => theme.spacing.lg} ${({ theme }) => theme.spacing['2xl']};
+  border: 0;
+  padding: 0.95rem 1.25rem;
   border-radius: ${({ theme }) => theme.borderRadius.xl};
-  font-size: ${({ theme }) => theme.fontSizes.lg};
+  font-size: ${({ theme }) => theme.fontSizes.base};
   font-weight: 700;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
@@ -256,8 +297,8 @@ const ContinueButton = styled.button<{ $disabled: boolean }>`
   letter-spacing: 0.5px;
   position: relative;
   overflow: hidden;
-  margin: 0 auto;
-  min-width: 200px;
+  min-width: 190px;
+  cursor: ${({ $disabled }) => $disabled ? 'not-allowed' : 'pointer'};
 
   &:hover:not(:disabled) {
     transform: translateY(-3px);
@@ -277,9 +318,9 @@ const ContinueButton = styled.button<{ $disabled: boolean }>`
   }
 
   @media (max-width: 480px) {
-    padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.xl};
+    width: 100%;
+    padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.lg};
     font-size: ${({ theme }) => theme.fontSizes.base};
-    min-width: 160px;
   }
 `
 
@@ -287,8 +328,7 @@ export const PropertyCategoryPage: React.FC = () => {
   const navigate = useNavigate()
   const { inspectionId } = useParams<{ inspectionId: string }>()
   const [selectedCategory, setSelectedCategory] = useState<string>('')
-
-
+  const selectedCategoryDetails = propertyCategories.find(category => category.id === selectedCategory)
 
   const handleContinue = () => {
     if (selectedCategory && inspectionId) {
@@ -307,41 +347,48 @@ export const PropertyCategoryPage: React.FC = () => {
       />
 
       <Main>
-        <WelcomeSection>
-          <WelcomeTitle>Selecione o Tipo de Imóvel</WelcomeTitle>
-          <WelcomeSubtitle>
-            Escolha a categoria do imóvel que será vistoriado para carregar o checklist adequado de cômodos
-          </WelcomeSubtitle>
-        </WelcomeSection>
+        <CategoryScroll>
+          <CategoryGrid>
+            {propertyCategories.map((category) => (
+              <CategoryCard
+                key={category.id}
+                $selected={selectedCategory === category.id}
+                onClick={() => setSelectedCategory(category.id)}
+              >
+                <CategoryIcon $selected={selectedCategory === category.id}>
+                  {category.icon}
+                </CategoryIcon>
+                <CategoryText>
+                  <CategoryName $selected={selectedCategory === category.id}>
+                    {category.name}
+                  </CategoryName>
+                  <CategoryDescription>
+                    {category.description}
+                  </CategoryDescription>
+                </CategoryText>
+              </CategoryCard>
+            ))}
+          </CategoryGrid>
+        </CategoryScroll>
 
-        <CategoryGrid>
-          {propertyCategories.map((category) => (
-            <CategoryCard
-              key={category.id}
-              $selected={selectedCategory === category.id}
-              onClick={() => setSelectedCategory(category.id)}
-            >
-              <CategoryIcon $selected={selectedCategory === category.id}>
-                {category.icon}
-              </CategoryIcon>
-              <CategoryName $selected={selectedCategory === category.id}>
-                {category.name}
-              </CategoryName>
-              <CategoryDescription>
-                {category.description}
-              </CategoryDescription>
-            </CategoryCard>
-          ))}
-        </CategoryGrid>
+        <ActionPanel>
+          <SelectedSummary>
+            <SelectedLabel>Categoria selecionada</SelectedLabel>
+            <SelectedValue>{selectedCategoryDetails?.name || 'Escolha uma categoria para continuar'}</SelectedValue>
+          </SelectedSummary>
 
-        <ContinueButton
-          $disabled={!selectedCategory}
-          onClick={handleContinue}
-        >
-          Continuar
-          <ArrowRight size={20} />
-        </ContinueButton>
+          <ContinueButton
+            $disabled={!selectedCategory}
+            disabled={!selectedCategory}
+            onClick={handleContinue}
+          >
+            Continuar
+            <ArrowRight size={20} />
+          </ContinueButton>
+        </ActionPanel>
       </Main>
+
+      <MobileTabBar />
     </Container>
   )
 }

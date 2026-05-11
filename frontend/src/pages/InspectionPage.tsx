@@ -37,6 +37,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { getCanonicalPropertyType } from '../constants/propertyTypes';
 import { roomChecklists } from '../data/roomChecklists';
 import { AppHeader } from '../components/AppHeader';
+import { MobileTabBar } from '../components/MobileTabBar';
 import { Snackbar } from '../components/Snackbar';
 
 
@@ -45,8 +46,8 @@ const Container = styled.div`
   height: 100dvh;
   background: ${({ theme }) => theme.colors.background};
   color: ${({ theme }) => theme.colors.text};
-  width: 100vw;
-  max-width: 100vw;
+  width: 100%;
+  max-width: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
@@ -54,25 +55,29 @@ const Container = styled.div`
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
   box-sizing: border-box;
-  padding-top: 64px;
+  padding-top: 88px;
+  padding-bottom: 96px;
   will-change: transform;
   @media (max-width: 600px) {
-    padding-top: 48px;
+    padding-top: 80px;
+    padding-bottom: 96px;
   }
 `
 
 const Main = styled.main`
   flex: 1;
-  padding: ${({ theme }) => theme.spacing.md};
+  padding: 0;
   max-width: 800px;
   margin: 0 auto;
-  width: 100%;
+  width: calc(100% - 2rem);
+  min-width: 0;
+  box-sizing: border-box;
   will-change: transform;
   @media (max-width: 768px) {
-    padding: ${({ theme }) => theme.spacing.sm};
+    width: calc(100% - 2rem);
   }
   @media (max-width: 480px) {
-    padding: 0.5rem;
+    width: calc(100% - 2rem);
   }
 `
 
@@ -494,6 +499,7 @@ export const InspectionPage: React.FC = () => {
         type={snackbar.type}
         onClose={() => setSnackbar(s => ({ ...s, open: false }))}
       />
+      <MobileTabBar />
     </Container>
   )
 }

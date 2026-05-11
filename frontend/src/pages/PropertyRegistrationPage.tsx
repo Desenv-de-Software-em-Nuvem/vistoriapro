@@ -22,11 +22,11 @@ const Container = styled.div`
   scroll-behavior: smooth;
   box-sizing: border-box;
   padding: ${({ theme }) => theme.spacing.lg};
-  padding-top: 72px;
+  padding-top: 88px;
 
   @media (max-width: 768px) {
     padding: ${({ theme }) => theme.spacing.md};
-    padding-top: 60px;
+    padding-top: 80px;
   }
 `
 

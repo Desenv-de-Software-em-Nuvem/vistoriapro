@@ -14,6 +14,10 @@ export const GlobalStyles = createGlobalStyle`
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
     min-width: 320px;
+    overflow-x: clip;
+    max-width: 100%;
+    scrollbar-width: thin;
+    scrollbar-color: ${({ theme }) => theme.colors.primary} transparent;
   }
   body {
     font-family: ${({ theme }) => theme.fonts.primary};
@@ -24,9 +28,10 @@ export const GlobalStyles = createGlobalStyle`
       radial-gradient(circle at 80% 20%, rgba(255, 140, 66, 0.08) 0%, transparent 50%),
       radial-gradient(circle at 40% 40%, rgba(255, 107, 53, 0.05) 0%, transparent 50%);
     background-attachment: fixed;
-    overflow-x: hidden;
+    overflow-x: clip;
     min-height: 100vh;
-    width: 100vw;
+    width: 100%;
+    max-width: 100%;
     font-size: clamp(1rem, 2vw, 1.125rem);
   }
 
@@ -39,39 +44,19 @@ export const GlobalStyles = createGlobalStyle`
     margin: 0 auto;
     padding: 0;
   }
+
   button {
     font-family: inherit;
     cursor: pointer;
     border: none;
     outline: none;
     background: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-    overflow: hidden;
-    min-width: 48px;
-    min-height: 48px;
-    font-size: clamp(1rem, 2vw, 1.125rem);
-    border-radius: 0.5em;
-    padding: clamp(0.5em, 2vw, 1em) clamp(1em, 4vw, 2em);
+    color: inherit;
+    padding: 0;
     
     &:disabled {
       cursor: not-allowed;
       opacity: 0.6;
-    }
-    
-    &:before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-      transition: left 0.5s;
-    }
-    
-    &:hover:not(:disabled):before {
-      left: 100%;
     }
   }
   input, textarea, select {
@@ -106,20 +91,39 @@ export const GlobalStyles = createGlobalStyle`
   /* Scroll bar styling */
   ::-webkit-scrollbar {
     width: 8px;
+    height: 0;
   }
 
   ::-webkit-scrollbar-track {
-    background: ${({ theme }) => theme.colors.backgroundSecondary};
+    background: transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: ${({ theme }) => theme.colors.border};
+    background: ${({ theme }) => theme.colors.primary};
     border-radius: ${({ theme }) => theme.borderRadius.full};
     
     &:hover {
-      background: ${({ theme }) => theme.colors.textLight};
+      background: ${({ theme }) => theme.colors.primaryLight};
     }
   }
+
+  ::-webkit-scrollbar:horizontal {
+    display: none;
+    height: 0;
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  html,
+  body {
+    scrollbar-width: none;
+  }
+
   /* Mobile optimizations */
   @media (max-width: 768px) {
     html {
@@ -131,18 +135,16 @@ export const GlobalStyles = createGlobalStyle`
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
-      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 0;
     }
     /* Prevent zoom on input focus */
-    input, select, textarea, button {
+    input, select, textarea {
       font-size: 16px;
       -webkit-appearance: none;
       appearance: none;
-    }
-    /* Better touch targets */
-    button, a, [role="button"] {
-      min-height: 48px;
-      min-width: 48px;
     }
     /* Optimize for touch */
     * {
@@ -160,10 +162,7 @@ export const GlobalStyles = createGlobalStyle`
   /* PWA optimizations */
   @media (display-mode: standalone) {
     body {
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
-      padding-left: env(safe-area-inset-left);
-      padding-right: env(safe-area-inset-right);
+      padding: 0;
     }
     
     /* Hide address bar on mobile */
@@ -185,8 +184,7 @@ export const GlobalStyles = createGlobalStyle`
     }
     
     body {
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
+      padding: 0;
     }
   }
 

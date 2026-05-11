@@ -50,7 +50,7 @@ export const downloadRelatorio = async (id: number): Promise<Blob> => {
   return response.data;
 };
 
-export const gerarRelatorio = async (vistoria_id: number, dados_adicionais?: any) => {
-  const response = await api.post('/relatorios/gerar', { vistoria_id, dados_adicionais });
+export const gerarRelatorio = async (vistoria_id: number, dados_adicionais?: any, formato: 'pdf' | 'word' = 'pdf') => {
+  const response = await api.post('/relatorios/gerar', { vistoria_id, dados_adicionais, formato });
   return response.data;
 };

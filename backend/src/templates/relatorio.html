@@ -15,6 +15,11 @@
     .section {
       margin-bottom: 22px;
     }
+    .no-page-break {
+      break-inside: avoid;
+      break-inside: avoid-page;
+      page-break-inside: avoid;
+    }
     .brand {
       display: flex;
       align-items: center;
@@ -69,11 +74,16 @@
       display: flex;
       flex-wrap: wrap;
       gap: 18px;
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
     .foto-item {
       width: 200px;
       text-align: center;
       margin-bottom: 10px;
+      break-inside: avoid;
+      break-inside: avoid-page;
+      page-break-inside: avoid;
     }
     .foto-item img {
       width: 100%;
@@ -85,6 +95,18 @@
       border: none;
       border-top: 1px solid #b0bec5;
       margin: 10px 0;
+    }
+    .comodo {
+      margin-bottom: 24px;
+      break-inside: avoid;
+      break-inside: avoid-page;
+      page-break-inside: avoid;
+    }
+    .comodo-nome,
+    .foto-descricao,
+    .comodo-observacoes {
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
   </style>
 </head>
@@ -103,7 +125,7 @@
   <div class="section">
     <div class="section-title">Checklist de Cômodos</div>
     {{#comodos}}
-      <div class="comodo" style="margin-bottom: 24px;">
+      <div class="comodo no-page-break">
         <div class="comodo-nome"><strong>{{nome}}</strong></div>
         <div class="fotos">
           {{#fotos}}
@@ -117,8 +139,8 @@
           <div style="color:#888; font-size:0.95em;">Nenhuma foto cadastrada para este cômodo.</div>
         {{/fotos}}
         <div class="comodo-observacoes"><strong>Descrição:</strong> {{descricao}}</div>
+        <hr/>
       </div>
-      <hr/>
     {{/comodos}}
     {{^comodos}}
       <div style="color:#888; font-size:0.95em;">Nenhum cômodo cadastrado para esta vistoria.</div>
@@ -126,7 +148,7 @@
   </div>
 
   {{#fotos_sem_comodo}}
-    <div class="section fotos">
+    <div class="section fotos no-page-break">
       <div class="section-title">Fotos sem cômodo vinculado</div>
       <div class="foto-item">
         <img src="{{url}}" alt="Foto">

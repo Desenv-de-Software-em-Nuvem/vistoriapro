@@ -1,4 +1,5 @@
 import React from 'react'
+import { createPortal } from 'react-dom'
 import styled from 'styled-components'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Home, FileText, Building2 } from 'lucide-react'
@@ -10,20 +11,44 @@ import { useAuth } from '../hooks/useAuth'
 
 const TabBar = styled.nav`
   position: fixed;
-  bottom: 0;
+  bottom: var(--vistoriapro-vv-bottom, 0px);
   left: 0;
   right: 0;
-  height: 64px;
+  width: 100%;
+  max-width: 100vw;
+  height: calc(64px + env(safe-area-inset-bottom, 0px));
   background: ${({ theme }) => theme.colors.backgroundCard};
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid ${({ theme }) => theme.colors.border};
   display: flex;
   justify-content: space-around;
-  align-items: center;
-  z-index: 1000;
+  align-items: flex-start;
+  z-index: 1090;
   padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-top: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  overscroll-behavior: none;
+  transform: translateZ(0);
+  will-change: transform;
+  isolation: isolate;
+  contain: layout paint;
+
+  &::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
 `;
 
 const TabButton = styled.button<{ $active?: boolean }>`
+  flex: 1 1 0;
+  width: 33.333%;
+  max-width: 33.333%;
+  min-width: 0;
+  min-height: 0;
+  height: 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -35,9 +60,17 @@ const TabButton = styled.button<{ $active?: boolean }>`
   font-size: 11px;
   font-weight: 600;
   padding: 6px 10px;
+  margin: 0;
   border-radius: 12px;
   transition: color 0.2s ease, background 0.2s ease, transform 0.1s ease;
-  min-width: 80px;
+  overflow: hidden;
+  box-sizing: border-box;
+  contain: paint;
+
+  &::before {
+    content: none;
+    display: none;
+  }
 
   &:active {
     transform: scale(0.96);
@@ -59,9 +92,9 @@ export const MobileTabBar: React.FC = () => {
 
   const go = (path: string) => () => navigate(path)
 
-  const isDashboard = pathname.startsWith('/dashboard')
-  const isList = pathname.startsWith('/property-list') || pathname.startsWith('/property-')
   const isInspection = pathname.startsWith('/inspection') || pathname.startsWith('/property-category')
+  const isDashboard = pathname.startsWith('/dashboard')
+  const isList = pathname.startsWith('/property-list') || (pathname.startsWith('/property-') && !isInspection)
 
   const startInspectionFlow = () => {
     if (!permitidoVistoria) {
@@ -72,7 +105,7 @@ export const MobileTabBar: React.FC = () => {
     navigate(`/property-category/${inspectionId}`)
   }
 
-  return (
+  const tabBar = (
     <TabBar role="navigation" aria-label="Navegação principal">
       <TabButton $active={isDashboard} onClick={go('/dashboard')} aria-current={isDashboard ? 'page' : undefined}>
         <Home />
@@ -90,6 +123,12 @@ export const MobileTabBar: React.FC = () => {
       </TabButton>
     </TabBar>
   )
+
+  if (typeof document === 'undefined') {
+    return tabBar;
+  }
+
+  return createPortal(tabBar, document.body)
 }
 
 export default MobileTabBar
