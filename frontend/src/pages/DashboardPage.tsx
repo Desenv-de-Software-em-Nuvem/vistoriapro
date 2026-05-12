@@ -9,7 +9,8 @@ import AdminSidebarMotion from '../components/AdminSidebarMotion';
 
 const Container = styled.div<{ $sidebarOpen: boolean }>`
   min-height: 100dvh;
-  min-height: var(--vistoriapro-app-height, 100dvh);
+  height: var(--vistoriapro-app-height, 100dvh);
+  min-height: 0;
   background: ${({ theme }) => theme.colors.background};
   width: 100%;
   max-width: 100%;

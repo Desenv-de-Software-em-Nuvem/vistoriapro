@@ -14,12 +14,16 @@ type ReportFormat = 'pdf' | 'word'
 const Container = styled.div`
   min-height: 100vh;
   min-height: 100dvh;
+  height: var(--vistoriapro-app-height, 100dvh);
   background:
     radial-gradient(circle at top left, rgba(255, 69, 0, 0.14), transparent 30rem),
     ${({ theme }) => theme.colors.background};
   width: 100%;
   max-width: 100%;
+  overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
   box-sizing: border-box;
   padding: 88px clamp(1rem, 4vw, 2.5rem) 96px;
 

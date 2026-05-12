@@ -6,7 +6,8 @@ import styled from 'styled-components'
 const Container = styled.div`
   min-height: 100vh;
   min-height: 100dvh;
-  min-height: var(--vistoriapro-app-height, 100dvh);
+  height: var(--vistoriapro-app-height, 100dvh);
+  min-height: 0;
   background: ${({ theme }) => theme.colors.background};
   display: flex;
   flex-direction: column;

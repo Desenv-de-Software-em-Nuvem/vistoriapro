@@ -23,10 +23,14 @@ const EMPTY_FORM = {
 const Container = styled.div`
   width: 100%;
   max-width: 100%;
-  min-height: 100vh;
+  height: var(--vistoriapro-app-height, 100dvh);
+  min-height: 0;
   padding: 88px clamp(1rem, 4vw, 2.5rem) 2rem;
   background: ${({ theme }) => theme.colors.background};
   overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 `;
 
 const Content = styled.main`

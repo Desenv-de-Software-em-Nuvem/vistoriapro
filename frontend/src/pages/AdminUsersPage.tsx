@@ -10,7 +10,8 @@ const Container = styled.div`
   padding: 2rem clamp(1rem, 4vw, 2.5rem);
   width: 100%;
   max-width: 100%;
-  min-height: 100vh;
+  height: var(--vistoriapro-app-height, 100dvh);
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -19,6 +20,9 @@ const Container = styled.div`
     radial-gradient(circle at top left, rgba(255, 69, 0, 0.16), transparent 32rem),
     ${({ theme }) => theme.colors.background};
   overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
   @media (max-width: 600px) {
     padding: 80px 1rem 1.5rem;
   }
