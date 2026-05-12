@@ -55,7 +55,7 @@ const PhotoModalButton = styled.button`
 import { CameraModal } from './CameraModal';
 import { TranscriptionButton } from './TranscriptionButton';
 import styled from 'styled-components';
-import { ChevronDown, ChevronUp, Camera, Image, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Camera, Image, CheckCircle2, Sparkles } from 'lucide-react';
 const CompleteButton = styled.button`
   display: flex;
   align-items: center;
@@ -93,6 +93,7 @@ interface RoomAccordionProps {
   onChangeDescription: (roomId: string, desc: string) => void;
   onToggleComplete?: (roomId: string, completed: boolean) => void;
   onDeletePhoto: (roomId: string, photoIdx: number) => void;
+  isAiGenerating?: boolean;
 }
 
 const AccordionContainer = styled.div`
@@ -167,10 +168,32 @@ const DescriptionArea = styled.textarea`
   min-height: 36px;
   max-height: 80px;
   border-radius: 6px;
-  border: 1px solid #ccc;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  background: ${({ theme }) => theme.colors.backgroundTertiary};
+  color: ${({ theme }) => theme.colors.text};
   padding: 6px;
   font-size: 0.95rem;
   resize: vertical;
+
+  &::placeholder {
+    color: ${({ theme }) => theme.colors.textLight};
+  }
+
+  &:focus {
+    border-color: ${({ theme }) => theme.colors.primary};
+    outline: none;
+    box-shadow: 0 0 0 2px ${({ theme }) => theme.colors.shadowGlow};
+  }
+`;
+
+const AiStatus = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: ${({ theme }) => theme.colors.primaryLight};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 700;
+  margin: -2px 0 8px;
 `;
 
 
@@ -182,6 +205,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
   onChangeDescription,
   onToggleComplete,
   onDeletePhoto,
+  isAiGenerating = false,
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -252,7 +276,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
           <DescriptionArea
             value={room.description}
             onChange={e => onChangeDescription(room.id, e.target.value)}
-            placeholder="Adicione uma descrição para este cômodo"
+            placeholder={isAiGenerating ? 'IA analisando a última foto...' : 'Adicione uma descrição para este cômodo'}
             style={{ flex: 1 }}
           />
           <div style={{ alignSelf: 'stretch', display: 'flex', alignItems: 'flex-start' }}>
@@ -261,6 +285,12 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
             />
           </div>
         </div>
+        {isAiGenerating && (
+          <AiStatus>
+            <Sparkles size={14} />
+            IA analisando foto e sugerindo descrição...
+          </AiStatus>
+        )}
         <CameraModal
           open={cameraOpen}
           onClose={() => setCameraOpen(false)}

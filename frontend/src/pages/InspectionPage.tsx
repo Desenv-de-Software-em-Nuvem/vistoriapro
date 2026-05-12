@@ -31,6 +31,7 @@ import { criarOuAtualizarComodoVistoria } from '../services/comodoVistoriaServic
 import { listarFotosPorVistoria, uploadFoto } from '../services/fotoService';
 import type { Foto } from '../services/fotoService';
 import { deletarFoto } from '../services/deletarFotoService';
+import { descreverFotoComIa } from '../services/iaService';
 import type { Imovel } from '../services/imovelService';
 import styled from 'styled-components';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -131,6 +132,8 @@ export const InspectionPage: React.FC = () => {
   const [imoveis, setImoveis] = useState<Imovel[]>([]);
   const [selectedImovel, setSelectedImovel] = useState<Imovel | null>(null);
   const [loadingImoveis, setLoadingImoveis] = useState(true);
+  const [aiLoadingRooms, setAiLoadingRooms] = useState<Record<string, boolean>>({});
+  const [aiUnavailable, setAiUnavailable] = useState(false);
   // Removido: tipo de imóvel selecionado (não é mais usado)
   // Carregar imóveis ao abrir a página
   useEffect(() => {
@@ -208,6 +211,7 @@ export const InspectionPage: React.FC = () => {
           : room
       )
     } : prev);
+    void gerarDescricaoFotoComIa(roomId, dataUrl);
   };
 
   // Novo: handler para deletar foto de um cômodo
@@ -258,6 +262,7 @@ export const InspectionPage: React.FC = () => {
             room.id === roomId ? { ...room, photos: [...(room.photos || []), result] } : room
           )
         } : prev);
+        void gerarDescricaoFotoComIa(roomId, result);
       };
       reader.readAsDataURL(file);
     };
@@ -273,6 +278,78 @@ export const InspectionPage: React.FC = () => {
           : room
       )
     } : prev);
+  };
+
+  const resizeImageForAi = (dataUrl: string, maxSize = 1024, quality = 0.82) => new Promise<string>((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const context = canvas.getContext('2d');
+      if (!context) {
+        resolve(dataUrl);
+        return;
+      }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    image.onerror = () => resolve(dataUrl);
+    image.src = dataUrl;
+  });
+
+  const aplicarDescricaoIa = (roomId: string, descricao: string) => {
+    const texto = descricao.trim();
+    if (!texto) return;
+
+    setInspection((prev: InspectionData | null) => prev ? {
+      ...prev,
+      rooms: prev.rooms.map((room: RoomAccordionType) => {
+        if (room.id !== roomId) return room;
+        const atual = room.description?.trim();
+        return {
+          ...room,
+          description: atual ? `${atual}\n${texto}` : texto,
+          completed: false,
+        };
+      })
+    } : prev);
+  };
+
+  const gerarDescricaoFotoComIa = async (roomId: string, dataUrl: string) => {
+    if (aiUnavailable) return;
+
+    const room = inspection?.rooms.find((item: RoomAccordionType) => item.id === roomId);
+    const roomName = room?.name || 'Cômodo';
+    setAiLoadingRooms((prev) => ({ ...prev, [roomId]: true }));
+
+    try {
+      const imagem = await resizeImageForAi(dataUrl);
+      const descricao = await descreverFotoComIa({
+        imagem,
+        comodo_nome: roomName,
+      });
+      aplicarDescricaoIa(roomId, descricao);
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 503) {
+        setAiUnavailable(true);
+        setSnackbar({
+          open: true,
+          message: 'IA de descrição ainda não configurada. A vistoria continua em modo manual.',
+          type: 'info'
+        });
+        return;
+      }
+      setSnackbar({
+        open: true,
+        message: 'Não foi possível gerar a descrição automática desta foto.',
+        type: 'info'
+      });
+    } finally {
+      setAiLoadingRooms((prev) => ({ ...prev, [roomId]: false }));
+    }
   };
 
   // Handler para marcar/desmarcar cômodo como concluído
@@ -440,6 +517,7 @@ export const InspectionPage: React.FC = () => {
         ) : (
           <RoomChecklist
             rooms={inspection?.rooms || []}
+            aiLoadingRooms={aiLoadingRooms}
             onCapturePhoto={handleCapturePhoto}
             onSelectFromGallery={handleSelectFromGallery}
             onChangeDescription={handleChangeDescription}

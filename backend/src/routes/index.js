@@ -10,6 +10,7 @@ router.use('/vistorias', require('./vistorias'));
 router.use('/fotos', require('./fotos'));
 router.use('/transcricoes', require('./transcricoes'));
 router.use('/media', require('./fotos'));
+router.use('/ia', require('./ia'));
 
 router.use('/relatorios', require('./relatorios'));
 router.use('/locatarios-vistoria', require('./locatariosVistoria'));

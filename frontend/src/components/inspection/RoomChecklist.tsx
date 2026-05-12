@@ -60,6 +60,7 @@ interface RoomAccordionType {
 
 interface RoomChecklistProps {
   rooms: RoomAccordionType[];
+  aiLoadingRooms?: Record<string, boolean>;
   onCapturePhoto: (roomId: string, dataUrl: string) => void;
   onSelectFromGallery: (roomId: string) => void;
   onChangeDescription: (roomId: string, desc: string) => void;
@@ -68,7 +69,7 @@ interface RoomChecklistProps {
 }
 
 
-export const RoomChecklist: React.FC<Omit<RoomChecklistProps, 'onChangeEstadoGeral'>> = ({ rooms, onCapturePhoto, onSelectFromGallery, onChangeDescription, onToggleComplete, onDeletePhoto }) => (
+export const RoomChecklist: React.FC<Omit<RoomChecklistProps, 'onChangeEstadoGeral'>> = ({ rooms, aiLoadingRooms = {}, onCapturePhoto, onSelectFromGallery, onChangeDescription, onToggleComplete, onDeletePhoto }) => (
   <ChecklistSection>
     <SectionTitle>
       <Home size={24} />
@@ -79,6 +80,7 @@ export const RoomChecklist: React.FC<Omit<RoomChecklistProps, 'onChangeEstadoGer
         <RoomAccordion
           key={room.id}
           room={room}
+          isAiGenerating={!!aiLoadingRooms[room.id]}
           onCapturePhoto={onCapturePhoto}
           onSelectFromGallery={onSelectFromGallery}
           onChangeDescription={onChangeDescription}
