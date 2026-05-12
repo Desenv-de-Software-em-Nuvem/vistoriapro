@@ -7,6 +7,7 @@ import { VistoriaProLogo } from '../components/VistoriaProLogo'
 const Container = styled.div`
   min-height: 100vh;
   min-height: 100dvh;
+  height: var(--vistoriapro-app-height, 100dvh);
   width: 100%;
   max-width: 100%;
   display: flex;
@@ -41,7 +42,12 @@ const Container = styled.div`
   @media (max-width: 600px) {
     align-items: center;
     padding: 2rem 0.5rem;
-    min-height: 100dvh;
+    min-height: 0;
+  }
+
+  @media (max-width: 600px) and (max-height: 720px) {
+    align-items: flex-start;
+    padding: 1rem 0.5rem;
   }
 `;
 const LoginCard = styled.div`
@@ -75,6 +81,8 @@ const LoginCard = styled.div`
   @media (max-width: 600px) {
     padding: 2.75rem 1.15rem;
     max-width: min(100%, 390px);
+    max-height: calc(var(--vistoriapro-app-height, 100dvh) - 2rem);
+    overflow-y: auto;
     border-radius: ${({ theme }) => theme.borderRadius.lg};
     box-shadow: 0 8px 24px -8px ${({ theme }) => theme.colors.shadowDark};
     margin: 0 auto;
