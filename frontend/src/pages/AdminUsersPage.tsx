@@ -8,7 +8,8 @@ import { AppHeader } from '../components/AppHeader';
 
 const Container = styled.div`
   padding: 2rem clamp(1rem, 4vw, 2.5rem);
-  width: 100vw;
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
   display: flex;
   flex-direction: column;

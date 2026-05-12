@@ -10,10 +10,10 @@ import { AppHeader } from '../components/AppHeader'
 const Container = styled.div`
   min-height: 100vh;
   min-height: 100dvh;
-  height: 100dvh;
+  min-height: var(--vistoriapro-app-height, 100dvh);
   background: ${({ theme }) => theme.colors.background};
-  width: 100vw;
-  max-width: 100vw;
+  width: 100%;
+  max-width: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
@@ -39,7 +39,7 @@ const FormCard = styled.div`
   box-shadow: 0 25px 50px -12px ${({ theme }) => theme.colors.shadowDark};
   max-width: 800px;
   margin: 0 auto;
-  max-height: 100dvh;
+  max-height: calc(var(--vistoriapro-app-height, 100dvh) - 104px);
   overflow-y: auto;
   box-sizing: border-box;
 

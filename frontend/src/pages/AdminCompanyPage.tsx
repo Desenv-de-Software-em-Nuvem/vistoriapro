@@ -21,7 +21,8 @@ const EMPTY_FORM = {
 };
 
 const Container = styled.div`
-  width: 100vw;
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
   padding: 88px clamp(1rem, 4vw, 2.5rem) 2rem;
   background: ${({ theme }) => theme.colors.background};

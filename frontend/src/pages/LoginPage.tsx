@@ -263,8 +263,8 @@ const DemoCredentials = styled.div`
 const PreInitScreen = styled.div`
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: var(--vistoriapro-app-height, 100dvh);
   background: linear-gradient(135deg, #18171c 60%, #ff4500 100%);
   display: flex;
   flex-direction: column;
@@ -281,7 +281,7 @@ const PreInitText = styled.h2`
   text-shadow: 0 0 24px #ff4500, 0 0 8px #fff;
   margin-bottom: 1.5rem;
   animation: blink 1.2s infinite alternate;
-  width: 100vw;
+  width: 100%;
   text-align: center;
   display: flex;
   align-items: center;

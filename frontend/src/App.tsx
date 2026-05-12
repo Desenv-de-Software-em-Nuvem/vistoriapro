@@ -16,6 +16,7 @@ function App() {
       if (!viewport) {
         root.style.setProperty('--vistoriapro-vv-top', '0px')
         root.style.setProperty('--vistoriapro-vv-bottom', '0px')
+        root.style.setProperty('--vistoriapro-app-height', `${window.innerHeight}px`)
         return
       }
 
@@ -24,6 +25,7 @@ function App() {
 
       root.style.setProperty('--vistoriapro-vv-top', `${top}px`)
       root.style.setProperty('--vistoriapro-vv-bottom', `${bottom}px`)
+      root.style.setProperty('--vistoriapro-app-height', `${viewport.height}px`)
     }
 
     updateVisualViewportVars()

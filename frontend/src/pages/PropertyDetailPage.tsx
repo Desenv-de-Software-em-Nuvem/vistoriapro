@@ -10,10 +10,10 @@ import { AppHeader } from '../components/AppHeader'
 const Container = styled.div`
   min-height: 100vh;
   min-height: 100dvh;
-  height: 100dvh;
+  min-height: var(--vistoriapro-app-height, 100dvh);
   background: ${({ theme }) => theme.colors.background};
-  width: 100vw;
-  max-width: 100vw;
+  width: 100%;
+  max-width: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;

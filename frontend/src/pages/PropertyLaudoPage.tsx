@@ -17,8 +17,8 @@ const Container = styled.div`
   background:
     radial-gradient(circle at top left, rgba(255, 69, 0, 0.14), transparent 30rem),
     ${({ theme }) => theme.colors.background};
-  width: 100vw;
-  max-width: 100vw;
+  width: 100%;
+  max-width: 100%;
   overflow-x: hidden;
   box-sizing: border-box;
   padding: 88px clamp(1rem, 4vw, 2.5rem) 96px;

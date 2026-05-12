@@ -9,10 +9,10 @@ import AdminSidebarMotion from '../components/AdminSidebarMotion';
 
 const Container = styled.div<{ $sidebarOpen: boolean }>`
   min-height: 100dvh;
-  height: 100dvh;
+  min-height: var(--vistoriapro-app-height, 100dvh);
   background: ${({ theme }) => theme.colors.background};
-  width: 100vw;
-  max-width: 100vw;
+  width: 100%;
+  max-width: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
@@ -42,8 +42,8 @@ const FixedHeader = styled.header`
   position: sticky;
   top: 0;
   z-index: 100;
-  width: 100vw;
-  max-width: 100vw;
+  width: 100%;
+  max-width: 100%;
   will-change: transform;
   @media (max-width: 640px) {
     padding: clamp(0.5rem, 4vw, 1.25rem) clamp(0.5rem, 6vw, 1.5rem);
@@ -132,7 +132,7 @@ const WelcomeSection = styled.section`
   position: relative;
   overflow: hidden;
   width: 100%;
-  max-width: 100vw;
+  max-width: 100%;
   &:before {
     content: '';
     position: absolute;

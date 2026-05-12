@@ -44,7 +44,7 @@ import { Snackbar } from '../components/Snackbar';
 
 const Container = styled.div`
   min-height: 100dvh;
-  height: 100dvh;
+  min-height: var(--vistoriapro-app-height, 100dvh);
   background: ${({ theme }) => theme.colors.background};
   color: ${({ theme }) => theme.colors.text};
   width: 100%;

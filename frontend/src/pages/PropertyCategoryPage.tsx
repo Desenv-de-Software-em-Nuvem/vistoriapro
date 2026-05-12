@@ -40,14 +40,14 @@ const Container = styled.div`
     radial-gradient(circle at bottom right, rgba(255, 140, 66, 0.11), transparent 28rem),
     ${({ theme }) => theme.colors.background};
   color: ${({ theme }) => theme.colors.text};
-  width: 100vw;
-  max-width: 100vw;
+  width: 100%;
+  max-width: 100%;
   overflow-x: hidden;
   box-sizing: border-box;
   padding: 82px clamp(1rem, 4vw, 2.5rem) 2.5rem;
 
   @media (max-width: 768px) {
-    height: 100dvh;
+    height: var(--vistoriapro-app-height, 100dvh);
     min-height: 0;
     overflow: hidden;
     overscroll-behavior: none;

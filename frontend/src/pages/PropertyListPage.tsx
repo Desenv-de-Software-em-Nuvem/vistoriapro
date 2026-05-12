@@ -14,8 +14,7 @@ const Container = styled.div`
   background:
     radial-gradient(circle at top left, rgba(255, 69, 0, 0.16), transparent 32rem),
     ${({ theme }) => theme.colors.background};
-  height: 100vh;
-  height: 100dvh;
+  min-height: var(--vistoriapro-app-height, 100dvh);
   width: 100%;
   max-width: 100%;
   overflow-y: auto;

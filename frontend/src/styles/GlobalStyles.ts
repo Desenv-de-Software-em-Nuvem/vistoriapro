@@ -8,13 +8,17 @@ export const GlobalStyles = createGlobalStyle`
   }
 
   html {
-    font-size: clamp(14px, 2.5vw, 18px);
+    font-size: 16px;
     line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
     min-width: 320px;
-    overflow-x: clip;
+    width: 100%;
+    min-height: 100%;
+    overflow-x: hidden;
     max-width: 100%;
     scrollbar-width: thin;
     scrollbar-color: ${({ theme }) => theme.colors.primary} transparent;
@@ -27,22 +31,27 @@ export const GlobalStyles = createGlobalStyle`
       radial-gradient(circle at 20% 80%, rgba(255, 69, 0, 0.1) 0%, transparent 50%),
       radial-gradient(circle at 80% 20%, rgba(255, 140, 66, 0.08) 0%, transparent 50%),
       radial-gradient(circle at 40% 40%, rgba(255, 107, 53, 0.05) 0%, transparent 50%);
-    background-attachment: fixed;
-    overflow-x: clip;
+    background-attachment: scroll;
+    overflow-x: hidden;
     min-height: 100vh;
+    min-height: 100svh;
+    min-height: var(--vistoriapro-app-height, 100dvh);
     width: 100%;
     max-width: 100%;
-    font-size: clamp(1rem, 2vw, 1.125rem);
+    font-size: 1rem;
   }
 
   #root {
     min-height: 100vh;
+    min-height: 100svh;
+    min-height: var(--vistoriapro-app-height, 100dvh);
     display: flex;
     flex-direction: column;
     width: 100%;
-    max-width: 100vw;
+    max-width: 100%;
     margin: 0 auto;
     padding: 0;
+    overflow-x: hidden;
   }
 
   button {
@@ -127,7 +136,7 @@ export const GlobalStyles = createGlobalStyle`
   /* Mobile optimizations */
   @media (max-width: 768px) {
     html {
-      font-size: clamp(13px, 3vw, 15px);
+      font-size: 15px;
     }
     body {
       font-size: clamp(1rem, 2vw, 1.05rem);
@@ -165,15 +174,15 @@ export const GlobalStyles = createGlobalStyle`
       padding: 0;
     }
     
-    /* Hide address bar on mobile */
     html {
-      overflow: hidden;
-      height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+      min-height: 100%;
     }
     
     body {
       overflow: auto;
-      height: 100%;
+      min-height: var(--vistoriapro-app-height, 100dvh);
     }
   }
 
