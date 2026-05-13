@@ -20,7 +20,20 @@ function serializeInspection(inspection: InspectionData | null) {
 function isStoredPhotoUrl(photo: string) {
   return photo.startsWith('http') || photo.startsWith('/uploads/');
 }
-import React, { useState, useEffect } from 'react';
+
+function getApiAssetBaseUrl() {
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  return apiUrl.replace(/\/api\/?$/, '').replace(/\/$/, '');
+}
+
+function resolvePhotoUrl(photo: string) {
+  if (photo.startsWith('/')) {
+    return `${getApiAssetBaseUrl()}${photo}`;
+  }
+  return photo;
+}
+
+import React, { useState, useEffect, useRef } from 'react';
 import { useVistoriaProgress } from '../hooks/useVistoriaProgress';
 import { PropertySelector } from '../components/inspection/PropertySelector';
 import { RoomChecklist } from '../components/inspection/RoomChecklist';
@@ -121,7 +134,7 @@ type RoomChecklistDefinition = Pick<RoomAccordionType, 'id' | 'name' | 'icon'>;
 
 export const InspectionPage: React.FC = () => {
   // Snackbar state
-  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; type: 'success' | 'error' | 'info' }>({ open: false, message: '', type: 'info' });
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; type: 'success' | 'error' | 'info'; duration?: number }>({ open: false, message: '', type: 'info' });
   const [saving, setSaving] = useState(false);
   // Recupera o tipo de imóvel selecionado na página anterior via state do React Router
   const location = useLocation();
@@ -135,6 +148,8 @@ export const InspectionPage: React.FC = () => {
   const [loadingImoveis, setLoadingImoveis] = useState(true);
   const [aiLoadingRooms, setAiLoadingRooms] = useState<Record<string, boolean>>({});
   const [aiUnavailable, setAiUnavailable] = useState(false);
+  const aiCompletedSignaturesRef = useRef<Record<string, string>>({});
+  const aiPendingSignaturesRef = useRef<Set<string>>(new Set());
   // Removido: tipo de imóvel selecionado (não é mais usado)
   // Carregar imóveis ao abrir a página
   useEffect(() => {
@@ -212,7 +227,6 @@ export const InspectionPage: React.FC = () => {
           : room
       )
     } : prev);
-    void gerarDescricaoFotoComIa(roomId, dataUrl);
   };
 
   // Novo: handler para deletar foto de um cômodo
@@ -249,26 +263,50 @@ export const InspectionPage: React.FC = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.onchange = (e: Event) => {
+    input.multiple = true;
+    input.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement;
-      const file = target.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev: ProgressEvent<FileReader>) => {
-        const result = ev.target?.result;
-        if (typeof result !== 'string') return;
+      const files = Array.from(target.files || []);
+      if (!files.length) return;
+      try {
+        const results = await Promise.all(files.map(fileToDataUrl));
         setInspection((prev: InspectionData | null) => prev ? {
           ...prev,
           rooms: prev.rooms.map((room: RoomAccordionType) =>
-            room.id === roomId ? { ...room, photos: [...(room.photos || []), result] } : room
+            room.id === roomId
+              ? { ...room, photos: [...(room.photos || []), ...results], completed: false }
+              : room
           )
         } : prev);
-        void gerarDescricaoFotoComIa(roomId, result);
-      };
-      reader.readAsDataURL(file);
+        setSnackbar({
+          open: true,
+          message: results.length > 1 ? `${results.length} fotos adicionadas ao cômodo.` : 'Foto adicionada ao cômodo.',
+          type: 'success'
+        });
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: error instanceof Error ? error.message : 'Erro ao carregar imagens da galeria.',
+          type: 'error'
+        });
+      }
     };
     input.click();
   };
+
+  const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (ev: ProgressEvent<FileReader>) => {
+      const result = ev.target?.result;
+      if (typeof result === 'string') {
+        resolve(result);
+        return;
+      }
+      reject(new Error('Não foi possível ler a imagem selecionada.'));
+    };
+    reader.onerror = () => reject(new Error('Erro ao carregar imagem da galeria.'));
+    reader.readAsDataURL(file);
+  });
 
   const handleChangeDescription = (roomId: string, desc: string) => {
     setInspection((prev: InspectionData | null) => prev ? {
@@ -281,7 +319,7 @@ export const InspectionPage: React.FC = () => {
     } : prev);
   };
 
-  const resizeImageForAi = (dataUrl: string, maxSize = 1024, quality = 0.82) => new Promise<string>((resolve) => {
+  const resizeImageForAi = (dataUrl: string, maxSize = 640, quality = 0.68) => new Promise<string>((resolve) => {
     const image = new Image();
     image.onload = () => {
       const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
@@ -298,6 +336,95 @@ export const InspectionPage: React.FC = () => {
     };
     image.onerror = () => resolve(dataUrl);
     image.src = dataUrl;
+  });
+
+  const loadImageForCanvas = (dataUrl: string) => new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Não foi possível preparar o mosaico de fotos para IA.'));
+    image.src = dataUrl;
+  });
+
+  const createPhotoContactSheetForAi = async (dataUrls: string[]) => {
+    if (dataUrls.length === 1) return dataUrls[0];
+
+    const images = await Promise.all(dataUrls.map(loadImageForCanvas));
+    const columns = Math.min(3, Math.ceil(Math.sqrt(images.length)));
+    const rows = Math.ceil(images.length / columns);
+    const cellWidth = 360;
+    const cellHeight = 270;
+    const gap = 12;
+    const labelHeight = 28;
+    const canvas = document.createElement('canvas');
+    canvas.width = columns * cellWidth + (columns + 1) * gap;
+    canvas.height = rows * (cellHeight + labelHeight) + (rows + 1) * gap;
+
+    const context = canvas.getContext('2d');
+    if (!context) return dataUrls[0];
+
+    context.fillStyle = '#111827';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.font = '700 16px Arial';
+    context.textBaseline = 'middle';
+
+    images.forEach((image, index) => {
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      const x = gap + column * (cellWidth + gap);
+      const y = gap + row * (cellHeight + labelHeight + gap);
+      const scale = Math.min(cellWidth / image.width, cellHeight / image.height);
+      const drawWidth = image.width * scale;
+      const drawHeight = image.height * scale;
+      const drawX = x + (cellWidth - drawWidth) / 2;
+      const drawY = y + labelHeight + (cellHeight - drawHeight) / 2;
+
+      context.fillStyle = '#ffffff';
+      context.fillText(`Foto ${index + 1}`, x + 8, y + labelHeight / 2);
+      context.fillStyle = '#0f172a';
+      context.fillRect(x, y + labelHeight, cellWidth, cellHeight);
+      context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+    });
+
+    return canvas.toDataURL('image/jpeg', 0.72);
+  };
+
+  const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event: ProgressEvent<FileReader>) => {
+      const result = event.target?.result;
+      if (typeof result === 'string') {
+        resolve(result);
+        return;
+      }
+      reject(new Error('Não foi possível preparar a imagem para IA.'));
+    };
+    reader.onerror = () => reject(new Error('Erro ao preparar imagem para IA.'));
+    reader.readAsDataURL(blob);
+  });
+
+  const preparePhotoForAi = async (photo: string) => {
+    if (photo.startsWith('data:image/')) {
+      return resizeImageForAi(photo);
+    }
+
+    const response = await fetch(resolvePhotoUrl(photo));
+    if (!response.ok) {
+      throw new Error('Não foi possível carregar uma das fotos para análise da IA.');
+    }
+
+    const dataUrl = await blobToDataUrl(await response.blob());
+    return resizeImageForAi(dataUrl);
+  };
+
+  const buildPhotoFingerprint = (photo: string) => {
+    if (isStoredPhotoUrl(photo)) return photo;
+    return `${photo.length}:${photo.slice(0, 96)}:${photo.slice(-96)}`;
+  };
+
+  const buildAiRequestSignature = (roomId: string, photos: string[], instrucoes?: string) => JSON.stringify({
+    roomId,
+    instrucoes: (instrucoes || '').trim(),
+    photos: photos.map(buildPhotoFingerprint).sort()
   });
 
   const aplicarDescricaoIa = (roomId: string, descricao: string) => {
@@ -318,37 +445,91 @@ export const InspectionPage: React.FC = () => {
     } : prev);
   };
 
-  const gerarDescricaoFotoComIa = async (roomId: string, dataUrl: string) => {
+  const gerarDescricaoFotoComIa = async (roomId: string, instrucoes?: string) => {
     if (aiUnavailable) return;
 
     const room = inspection?.rooms.find((item: RoomAccordionType) => item.id === roomId);
+    const photos = room?.photos || [];
+    if (!photos.length) {
+      setSnackbar({
+        open: true,
+        message: 'Adicione ao menos uma foto antes de gerar a descrição com IA.',
+        type: 'info'
+      });
+      return;
+    }
+
     const roomName = room?.name || 'Cômodo';
+    const signature = buildAiRequestSignature(roomId, photos, instrucoes);
+    if (aiPendingSignaturesRef.current.has(signature)) {
+      setSnackbar({
+        open: true,
+        message: 'A IA já está analisando esse mesmo conjunto de fotos.',
+        type: 'info'
+      });
+      return;
+    }
+
+    if (aiCompletedSignaturesRef.current[roomId] === signature) {
+      setSnackbar({
+        open: true,
+        message: 'Essa descrição já foi gerada para as mesmas fotos e instruções.',
+        type: 'info'
+      });
+      return;
+    }
+
+    aiPendingSignaturesRef.current.add(signature);
     setAiLoadingRooms((prev) => ({ ...prev, [roomId]: true }));
 
     try {
-      const imagem = await resizeImageForAi(dataUrl);
+      const fotosPreparadas = await Promise.all(
+        photos.map(preparePhotoForAi)
+      );
+      const mosaico = await createPhotoContactSheetForAi(fotosPreparadas);
+      const instrucoesComContexto = [
+        photos.length > 1
+          ? `A imagem enviada é um mosaico com ${photos.length} fotos do mesmo cômodo, identificadas como Foto 1, Foto 2 etc. Analise o conjunto completo.`
+          : '',
+        instrucoes || ''
+      ].filter(Boolean).join('\n');
       const descricao = await descreverFotoComIa({
-        imagem,
+        imagens: [mosaico],
         comodo_nome: roomName,
+        instrucoes: instrucoesComContexto,
       });
       aplicarDescricaoIa(roomId, descricao);
+      aiCompletedSignaturesRef.current[roomId] = signature;
     } catch (err: any) {
       const status = err?.response?.status;
+      if (status === 429) {
+        setSnackbar({
+          open: true,
+          message: 'Limite temporário da IA atingido. Aguarde alguns instantes antes de tentar novamente. As fotos continuam salvas para descrição manual.',
+          type: 'error',
+          duration: 12000
+        });
+        return;
+      }
+
       if (status === 503) {
         setAiUnavailable(true);
         setSnackbar({
           open: true,
           message: 'IA de descrição ainda não configurada. A vistoria continua em modo manual.',
-          type: 'info'
+          type: 'info',
+          duration: 9000
         });
         return;
       }
       setSnackbar({
         open: true,
-        message: 'Não foi possível gerar a descrição automática desta foto.',
-        type: 'info'
+        message: err?.response?.data?.error || err?.message || 'Não foi possível gerar a descrição automática dessas fotos.',
+        type: 'info',
+        duration: 9000
       });
     } finally {
+      aiPendingSignaturesRef.current.delete(signature);
       setAiLoadingRooms((prev) => ({ ...prev, [roomId]: false }));
     }
   };
@@ -521,6 +702,7 @@ export const InspectionPage: React.FC = () => {
             aiLoadingRooms={aiLoadingRooms}
             onCapturePhoto={handleCapturePhoto}
             onSelectFromGallery={handleSelectFromGallery}
+            onGenerateAiDescription={gerarDescricaoFotoComIa}
             onChangeDescription={handleChangeDescription}
             onToggleComplete={handleToggleComplete}
             onDeletePhoto={handleDeletePhoto}
@@ -576,6 +758,7 @@ export const InspectionPage: React.FC = () => {
         open={snackbar.open}
         message={snackbar.message}
         type={snackbar.type}
+        duration={snackbar.duration}
         onClose={() => setSnackbar(s => ({ ...s, open: false }))}
       />
       <MobileTabBar />

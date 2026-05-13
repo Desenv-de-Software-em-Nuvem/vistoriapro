@@ -63,13 +63,14 @@ interface RoomChecklistProps {
   aiLoadingRooms?: Record<string, boolean>;
   onCapturePhoto: (roomId: string, dataUrl: string) => void;
   onSelectFromGallery: (roomId: string) => void;
+  onGenerateAiDescription: (roomId: string, instrucoes?: string) => void;
   onChangeDescription: (roomId: string, desc: string) => void;
   onToggleComplete: (roomId: string, completed: boolean) => void;
   onDeletePhoto: (roomId: string, photoIdx: number) => void;
 }
 
 
-export const RoomChecklist: React.FC<Omit<RoomChecklistProps, 'onChangeEstadoGeral'>> = ({ rooms, aiLoadingRooms = {}, onCapturePhoto, onSelectFromGallery, onChangeDescription, onToggleComplete, onDeletePhoto }) => (
+export const RoomChecklist: React.FC<Omit<RoomChecklistProps, 'onChangeEstadoGeral'>> = ({ rooms, aiLoadingRooms = {}, onCapturePhoto, onSelectFromGallery, onGenerateAiDescription, onChangeDescription, onToggleComplete, onDeletePhoto }) => (
   <ChecklistSection>
     <SectionTitle>
       <Home size={24} />
@@ -83,6 +84,7 @@ export const RoomChecklist: React.FC<Omit<RoomChecklistProps, 'onChangeEstadoGer
           isAiGenerating={!!aiLoadingRooms[room.id]}
           onCapturePhoto={onCapturePhoto}
           onSelectFromGallery={onSelectFromGallery}
+          onGenerateAiDescription={onGenerateAiDescription}
           onChangeDescription={onChangeDescription}
           onToggleComplete={onToggleComplete}
           onDeletePhoto={onDeletePhoto}

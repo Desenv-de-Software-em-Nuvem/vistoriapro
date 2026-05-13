@@ -3,10 +3,13 @@ const aiDescriptionService = require('../services/aiDescriptionService');
 module.exports = {
   async descreverFoto(req, res) {
     try {
-      const { imagem, comodo_nome } = req.body;
+      const { imagem, imagens, comodo_nome, instrucoes } = req.body;
       const resultado = await aiDescriptionService.descreverFoto({
         imageDataUrl: imagem,
-        comodoNome: comodo_nome
+        imageDataUrls: imagens,
+        comodoNome: comodo_nome,
+        instrucoes,
+        scopeKey: req.usuario?.empresa_id || req.usuario?.id
       });
 
       res.json(resultado);

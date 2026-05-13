@@ -90,6 +90,7 @@ interface RoomAccordionProps {
   };
   onCapturePhoto: (roomId: string, dataUrl: string) => void;
   onSelectFromGallery: (roomId: string) => void;
+  onGenerateAiDescription: (roomId: string, instrucoes?: string) => void;
   onChangeDescription: (roomId: string, desc: string) => void;
   onToggleComplete?: (roomId: string, completed: boolean) => void;
   onDeletePhoto: (roomId: string, photoIdx: number) => void;
@@ -123,7 +124,7 @@ const RoomTitle = styled.div`
 `;
 
 const AccordionContent = styled.div<{ $expanded: boolean }>`
-  max-height: ${({ $expanded }) => ($expanded ? '1000px' : '0')};
+  max-height: ${({ $expanded }) => ($expanded ? '2200px' : '0')};
   overflow: hidden;
   transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   padding: ${({ $expanded, theme }) => ($expanded ? theme.spacing.lg : '0')};
@@ -146,6 +147,30 @@ const MenuButton = styled.button`
   padding: 8px 14px;
   font-size: 1rem;
   cursor: pointer;
+`;
+
+const AiButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: ${({ theme }) => theme.colors.backgroundGlass};
+  color: ${({ theme }) => theme.colors.primaryLight};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  &:not(:disabled):active {
+    transform: scale(0.98);
+  }
 `;
 
 const PhotosGrid = styled.div`
@@ -196,12 +221,69 @@ const AiStatus = styled.div`
   margin: -2px 0 8px;
 `;
 
+const AiModalBox = styled.div`
+  background: ${({ theme }) => theme.colors.backgroundCard};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  width: min(92vw, 520px);
+  padding: 1rem;
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+const AiModalTitle = styled.h3`
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: ${({ theme }) => theme.colors.text};
+`;
+
+const AiModalDescription = styled.p`
+  margin: 0 0 0.8rem;
+  font-size: 0.85rem;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  line-height: 1.4;
+`;
+
+const AiPromptArea = styled.textarea`
+  width: 100%;
+  min-height: 120px;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  background: ${({ theme }) => theme.colors.backgroundTertiary};
+  color: ${({ theme }) => theme.colors.text};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  padding: 0.75rem;
+  resize: vertical;
+  font-size: 0.95rem;
+
+  &::placeholder {
+    color: ${({ theme }) => theme.colors.textLight};
+  }
+`;
+
+const AiModalActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.7rem;
+  margin-top: 0.9rem;
+`;
+
+const AiModalButton = styled.button<{ $primary?: boolean }>`
+  padding: 0.7rem 0.95rem;
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  border: 1px solid ${({ theme, $primary }) => $primary ? 'transparent' : theme.colors.borderLight};
+  background: ${({ theme, $primary }) => $primary ? theme.colors.gradient.primary : theme.colors.backgroundSecondary};
+  color: ${({ theme, $primary }) => $primary ? theme.colors.textWhite : theme.colors.textSecondary};
+  font-weight: 800;
+  cursor: pointer;
+`;
+
 
 
 export const RoomAccordion: React.FC<RoomAccordionProps> = ({
   room,
   onCapturePhoto,
   onSelectFromGallery,
+  onGenerateAiDescription,
   onChangeDescription,
   onToggleComplete,
   onDeletePhoto,
@@ -210,6 +292,8 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
   const [expanded, setExpanded] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [photoModal, setPhotoModal] = useState<{ open: boolean; src: string; idx: number } | null>(null);
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
 
   // Quando a foto for capturada no modal, repassa para o handler original
   const handleCameraCapture = (dataUrl: string) => {
@@ -225,6 +309,11 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
   // Handler para click no thumbnail
   const handlePhotoClick = (src: string, idx: number) => {
     setPhotoModal({ open: true, src, idx });
+  };
+
+  const handleGenerateAiDescription = () => {
+    onGenerateAiDescription(room.id, aiPrompt);
+    setAiModalOpen(false);
   };
 
   return (
@@ -246,6 +335,15 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
          <MenuButton onClick={() => onSelectFromGallery(room.id)}>
            <Image size={18} /> Galeria
          </MenuButton>
+         <AiButton
+           type="button"
+           disabled={!room.photos.length || isAiGenerating}
+           title={room.photos.length ? 'Preparar descrição com IA' : 'Adicione uma foto antes de usar IA'}
+           onClick={() => setAiModalOpen(true)}
+         >
+           <Sparkles size={16} />
+           IA
+         </AiButton>
         </Menu>
         {room.photos.length > 0 && (
           <PhotosGrid>
@@ -276,7 +374,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
           <DescriptionArea
             value={room.description}
             onChange={e => onChangeDescription(room.id, e.target.value)}
-            placeholder={isAiGenerating ? 'IA analisando a última foto...' : 'Adicione uma descrição para este cômodo'}
+            placeholder={isAiGenerating ? 'IA analisando as fotos do cômodo...' : 'Adicione uma descrição para este cômodo'}
             style={{ flex: 1 }}
           />
           <div style={{ alignSelf: 'stretch', display: 'flex', alignItems: 'flex-start' }}>
@@ -288,8 +386,31 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
         {isAiGenerating && (
           <AiStatus>
             <Sparkles size={14} />
-            IA analisando foto e sugerindo descrição...
+            IA analisando todas as fotos do cômodo e sugerindo descrição...
           </AiStatus>
+        )}
+        {aiModalOpen && (
+          <PhotoModalOverlay>
+            <AiModalBox>
+              <AiModalTitle>Orientar IA para este cômodo</AiModalTitle>
+              <AiModalDescription>
+                A IA vai analisar todas as fotos anexadas neste cômodo. Informe detalhes úteis para deixar a descrição mais assertiva, profissional e confiável.
+              </AiModalDescription>
+              <AiPromptArea
+                value={aiPrompt}
+                onChange={(event) => setAiPrompt(event.target.value)}
+                placeholder="Ex.: lâmpadas e tomadas testadas funcionando; fechadura testada funcionando; focar em paredes, piso, portas, janelas, móveis, metais, louças, marcas de uso, manchas, furos e avarias visíveis."
+              />
+              <AiModalActions>
+                <AiModalButton type="button" onClick={() => setAiModalOpen(false)}>
+                  Cancelar
+                </AiModalButton>
+                <AiModalButton type="button" $primary onClick={handleGenerateAiDescription}>
+                  Gerar descrição
+                </AiModalButton>
+              </AiModalActions>
+            </AiModalBox>
+          </PhotoModalOverlay>
         )}
         <CameraModal
           open={cameraOpen}
