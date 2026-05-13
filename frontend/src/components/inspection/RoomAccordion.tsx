@@ -199,6 +199,22 @@ const DescriptionArea = styled.textarea`
   padding: 6px;
   font-size: 0.95rem;
   resize: vertical;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: ${({ theme }) => theme.colors.primary} transparent;
+
+  &::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.colors.primary};
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+  }
 
   &::placeholder {
     color: ${({ theme }) => theme.colors.textLight};
