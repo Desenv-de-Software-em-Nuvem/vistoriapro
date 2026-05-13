@@ -132,6 +132,8 @@ const AccordionContent = styled.div<{ $expanded: boolean }>`
 
 const Menu = styled.div`
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: ${({ theme }) => theme.spacing.md};
   margin-bottom: ${({ theme }) => theme.spacing.md};
 `;
@@ -170,6 +172,18 @@ const AiButton = styled.button`
 
   &:not(:disabled):active {
     transform: scale(0.98);
+  }
+`;
+
+const AiDevelopmentNote = styled.span`
+  color: ${({ theme }) => theme.colors.textLight};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 600;
+  opacity: 0.78;
+
+  @media (max-width: 520px) {
+    width: 100%;
+    margin-top: -0.25rem;
   }
 `;
 
@@ -360,6 +374,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
            <Sparkles size={16} />
            IA
          </AiButton>
+         <AiDevelopmentNote>IA em desenvolvimento</AiDevelopmentNote>
         </Menu>
         {room.photos.length > 0 && (
           <PhotosGrid>

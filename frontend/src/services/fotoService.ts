@@ -29,6 +29,7 @@ export async function uploadFoto({ vistoria_id, file, descricao, comodo_nome, co
   }
   const response = await api.post('/fotos', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
   });
   return response.data.foto;
 }

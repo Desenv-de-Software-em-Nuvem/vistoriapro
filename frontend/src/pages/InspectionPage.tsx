@@ -619,7 +619,8 @@ export const InspectionPage: React.FC = () => {
       for (const room of inspection.rooms) {
         for (const photo of room.photos) {
           if (isStoredPhotoUrl(photo)) continue;
-          const file = base64ToFile(photo, `comodo_${room.id}_${Date.now()}.jpg`);
+          const optimizedPhoto = await resizeImageForUpload(photo);
+          const file = base64ToFile(optimizedPhoto, `comodo_${room.id}_${Date.now()}.jpg`);
           const comodoIdNum = Number(room.id);
           const uploadParams: {
             vistoria_id: string;
@@ -669,6 +670,27 @@ export const InspectionPage: React.FC = () => {
       u8arr[n] = bstr.charCodeAt(n);
     }
     return new File([u8arr], filename, { type: mime });
+  }
+
+  function resizeImageForUpload(dataUrl: string, maxSize = 1600, quality = 0.78) {
+    return new Promise<string>((resolve) => {
+      const image = new Image();
+      image.onload = () => {
+        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext('2d');
+        if (!context) {
+          resolve(dataUrl);
+          return;
+        }
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      image.onerror = () => resolve(dataUrl);
+      image.src = dataUrl;
+    });
   }
 
   return (
