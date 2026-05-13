@@ -107,6 +107,33 @@ function buildPrompt({ imagens, comodoNome, instrucoesDoVistoriador, consolidar 
   ].filter(Boolean).join(' ');
 }
 
+function normalizarDescricaoLaudo(descricao) {
+  const linhas = String(descricao || '')
+    .split(/\r?\n/)
+    .map((linha) => linha.trim())
+    .filter(Boolean);
+
+  const topicos = linhas
+    .map((linha) => linha.replace(/^[-*]\s+/, '• '))
+    .filter((linha) => linha.startsWith('• '))
+    .filter((linha) => {
+      const texto = linha.toLowerCase();
+      return ![
+        'não há informações suficientes',
+        'lembre-se',
+        'hipotética',
+        'hipotético',
+        'para um laudo preciso',
+        'foto específica',
+        'posso fornecer uma estrutura',
+        'se considerarmos'
+      ].some((trecho) => texto.includes(trecho));
+    });
+
+  const resultado = topicos.join('\n').trim();
+  return resultado || String(descricao || '').trim();
+}
+
 async function requestDescricao({ baseUrl, apiKey, model, prompt, imagens }) {
   const response = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
@@ -117,8 +144,17 @@ async function requestDescricao({ baseUrl, apiKey, model, prompt, imagens }) {
     body: JSON.stringify({
       model,
       temperature: 0.2,
-        max_tokens: 850,
+        max_tokens: 650,
       messages: [
+        {
+          role: 'system',
+          content: [
+            'Você responde exclusivamente como vistoriador imobiliário técnico.',
+            'Sua resposta deve conter somente tópicos de laudo iniciados por "• ".',
+            'É proibido explicar limitações, pedir mais fotos, criar exemplos hipotéticos, fazer observações sobre a tarefa ou escrever qualquer texto fora dos tópicos.',
+            'Se a foto tiver pouca informação, descreva apenas os poucos elementos visíveis em tópicos técnicos.'
+          ].join(' ')
+        },
         {
           role: 'user',
           content: [
@@ -139,7 +175,7 @@ async function requestDescricao({ baseUrl, apiKey, model, prompt, imagens }) {
     throw Object.assign(new Error(detail), { statusCode: response.status >= 500 ? 502 : response.status });
   }
 
-  const descricao = body?.choices?.[0]?.message?.content?.trim();
+  const descricao = normalizarDescricaoLaudo(body?.choices?.[0]?.message?.content);
   if (!descricao) {
     throw Object.assign(new Error('A IA não retornou uma descrição.'), { statusCode: 502 });
   }
