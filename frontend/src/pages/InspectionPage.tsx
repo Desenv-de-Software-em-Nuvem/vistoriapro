@@ -494,7 +494,7 @@ export const InspectionPage: React.FC = () => {
         instrucoes || ''
       ].filter(Boolean).join('\n');
       const descricao = await descreverFotoComIa({
-        imagens: [mosaico],
+        imagem: mosaico,
         comodo_nome: roomName,
         instrucoes: instrucoesComContexto,
       });
