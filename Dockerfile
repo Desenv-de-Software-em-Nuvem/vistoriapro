@@ -3,6 +3,9 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+# Evita baixar Chrome do Puppeteer no npm ci: o estágio final usa Chromium do apk.
+ENV PUPPETEER_BROWSER_INSTALL=0
+
 # Copiar package.json e package-lock.json (ou yarn.lock)
 COPY backend/package*.json ./
 

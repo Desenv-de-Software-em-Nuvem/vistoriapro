@@ -1476,11 +1476,12 @@ module.exports = {
         contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         extensao = 'docx';
       } else {
-        // Geração do PDF
+        // Geração do PDF (Chrome do sistema ou binário baixado pelo Puppeteer no build)
+        const chromePath = findChromeExecutable();
         const browser = await puppeteer.launch({
           headless: 'new',
-          executablePath: findChromeExecutable(),
-          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+          ...(chromePath ? { executablePath: chromePath } : {}),
+          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
         });
         const page = await browser.newPage();
         await page.setContent(html, { waitUntil: 'networkidle0' });

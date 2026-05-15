@@ -122,6 +122,16 @@ vistoriapro/
 - API: `http://localhost:3000/docs/`
 - Swagger JSON: `http://localhost:3000/swagger.json`
 
+## Deploy backend (PDF / Puppeteer)
+
+- **Railway com Docker** (este repositório): o `Dockerfile` instala **Chromium** (`apk`) e define `PUPPETEER_EXECUTABLE_PATH`. No stage `builder`, `PUPPETEER_BROWSER_INSTALL=0` evita baixar o Chrome do Puppeteer no `npm ci` (redundante e pesado).
+- **Render Web Service** (Node nativo, sem Docker): na instalação, o `postinstall` detecta o ambiente (**`RENDER_EXTERNAL_URL`** ou **`RENDER_SERVICE_NAME`**) e roda `npx puppeteer browsers install chrome`, para o PDF funcionar.
+- **Desligar** o download automático: `PUPPETEER_BROWSER_INSTALL=0` no serviço.
+- **Forçar** download: `PUPPETEER_BROWSER_INSTALL=1`.
+- Laudo em **Word (DOCX)** não depende do Chrome.
+
+Se aparecer erro de cache do Puppeteer no Render, faça um deploy limpo (build de novo) para o Chrome ser baixado na etapa de build.
+
 ## Observações
 
 - O banco local precisa estar criado antes de iniciar o backend.

@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "postinstall": "node scripts/ensure-puppeteer-browser.cjs",
     "start": "node server.js",
     "dev": "node server.js",
     "test": "jest --forceExit --detectOpenHandles",
