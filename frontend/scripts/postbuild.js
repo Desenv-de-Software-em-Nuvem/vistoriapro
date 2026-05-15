@@ -10,17 +10,20 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const source = path.join(__dirname, '..', 'public', '_redirects');
-const dest = path.join(__dirname, '..', 'dist', '_redirects');
+const filesToCopy = ['_redirects', '_headers'];
 
-try {
-  if (fs.existsSync(source)) {
-    fs.copyFileSync(source, dest);
-    console.info('✓ public/_redirects copiado para dist/');
-  } else {
-    console.info('ℹ public/_redirects não encontrado (esperado em produção)');
+for (const fileName of filesToCopy) {
+  const source = path.join(__dirname, '..', 'public', fileName);
+  const dest = path.join(__dirname, '..', 'dist', fileName);
+
+  try {
+    if (fs.existsSync(source)) {
+      fs.copyFileSync(source, dest);
+      console.info(`✓ public/${fileName} copiado para dist/`);
+    } else {
+      console.info(`ℹ public/${fileName} não encontrado`);
+    }
+  } catch (err) {
+    console.warn(`⚠ Erro ao copiar ${fileName} (continuando):`, err.message);
   }
-} catch (err) {
-  console.warn('⚠ Erro ao copiar _redirects (continuando):', err.message);
-  // Não falha o build, apenas warn
 }

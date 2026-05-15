@@ -1,7 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { registerSW } from 'virtual:pwa-register'
 import './index.css'
 import App from './App.tsx'
+import { setupChunkLoadRecovery } from './utils/chunkLoadRecovery'
+
+setupChunkLoadRecovery()
 
 // Em desenvolvimento, remove qualquer service worker/caches antigos para evitar ruído do Workbox.
 if (import.meta.env.DEV && 'serviceWorker' in navigator) {
@@ -16,12 +20,18 @@ if (import.meta.env.DEV && 'serviceWorker' in navigator) {
   })
 }
 
-// Registro do service worker para PWA
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((registrationError) => {
-      console.warn('Falha ao registrar o service worker:', registrationError)
-    })
+if (import.meta.env.PROD) {
+  const updateSW = registerSW({
+    immediate: true,
+    onRegisteredSW(_swUrl: string, registration: ServiceWorkerRegistration | undefined) {
+      if (!registration) return
+      const checkForUpdates = () => registration.update().catch(() => undefined)
+      checkForUpdates()
+      window.setInterval(checkForUpdates, 60 * 60 * 1000)
+    },
+    onNeedRefresh() {
+      updateSW(true)
+    },
   })
 }
 
