@@ -34,9 +34,8 @@ export function setupChunkLoadRecovery(): void {
       if (!target.src.includes('/assets/')) return
 
       const message = event.message || ''
-      if (shouldRecoverFromMessage(message) || event.type === 'error') {
-        reloadOnceForStaleAssets()
-      }
+      if (!shouldRecoverFromMessage(message)) return
+      reloadOnceForStaleAssets()
     },
     true,
   )

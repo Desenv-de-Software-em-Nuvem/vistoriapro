@@ -30,7 +30,9 @@ if (import.meta.env.PROD) {
       window.setInterval(checkForUpdates, 60 * 60 * 1000)
     },
     onNeedRefresh() {
-      updateSW(true)
+      if (document.visibilityState === 'visible') {
+        updateSW(true)
+      }
     },
   })
 }
