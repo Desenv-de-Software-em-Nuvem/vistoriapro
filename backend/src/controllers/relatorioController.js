@@ -1582,6 +1582,7 @@ module.exports = {
         try {
           await page.setContent(html, { waitUntil: 'load', timeout: 300_000 });
           await page.emulateMediaType('print');
+          // Aguarda todas as imagens carregarem (incluindo URLs externas do Supabase)
           await page.evaluate(async () => {
             await Promise.all(Array.from(document.images).map((img) => {
               if (img.complete && img.naturalWidth > 0) return Promise.resolve();
@@ -1594,6 +1595,20 @@ module.exports = {
               });
             }));
           });
+          // Comprime fotos via Canvas nativo do Chrome (codec JPEG hardware-accelerated).
+          // Equivale ao Jimp mas ~50x mais rápido; substitui img.src por data URI comprimida.
+          await page.evaluate(({ maxW, maxH, quality }) => {
+            document.querySelectorAll('.photo-tile img, .standalone-photos img').forEach((img) => {
+              if (!img.complete || img.naturalWidth === 0) return;
+              const ratio = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
+              if (ratio >= 1 && img.naturalWidth * img.naturalHeight < 800 * 800) return;
+              const canvas = document.createElement('canvas');
+              canvas.width = Math.round(img.naturalWidth * ratio);
+              canvas.height = Math.round(img.naturalHeight * ratio);
+              canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+              img.src = canvas.toDataURL('image/jpeg', quality);
+            });
+          }, { maxW: FOTO_MAX_WIDTH, maxH: FOTO_MAX_HEIGHT, quality: FOTO_JPEG_QUALITY / 100 });
           buffer = await page.pdf({
             format: 'A4',
             printBackground: true,
