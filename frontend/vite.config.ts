@@ -3,7 +3,14 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  if (mode === 'production' && process.env.NETLIFY === 'true' && !process.env.VITE_API_URL?.trim()) {
+    throw new Error(
+      'Defina VITE_API_URL no Netlify (ex.: https://vistoriapro-production.up.railway.app) e faça redeploy.',
+    )
+  }
+
+  return {
   plugins: [
     react(),
     VitePWA({
@@ -47,4 +54,5 @@ export default defineConfig({
       },
     }),
   ],
+  }
 })

@@ -11,15 +11,10 @@ export interface User {
   permitidoVistoria?: boolean
 }
 
-export interface LoginResult {
-  success: boolean
-  message?: string
-}
-
 export interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<LoginResult>
+  login: (email: string, password: string) => Promise<boolean>
   logout: () => void
   loading: boolean
 }

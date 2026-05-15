@@ -348,9 +348,9 @@ export const LoginPage: React.FC = () => {
 
     setIsSubmitting(true)
     try {
-      const result = await login(email, password)
-      if (!result.success) {
-        setError(result.message || 'Email ou senha incorretos')
+      const success = await login(email, password)
+      if (!success) {
+        setError('Email ou senha incorretos')
         return
       }
       navigate('/dashboard', { replace: true })

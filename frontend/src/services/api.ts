@@ -1,25 +1,7 @@
 import axios from 'axios';
 
-const PRODUCTION_API_URL = 'https://vistoriapro-production.up.railway.app';
-
-function resolveApiUrl(): string {
-  const configuredUrl = import.meta.env.VITE_API_URL?.trim();
-  if (configuredUrl) {
-    return configuredUrl;
-  }
-
-  if (import.meta.env.PROD && typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    if (host !== 'localhost' && host !== '127.0.0.1') {
-      return PRODUCTION_API_URL;
-    }
-  }
-
-  return 'http://localhost:3001';
-}
-
-const apiUrl = resolveApiUrl();
-const baseURL = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const baseURL = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl.replace(/\/$/, '')}/api`;
 const apiTimeout = Number(import.meta.env.VITE_API_TIMEOUT || 30000);
 
 const api = axios.create({
@@ -27,12 +9,23 @@ const api = axios.create({
   timeout: apiTimeout,
   headers: {
     'Content-Type': 'application/json; charset=utf-8',
-    'Accept': 'application/json; charset=utf-8',
+    Accept: 'application/json; charset=utf-8',
   },
 });
 
+function isLoginRequest(url: string | undefined): boolean {
+  if (!url) return false;
+  const normalized = url.split('?')[0] ?? '';
+  return normalized.endsWith('/usuarios/login') || normalized.endsWith('usuarios/login');
+}
+
 api.interceptors.request.use(
   (config) => {
+    if (isLoginRequest(config.url)) {
+      delete config.headers.Authorization;
+      return config;
+    }
+
     const token = localStorage.getItem('vistoriapro_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -41,11 +34,6 @@ api.interceptors.request.use(
   },
   (error) => Promise.reject(error),
 );
-
-function isLoginRequest(url: string | undefined): boolean {
-  if (!url) return false;
-  return /\/usuarios\/login(?:\?|$)/.test(url);
-}
 
 api.interceptors.response.use(
   (response) => response,
@@ -56,13 +44,9 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      const hadSession = Boolean(localStorage.getItem('vistoriapro_token'));
       localStorage.removeItem('vistoriapro_token');
       localStorage.removeItem('vistoriapro_user');
-
-      if (hadSession && !window.location.pathname.startsWith('/login')) {
-        window.location.replace('/login');
-      }
+      window.dispatchEvent(new Event('vistoriapro:session-expired'));
     }
     return Promise.reject(error);
   },

@@ -2,8 +2,7 @@ import { useState, useEffect, useContext } from 'react'
 import type { ReactNode } from 'react'
 import api from '../services/api'
 import { AuthContext } from './authContext'
-import axios from 'axios'
-import type { AuthContextType, LoginResult, User, UserRole } from './authContext'
+import type { AuthContextType, User, UserRole } from './authContext'
 
 interface AuthProviderProps {
   children: ReactNode
@@ -67,7 +66,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Verificar se há um usuário logado no localStorage
     const savedUser = localStorage.getItem('vistoriapro_user')
     const token = localStorage.getItem('vistoriapro_token')
 
@@ -77,31 +75,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return
     }
 
-    if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser) as Partial<User> & { nome?: string }
-        const restoredUser = normalizeUser({
-          id: parsedUser.id || '',
-          nome: parsedUser.name || parsedUser.nome || '',
-          email: parsedUser.email || '',
-          empresa_id: parsedUser.empresa_id || 0,
-          papel: parsedUser.papel,
-          permitidoVistoria: parsedUser.permitidoVistoria,
-        }, token)
+    try {
+      const parsedUser = JSON.parse(savedUser) as Partial<User> & { nome?: string }
+      const restoredUser = normalizeUser({
+        id: parsedUser.id || '',
+        nome: parsedUser.name || parsedUser.nome || '',
+        email: parsedUser.email || '',
+        empresa_id: parsedUser.empresa_id || 0,
+        papel: parsedUser.papel,
+        permitidoVistoria: parsedUser.permitidoVistoria,
+      }, token)
 
-        if (!restoredUser) {
-          clearStoredSession()
-          setLoading(false)
-          return
-        }
-
-        setUser(restoredUser)
-        localStorage.setItem('vistoriapro_user', JSON.stringify(restoredUser))
-      } catch (error) {
-        console.error('Erro ao carregar usuário salvo:', error)
+      if (!restoredUser) {
         clearStoredSession()
+        setLoading(false)
+        return
       }
+
+      setUser(restoredUser)
+      localStorage.setItem('vistoriapro_user', JSON.stringify(restoredUser))
+    } catch (error) {
+      console.error('Erro ao carregar usuário salvo:', error)
+      clearStoredSession()
     }
+
     setLoading(false)
   }, [])
 
@@ -114,84 +111,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => window.removeEventListener('vistoriapro:session-expired', handleSessionExpired)
   }, [])
 
-  const login = async (email: string, password: string): Promise<LoginResult> => {
-    const normalizedEmail = email.trim()
-    const normalizedPassword = password.trim()
-
+  const login = async (email: string, password: string): Promise<boolean> => {
     try {
       const response = await api.post('/usuarios/login', {
-        email: normalizedEmail,
-        senha: normalizedPassword,
+        email: email.trim(),
+        senha: password.trim(),
       })
       const { token, usuario } = response.data
       const normalizedUser = normalizeUser(usuario, token)
       if (!normalizedUser) {
-        return {
-          success: false,
-          message: 'Usuário autenticado sem papel de acesso. Contate o administrador.',
-        }
+        throw new Error('Usuário autenticado sem papel de acesso.')
       }
 
       setUser(normalizedUser)
       localStorage.setItem('vistoriapro_user', JSON.stringify(normalizedUser))
       localStorage.setItem('vistoriapro_token', token)
-      return { success: true }
-    } catch (error: unknown) {
+      return true
+    } catch (error) {
       console.error('Erro no login:', error)
-
-      if (axios.isAxiosError(error)) {
-        if (!error.response) {
-          return {
-            success: false,
-            message: 'Não foi possível conectar à API. Verifique se o backend está online.',
-          }
-        }
-
-        if (error.response.status === 401) {
-          return { success: false, message: 'Email ou senha incorretos.' }
-        }
-
-        const apiMessage =
-          typeof error.response.data === 'object' &&
-          error.response.data &&
-          'error' in error.response.data &&
-          typeof error.response.data.error === 'string'
-            ? error.response.data.error
-            : null
-
-        return {
-          success: false,
-          message: apiMessage || 'Erro ao entrar. Tente novamente em instantes.',
-        }
-      }
-
-      return { success: false, message: 'Erro inesperado ao entrar. Tente novamente.' }
+      return false
     }
   }
 
   const logout = () => {
-    const userJson = localStorage.getItem('vistoriapro_user');
-    let userId: string | null = null;
-    try {
-      if (userJson) {
-        const userData = JSON.parse(userJson);
-        userId = userData.id;
-      }
-    } catch (error) {
-      console.error('Erro ao processar dados do usuário durante logout:', error);
-    }
+    setUser(null)
+    clearStoredSession()
+    localStorage.removeItem('vistoriapro_current_page')
 
-    void userId;
-
-    setUser(null);
-    clearStoredSession();
-    localStorage.removeItem('vistoriapro_current_page');
-
-    Object.keys(localStorage).forEach(key => {
+    Object.keys(localStorage).forEach((key) => {
       if (key.startsWith('vistoriapro_form_')) {
-        localStorage.removeItem(key);
+        localStorage.removeItem(key)
       }
-    });
+    })
   }
 
   return (
@@ -201,7 +152,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isAuthenticated: !!user,
         login,
         logout,
-        loading
+        loading,
       }}
     >
       {children}
