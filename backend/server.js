@@ -1,3 +1,13 @@
+require('dotenv').config();
+
+// Mesmo caminho usado em scripts/ensure-puppeteer-browser.cjs (Chrome baixado no build no Render)
+const path = require('path');
+const fs = require('fs');
+const puppeteerChromeCache = path.join(__dirname, '.puppeteer-chrome');
+if (!process.env.PUPPETEER_CACHE_DIR && fs.existsSync(puppeteerChromeCache)) {
+  process.env.PUPPETEER_CACHE_DIR = puppeteerChromeCache;
+}
+
 const app = require('./index');
 
 const PORT = process.env.PORT || 3000;

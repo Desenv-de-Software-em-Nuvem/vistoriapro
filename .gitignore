@@ -1,3 +1,12 @@
+# Chrome baixado pelo Puppeteer no deploy (Render etc.) — não versionar
+backend/.puppeteer-chrome/
+
+# n8n-as-code / bootstrap local (não versionar)
+.agents/
+.github/agents/
+.n8nac/
+AGENTS.md
+
 # ===========================
 # Dependências
 # ===========================

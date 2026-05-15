@@ -42,7 +42,8 @@ export default defineConfig(({ mode }) => {
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,ico,png,svg,webp,woff,woff2}'],
+        // index.html é obrigatório no precache quando navigateFallback aponta para ele (evita non-precached-url no SW)
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
