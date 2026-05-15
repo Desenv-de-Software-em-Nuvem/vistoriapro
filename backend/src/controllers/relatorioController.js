@@ -106,6 +106,7 @@ async function obtainPdfBrowser() {
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-background-networking',
+        '--disable-web-security',
       ],
       protocolTimeout: 300_000,
     })
