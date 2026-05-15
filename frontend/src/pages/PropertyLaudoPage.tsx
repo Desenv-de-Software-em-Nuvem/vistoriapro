@@ -11,6 +11,9 @@ import { MobileTabBar } from '../components/MobileTabBar'
 
 type ReportFormat = 'pdf' | 'word'
 
+/** Geração de laudo (PDF/Word) pode demorar no servidor com muitas fotos */
+const RELATORIO_TIMEOUT_MS = Number(import.meta.env.VITE_RELATORIO_TIMEOUT_MS ?? 300000)
+
 type GeneratingReportState = {
   vistoriaId: number
   formato: ReportFormat
@@ -502,7 +505,7 @@ export const PropertyLaudoPage: React.FC = () => {
         vistoria_id: vistoriaId,
         formato,
       }, {
-        timeout: 120000,
+        timeout: RELATORIO_TIMEOUT_MS,
       });
 
       const fileUrl = response.data.url;
@@ -517,7 +520,10 @@ export const PropertyLaudoPage: React.FC = () => {
       }
 
       // 2. Baixa o arquivo via GET
-      const fileResponse = await api.get(fileUrl, { responseType: 'blob' });
+      const fileResponse = await api.get(fileUrl, {
+        responseType: 'blob',
+        timeout: RELATORIO_TIMEOUT_MS,
+      });
       const extension = formato === 'word' ? 'docx' : 'pdf';
       const mimeType = formato === 'word' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf';
       const responseContentType = String(fileResponse.headers?.['content-type'] || '').toLowerCase();

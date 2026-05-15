@@ -1360,20 +1360,24 @@ module.exports = {
         if (t.foto_id) transcricaoPorFoto[String(t.foto_id)] = t.texto;
       });
 
-      // Agrupa fotos por cômodo (garantindo tipo string para id)
+      // Agrupa fotos por cômodo — compactação em paralelo (sequencial estourava timeout com muitas fotos)
       const fotosPorComodo = {};
-      for (const f of fotos) {
+      const fotosEnriquecidas = await Promise.all(
+        fotos.map(async (f) => {
+          const descricao = transcricaoPorFoto[String(f.id)] || f.descricao;
+          const imagemCompactada = await carregarImagemCompactada(req, f.url);
+          return { f, descricao, imagemCompactada };
+        }),
+      );
+      for (const { f, descricao, imagemCompactada } of fotosEnriquecidas) {
         const key = f.comodo_id ? String(f.comodo_id) : (f.comodo_nome || 'outros');
         if (!fotosPorComodo[key]) fotosPorComodo[key] = [];
-        // Usa a transcrição como descrição, se existir
-        const descricao = transcricaoPorFoto[String(f.id)] || f.descricao;
-        const imagemCompactada = await carregarImagemCompactada(req, f.url);
         fotosPorComodo[key].push({
           url: imagemCompactada.url,
           imageBuffer: imagemCompactada.buffer,
           imageWidth: imagemCompactada.width,
           imageHeight: imagemCompactada.height,
-          descricao
+          descricao,
         });
       }
 
@@ -1482,9 +1486,11 @@ module.exports = {
           headless: 'new',
           ...(chromePath ? { executablePath: chromePath } : {}),
           args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+          protocolTimeout: 300_000,
         });
         const page = await browser.newPage();
-        await page.setContent(html, { waitUntil: 'networkidle0' });
+        // load + espera explícita nas imagens é mais rápido e estável que networkidle0 em HTML grande com data URIs
+        await page.setContent(html, { waitUntil: 'load', timeout: 300_000 });
         await page.emulateMediaType('print');
         await page.evaluate(async () => {
           await Promise.all(Array.from(document.images).map((img) => {
