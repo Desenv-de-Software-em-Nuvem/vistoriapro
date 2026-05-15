@@ -1,25 +1,3 @@
-// Função para gerar o texto de abertura do laudo
-function gerarTextoAbertura(data) {
-  // LOCADOR(A)
-  const locador = `${data.proprietario_nome?.toUpperCase() || ''}, ${data.proprietario_nacionalidade || ''}, ${data.proprietario_profissao || ''}, INSCRITA NO CPF SOB N° ${data.proprietario_cpf || ''}, PORTADORA DA IDENTIDADE RG N° ${data.proprietario_rg || ''}${data.proprietario_rg_orgao ? ' ' + data.proprietario_rg_orgao : ''}${data.proprietario_rg_uf ? ' ' + data.proprietario_rg_uf : ''}, RESIDENTE E DOMICILIADO NA ${data.proprietario_endereco || ''}.`;
-
-  // ADMINISTRADORA
-  const administradora = data.administradora_nome
-    ? `NESTE ATO SENDO REPRESENTADO POR MEIO DE PROCURAÇÃO PARTICULAR E CONTRATO DE ADMINISTRAÇÃO PELA<br><b>${data.administradora_nome?.toUpperCase()}</b>, PESSOA JURÍDICA DE DIREITO PRIVADO, INSCRITA NO CNPJ: ${data.administradora_cnpj || ''} LOCALIZADA NA ${data.administradora_endereco || ''}, QUE TEM COMO SÓCIO PROPRIETÁRIO, ${data.socio_nome || ''}, ${data.socio_profissao || ''}, INSCRITO NO CPF: ${data.socio_cpf || ''}.`
-    : '';
-
-  // LOCATÁRIOS
-  const locatarios = (data.locatarios || []).map(l => {
-    return `<b>${l.nome?.toUpperCase() || ''}</b>, ${l.nacionalidade || ''}, ${l.profissao || ''}, PORTADORA DA CÉDULA DE IDENTIDADE EMITIDA PELA ${l.rg_orgao || ''}${l.rg_uf ? '/' + l.rg_uf : ''}, INSCRITA NO CPF SOB O Nº ${l.cpf || ''}, RESIDENTE E DOMICILIADA NA ${l.endereco || ''}.`;
-  }).map((txt, idx) => `LOCATÁRIO(A): ${txt}`).join('<br>');
-
-  // OBJETO
-  const objeto = `O PRESENTE INSTRUMENTO TEM COMO OBJETO O IMÓVEL DE PROPRIEDADE DO LOCADOR, ${data.objeto || ''}, LOCALIZADO NA ${data.imovel_endereco || ''}, INSCRITO SOB A MATRÍCULA Nº ${data.imovel_matricula || ''} NO CARTÓRIO DE REGISTRO DE IMÓVEIS ${data.imovel_cartorio || ''}.`;
-
-  return `<b>LAUDO DE VISTORIA: LOCAÇÃO DE IMÓVEL RESIDENCIAL</b><br>
-<b>ANEXO AO CONTRATO DE LOCAÇÃO N° ${data.numero_contrato || ''}</b><br>
-LOCADOR(A): LOCADOR: ${locador}<br>${administradora ? administradora + '<br>' : ''}${locatarios}<br>OBJETO: ${objeto}`;
-}
 const relatorioModel = require('../models/relatorioModel');
 const fs = require('fs');
 const path = require('path');
@@ -32,8 +10,11 @@ const {
   AlignmentType,
   BorderStyle,
   Document,
+  Footer,
+  Header,
   HeadingLevel,
   ImageRun,
+  PageNumber,
   Packer,
   Paragraph,
   ShadingType,
@@ -43,6 +24,7 @@ const {
   TableLayoutType,
   TableRow,
   TextRun,
+  UnderlineType,
   VerticalAlign,
   WidthType,
 } = require('docx');
@@ -87,13 +69,16 @@ const FOTO_MAX_WIDTH = 720;
 const FOTO_MAX_HEIGHT = 720;
 const FOTO_JPEG_QUALITY = 38;
 const DOCX_ORANGE = 'FF6933';
-const DOCX_BLUE_LIGHT = 'E3EAFC';
+const DOCX_BLUE_LIGHT = 'F5E7E1';
 const DOCX_TEXT = '222222';
 const DOCX_MUTED = '555555';
+const DOCX_BORDER = 'D8D8D8';
 const logoCandidates = [
+  path.join(__dirname, '../../public/VistoriaPro1.png'),
+  path.join(process.cwd(), 'public/VistoriaPro1.png'),
+  path.join(__dirname, '../../../frontend/public/VistoriaPro.png'),
   path.join(__dirname, '../../public/VistoriaPro.png'),
-  path.join(process.cwd(), 'public/VistoriaPro.png'),
-  path.join(__dirname, '../../../frontend/public/VistoriaPro.png')
+  path.join(process.cwd(), 'public/VistoriaPro.png')
 ];
 
 function getRelatorioBaseUrl(req) {
@@ -160,6 +145,229 @@ function getLogoImageData() {
   return null;
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function valorInformado(value) {
+  const text = String(value || '').trim();
+  return text && text !== '-' ? text : '';
+}
+
+function joinNonEmpty(values, separator = ', ') {
+  return values
+    .map(valorInformado)
+    .filter(Boolean)
+    .join(separator);
+}
+
+function formatarDataBR(value) {
+  if (!value) return '';
+  if (typeof value === 'string') {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) return `${match[3]}/${match[2]}/${match[1]}`;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+}
+
+function primeiraMaiuscula(value) {
+  const text = valorInformado(value);
+  if (!text) return '';
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function montarPessoa({ nome, nacionalidade, profissao, cpf, rg, rg_orgao, rg_uf, endereco }) {
+  const partes = [];
+  const nomeFormatado = valorInformado(nome);
+  if (nomeFormatado) partes.push(nomeFormatado.toUpperCase());
+
+  const qualificacao = joinNonEmpty([nacionalidade, profissao]);
+  if (qualificacao) partes.push(qualificacao);
+  if (cpf) partes.push(`inscrito(a) no CPF sob o nº ${cpf}`);
+  if (rg) {
+    const orgao = joinNonEmpty([rg_orgao, rg_uf], '/');
+    partes.push(`documento de identidade nº ${rg}${orgao ? ` - ${orgao}` : ''}`);
+  }
+  if (endereco) partes.push(`residente e domiciliado(a) à ${endereco}`);
+
+  return partes.join(', ');
+}
+
+function montarAberturaBlocos(data) {
+  const blocos = [];
+  const locador = montarPessoa({
+    nome: data.proprietario_nome,
+    nacionalidade: data.proprietario_nacionalidade,
+    profissao: data.proprietario_profissao,
+    cpf: data.proprietario_cpf,
+    rg: data.proprietario_rg,
+    rg_orgao: data.proprietario_rg_orgao,
+    rg_uf: data.proprietario_rg_uf,
+    endereco: data.proprietario_endereco,
+  });
+
+  const administradora = data.administradora_nome
+    ? joinNonEmpty([
+        `neste ato representado(a) pela administradora ${data.administradora_nome}`,
+        data.administradora_cnpj ? `pessoa jurídica inscrita no CNPJ nº ${data.administradora_cnpj}` : '',
+        data.administradora_endereco ? `sediada à ${data.administradora_endereco}` : '',
+        data.socio_nome ? `representada por ${joinNonEmpty([data.socio_nome, data.socio_profissao, data.socio_cpf ? `CPF nº ${data.socio_cpf}` : ''])}` : ''
+      ])
+    : '';
+
+  if (locador || administradora) {
+    blocos.push({
+      label: 'LOCADOR(A)',
+      texto: [locador, administradora].filter(Boolean).join(', ') + '.',
+    });
+  }
+
+  const locatarios = (data.locatarios || [])
+    .map((locatario) => montarPessoa(locatario))
+    .filter(Boolean);
+
+  if (locatarios.length) {
+    blocos.push({
+      label: 'LOCATÁRIO(A)',
+      texto: `${locatarios.join('; ')}.`,
+    });
+  }
+
+  const objeto = joinNonEmpty([
+    data.objeto || data.tipo_imovel ? `O imóvel objeto da presente locação é ${data.objeto || primeiraMaiuscula(data.tipo_imovel)}` : '',
+    data.imovel_endereco ? `localizado à ${data.imovel_endereco}` : '',
+    data.imovel_matricula ? `matrícula nº ${data.imovel_matricula}` : '',
+    data.imovel_cartorio ? `registrado no ${data.imovel_cartorio}` : ''
+  ]);
+
+  if (objeto) {
+    blocos.push({
+      label: 'OBJETO',
+      texto: `${objeto}.`,
+    });
+  }
+
+  return blocos;
+}
+
+function montarDadosImovel(data) {
+  const ambientes = (data.comodos || [])
+    .map((comodo) => comodo.nome)
+    .filter(Boolean)
+    .join('; ');
+
+  return [
+    { label: 'Tipo de vistoria', valor: data.tipo_vistoria || 'Entrada' },
+    { label: 'Tipo de imóvel', valor: data.tipo_imovel },
+    { label: 'Contrato', valor: data.numero_contrato },
+    { label: 'Data da vistoria', valor: formatarDataBR(data.data_vistoria || data.data) },
+    { label: 'Endereço', valor: data.imovel_endereco, full: true },
+    { label: 'Matrícula', valor: data.imovel_matricula },
+    { label: 'Cartório', valor: data.imovel_cartorio },
+    { label: 'Ambientes', valor: ambientes, full: true },
+  ].filter((item) => valorInformado(item.valor));
+}
+
+function montarObservacoesPadrao() {
+  return [
+    {
+      prefixo: '•',
+      texto: 'A presente vistoria segue aos ditames do art. 22, inc. I e V, bem como art. 23, inc. II e III da Lei de Locação 8.245/91, estando o locatário ciente dos seus direitos e deveres para o adequado cumprimento do contrato.',
+    },
+    {
+      prefixo: '•',
+      texto: 'A descrição buscou ser minuciosa, bem como as fotos são apenas do que é visível, como as características do imóvel, acabamentos e seu estado de conservação, não se responsabilizando a administradora ou vistoriador pela eventual detecção de vícios ocultos no imóvel ou pela avaliar de fundações e estruturas, atentando apenas que pela sua experiência e percepção o imóvel cumpre com todos os requisitos mínimos de habitabilidade, conforto, bem estar e para a saúde e segurança dos seus moradores.',
+    },
+    {
+      prefixo: '•',
+      texto: 'Quando algo não for relatado de forma escrita nesta vistoria, mas constar nas fotos, estas poderão ser usadas como comprovação do estado e características do imóvel.',
+    },
+    {
+      prefixo: '•',
+      texto: 'Os critérios da conservação do imóvel estão descritos abaixo:',
+    },
+    {
+      prefixo: '1.',
+      texto: 'Estado BOM: Sem sinais de desgastes ou com pequenas irregularidades.',
+      criterio: true,
+    },
+    {
+      prefixo: '2.',
+      texto: 'Estado REGULAR: Com avarias.',
+      criterio: true,
+    },
+    {
+      prefixo: '3.',
+      texto: 'Estado RUIM: Com danos graves e/ou relevantes.',
+      criterio: true,
+    },
+  ];
+}
+
+function extrairTopicos(...textos) {
+  const vistos = new Set();
+  const topicos = [];
+
+  for (const texto of textos) {
+    const limpo = limparHtml(texto);
+    if (!limpo) continue;
+
+    const partes = limpo
+      .replace(/\r/g, '\n')
+      .split(/\n+|(?:^|\s)[•\-]\s+/)
+      .map((parte) => parte.replace(/^[•\-\d.)\s]+/, '').trim())
+      .filter(Boolean);
+
+    for (const parte of partes) {
+      const normalizado = parte.toLowerCase();
+      if (!vistos.has(normalizado)) {
+        vistos.add(normalizado);
+        topicos.push(parte);
+      }
+    }
+  }
+
+  return topicos;
+}
+
+function montarHeaderTemplatePdf(data) {
+  const logo = data.logo_data_uri
+    ? `<img src="${data.logo_data_uri}" style="height:42px; max-width:170px; object-fit:contain; object-position:left center;" />`
+    : `<div style="font-size:17px; font-weight:700; color:#222;">${escapeHtml(data.empresa_nome || 'VistoriaPro')}</div>`;
+
+  return `
+    <div style="width:100%; height:62px; box-sizing:border-box; padding:10px 16mm 0 16mm; font-family:Arial, sans-serif;">
+      ${logo}
+    </div>
+  `;
+}
+
+function montarFooterTemplatePdf(data) {
+  const contato = joinNonEmpty([
+    data.empresa_endereco,
+    data.empresa_email,
+    data.empresa_telefone
+  ], ' • ');
+
+  return `
+    <div style="width:100%; box-sizing:border-box; padding:0 16mm 6px 16mm; font-family:Arial, sans-serif; color:#242424;">
+      <div style="border-top:1px solid #222; padding-top:4px; display:flex; justify-content:space-between; gap:10px; align-items:flex-end; font-size:7px; line-height:1.2;">
+        <div style="max-width:68%; white-space:normal;">${escapeHtml(contato || data.empresa_nome || 'VistoriaPro')}</div>
+        <div style="text-align:right; white-space:nowrap;">Gerado em ${escapeHtml(data.data_geracao)} · Página <span class="pageNumber"></span> de <span class="totalPages"></span></div>
+      </div>
+      <div style="height:5px; margin:5px -16mm 0 -16mm; background:linear-gradient(90deg,#ff6933 0%,#ff6933 45%,#cf5d49 45%,#cf5d49 78%,#d98983 78%,#d98983 100%);"></div>
+    </div>
+  `;
+}
+
 async function obterImagemBuffer(req, url) {
   const resolvedUrl = normalizarUrlImagem(req, url);
   if (!resolvedUrl) return null;
@@ -220,56 +428,6 @@ async function compactarImagemParaRelatorio(req, url) {
   }
 }
 
-function chunkBase64(value) {
-  return value.match(/.{1,76}/g)?.join('\r\n') || value;
-}
-
-function criarWordBuffer(html) {
-  const boundary = `----=_VistoriaPro_${Date.now()}`;
-  const imagens = [];
-  const htmlComCid = html.replace(/src="data:([^;"]+);base64,([^"]+)"/g, (_, mimeType, base64Data) => {
-    const id = `image${String(imagens.length + 1).padStart(3, '0')}@vistoriapro`;
-    const extension = mimeType.includes('png') ? 'png' : mimeType.includes('gif') ? 'gif' : 'jpg';
-    const fileName = `image${String(imagens.length + 1).padStart(3, '0')}.${extension}`;
-    imagens.push({
-      id,
-      mimeType,
-      fileName,
-      base64Data: base64Data.replace(/\s/g, '')
-    });
-    return `src="${fileName}"`;
-  });
-
-  const parts = [
-    'MIME-Version: 1.0',
-    `Content-Type: multipart/related; boundary="${boundary}"; type="text/html"`,
-    '',
-    `--${boundary}`,
-    'Content-Type: text/html; charset="utf-8"',
-    'Content-Transfer-Encoding: base64',
-    'Content-Location: file:///laudo-vistoria.html',
-    '',
-    chunkBase64(Buffer.from(htmlComCid, 'utf8').toString('base64')),
-  ];
-
-  for (const imagem of imagens) {
-    parts.push(
-      '',
-      `--${boundary}`,
-      `Content-Type: ${imagem.mimeType}`,
-      'Content-Transfer-Encoding: base64',
-      `Content-ID: <${imagem.id}>`,
-      `Content-Location: ${imagem.fileName}`,
-      '',
-      chunkBase64(imagem.base64Data)
-    );
-  }
-
-  parts.push('', `--${boundary}--`, '');
-
-  return Buffer.from(parts.join('\r\n'), 'utf8');
-}
-
 function limparHtml(texto) {
   return String(texto || '')
     .replace(/<br\s*\/?>/gi, '\n')
@@ -285,49 +443,48 @@ function limparHtml(texto) {
     .trim();
 }
 
-function criarTituloSecaoDocx(texto) {
+function criarTituloSecaoDocx(texto, options = {}) {
   return new Paragraph({
     keepNext: true,
     keepLines: true,
-    spacing: { before: 260, after: 160 },
-    shading: {
-      type: ShadingType.CLEAR,
-      fill: DOCX_BLUE_LIGHT,
-      color: 'auto',
-    },
-    border: {
-      left: {
-        color: DOCX_ORANGE,
-        space: 8,
-        style: BorderStyle.SINGLE,
-        size: 24,
-      },
-    },
+    pageBreakBefore: Boolean(options.pageBreakBefore),
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 160, after: 90 },
     children: [
       new TextRun({
-        text: `  ${texto}`,
+        text: texto.toUpperCase(),
         bold: true,
-        color: DOCX_ORANGE,
-        size: 24,
+        color: DOCX_TEXT,
+        size: 20,
+        underline: { type: UnderlineType.SINGLE },
       }),
     ],
   });
 }
 
-function criarImagemDocx(foto, keepNext = false) {
+function calcularDimensoesImagemDocx(foto, maxWidth = 185, maxHeight = 155) {
+  const originalWidth = foto.imageWidth || maxWidth;
+  const originalHeight = foto.imageHeight || maxHeight;
+  let width = Math.min(maxWidth, originalWidth);
+  let height = Math.max(1, Math.round(originalHeight * (width / originalWidth)));
+
+  if (height > maxHeight) {
+    height = maxHeight;
+    width = Math.max(1, Math.round(originalWidth * (height / originalHeight)));
+  }
+
+  return { width, height };
+}
+
+function criarImagemDocx(foto, maxWidth = 185, maxHeight = 155) {
   if (!foto.imageBuffer) return null;
 
-  const maxWidth = 330;
-  const originalWidth = foto.imageWidth || maxWidth;
-  const originalHeight = foto.imageHeight || 260;
-  const width = Math.min(maxWidth, originalWidth);
-  const height = Math.max(1, Math.round(originalHeight * (width / originalWidth)));
+  const { width, height } = calcularDimensoesImagemDocx(foto, maxWidth, maxHeight);
 
   return new Paragraph({
-    keepNext,
     keepLines: true,
     alignment: AlignmentType.CENTER,
-    spacing: { before: 160, after: 100 },
+    spacing: { before: 60, after: 60 },
     children: [
       new ImageRun({
         type: 'jpg',
@@ -338,36 +495,133 @@ function criarImagemDocx(foto, keepNext = false) {
   });
 }
 
-function criarDescricaoFotoDocx(foto) {
-  if (!foto.descricao) return null;
-
+function criarParagrafoRotuloDocx(label, texto) {
   return new Paragraph({
     keepLines: true,
     alignment: AlignmentType.JUSTIFIED,
-    spacing: { after: 140, line: 280 },
+    spacing: { after: 65, line: 235 },
     children: [
-      new TextRun({ text: 'Descrição: ', bold: true, color: DOCX_TEXT, size: 20 }),
-      new TextRun({ text: limparHtml(foto.descricao), color: DOCX_MUTED, size: 20 }),
+      new TextRun({ text: `${label}: `, bold: true, color: DOCX_TEXT, size: 18 }),
+      new TextRun({ text: texto, color: DOCX_TEXT, size: 18 }),
     ],
   });
 }
 
+function criarItemListaDocx(texto) {
+  return new Paragraph({
+    alignment: AlignmentType.JUSTIFIED,
+    spacing: { after: 55, line: 235 },
+    children: [new TextRun({ text: texto, color: DOCX_TEXT, size: 18 })],
+  });
+}
+
+function criarObservacaoDocx(observacao) {
+  const paragraphOptions = {
+    alignment: AlignmentType.JUSTIFIED,
+    spacing: {
+      after: observacao.criterio ? 25 : 52,
+      line: 220,
+    },
+    children: [
+      new TextRun({ text: `${observacao.prefixo} `, color: DOCX_TEXT, size: 17 }),
+      new TextRun({ text: observacao.texto, color: DOCX_TEXT, size: 17 }),
+    ],
+  };
+
+  if (observacao.criterio) {
+    paragraphOptions.indent = { left: 180 };
+  }
+
+  return new Paragraph(paragraphOptions);
+}
+
+function criarTabelaDadosDocx(itens) {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    layout: TableLayoutType.FIXED,
+    borders: {
+      top: { style: BorderStyle.SINGLE, color: DOCX_BORDER, size: 1 },
+      bottom: { style: BorderStyle.SINGLE, color: DOCX_BORDER, size: 1 },
+      left: { style: BorderStyle.SINGLE, color: DOCX_BORDER, size: 1 },
+      right: { style: BorderStyle.SINGLE, color: DOCX_BORDER, size: 1 },
+      insideHorizontal: { style: BorderStyle.SINGLE, color: DOCX_BORDER, size: 1 },
+      insideVertical: { style: BorderStyle.SINGLE, color: DOCX_BORDER, size: 1 },
+    },
+    rows: itens.map((item) => (
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 28, type: WidthType.PERCENTAGE },
+            shading: { type: ShadingType.CLEAR, fill: DOCX_BLUE_LIGHT, color: 'auto' },
+            margins: { top: 55, bottom: 55, left: 80, right: 80 },
+            verticalAlign: VerticalAlign.CENTER,
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: item.label.toUpperCase(), bold: true, color: DOCX_TEXT, size: 16 })],
+              }),
+            ],
+          }),
+          new TableCell({
+            width: { size: 72, type: WidthType.PERCENTAGE },
+            verticalAlign: VerticalAlign.TOP,
+            margins: { top: 55, bottom: 55, left: 80, right: 80 },
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: String(item.valor || ''), color: DOCX_TEXT, size: 17 })],
+              }),
+            ],
+          }),
+        ],
+      })
+    )),
+  });
+}
+
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
+function criarGradeFotosDocx(fotos) {
+  if (!fotos || fotos.length === 0) return [];
+
+  return chunkArray(fotos, 3).map((linha) => {
+    const cells = Array.from({ length: 3 }, (_, index) => {
+      const foto = linha[index];
+      const imagem = foto ? criarImagemDocx(foto) : null;
+      return new TableCell({
+        width: { size: 33, type: WidthType.PERCENTAGE },
+        verticalAlign: VerticalAlign.CENTER,
+        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+        borders: {
+          top: { style: BorderStyle.SINGLE, color: DOCX_BORDER, size: 1 },
+          bottom: { style: BorderStyle.SINGLE, color: DOCX_BORDER, size: 1 },
+          left: { style: BorderStyle.SINGLE, color: DOCX_BORDER, size: 1 },
+          right: { style: BorderStyle.SINGLE, color: DOCX_BORDER, size: 1 },
+        },
+        children: imagem ? [imagem] : [new Paragraph({ text: '' })],
+      });
+    });
+
+    return new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.FIXED,
+      borders: TableBorders.NONE,
+      rows: [
+        new TableRow({
+          cantSplit: true,
+          children: cells,
+        }),
+      ],
+    });
+  });
+}
+
 function criarBlocoFotoDocx(foto) {
-  const children = [];
-  const imageParagraph = criarImagemDocx(foto, Boolean(foto.descricao));
-  if (imageParagraph) {
-    children.push(imageParagraph);
-  }
-
-  const descriptionParagraph = criarDescricaoFotoDocx(foto);
-  if (descriptionParagraph) {
-    children.push(descriptionParagraph);
-  }
-
-  if (children.length === 0) {
-    children.push(new Paragraph({ text: '' }));
-  }
-
+  const imagem = criarImagemDocx(foto, 260, 210);
   return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     layout: TableLayoutType.FIXED,
@@ -379,7 +633,7 @@ function criarBlocoFotoDocx(foto) {
           new TableCell({
             verticalAlign: VerticalAlign.TOP,
             borders: TableBorders.NONE,
-            children,
+            children: imagem ? [imagem] : [new Paragraph({ text: '' })],
           }),
         ],
       }),
@@ -393,10 +647,13 @@ function criarBlocoComodoDocx(comodo) {
       keepNext: true,
       keepLines: true,
       heading: HeadingLevel.HEADING_2,
-      spacing: { before: 180, after: 120 },
+      spacing: { before: 220, after: 100 },
+      border: {
+        left: { color: DOCX_ORANGE, space: 8, style: BorderStyle.SINGLE, size: 18 },
+      },
       children: [
         new TextRun({
-          text: comodo.nome || 'Cômodo',
+          text: `  ${comodo.nome || 'Cômodo'}`.toUpperCase(),
           bold: true,
           color: DOCX_TEXT,
           size: 24,
@@ -405,109 +662,74 @@ function criarBlocoComodoDocx(comodo) {
     }),
   ];
 
-  for (const foto of comodo.fotos || []) {
-    const imageParagraph = criarImagemDocx(foto, Boolean(foto.descricao));
-    if (imageParagraph) {
-      children.push(imageParagraph);
-    }
-
-    const descriptionParagraph = criarDescricaoFotoDocx(foto);
-    if (descriptionParagraph) {
-      children.push(descriptionParagraph);
-    }
+  for (const topico of comodo.topicos || []) {
+    children.push(criarItemListaDocx(topico));
   }
 
-  if (comodo.descricao) {
-    children.push(new Paragraph({
-      keepLines: true,
-      spacing: { after: 180, line: 280 },
-      children: [
-        new TextRun({ text: 'Observações: ', bold: true, color: DOCX_TEXT, size: 20 }),
-        new TextRun({ text: limparHtml(comodo.descricao), color: DOCX_MUTED, size: 20 }),
-      ],
-    }));
+  if (!comodo.topicos?.length && comodo.estado_geral) {
+    children.push(criarParagrafoRotuloDocx('Estado geral', comodo.estado_geral));
   }
 
-  return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    layout: TableLayoutType.FIXED,
-    borders: TableBorders.NONE,
-    rows: [
-      new TableRow({
-        cantSplit: true,
-        children: [
-          new TableCell({
-            verticalAlign: VerticalAlign.TOP,
-            borders: TableBorders.NONE,
-            children,
-          }),
-        ],
-      }),
-    ],
-  });
+  if ((comodo.fotos || []).length > 0) {
+    children.push(...criarGradeFotosDocx(comodo.fotos));
+  }
+
+  children.push(new Paragraph({ spacing: { after: 130 }, children: [new TextRun({ text: '' })] }));
+  return children;
 }
 
 async function criarDocxBuffer(data) {
   const children = [];
-
   const logo = getLogoImageData();
-  if (logo) {
-    children.push(new Paragraph({
-      alignment: AlignmentType.LEFT,
-      spacing: { after: 240 },
-      children: [
-        new ImageRun({
-          type: logo.type,
-          data: logo.buffer,
-          transformation: { width: 260, height: 78 },
-        }),
-      ],
-    }));
-  }
 
   children.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 80 },
+      spacing: { before: 60, after: 30 },
       children: [
         new TextRun({
           text: 'LAUDO DE VISTORIA: LOCAÇÃO DE IMÓVEL RESIDENCIAL',
           bold: true,
           color: DOCX_TEXT,
-          size: 28,
+          size: 22,
+          underline: { type: UnderlineType.SINGLE },
         }),
       ],
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 280 },
+      spacing: { after: 130 },
       children: [
         new TextRun({
-          text: `ANEXO AO CONTRATO DE LOCAÇÃO N° ${data.numero_contrato || ''}`,
+          text: `ANEXO AO CONTRATO DE LOCAÇÃO Nº ${data.numero_contrato || ''}`,
           bold: true,
           color: DOCX_TEXT,
-          size: 22,
+          size: 19,
         }),
       ],
     })
   );
 
-  const abertura = limparHtml(data.texto_abertura);
-  if (abertura) {
-    for (const bloco of abertura.split('\n').filter(Boolean)) {
-      children.push(new Paragraph({
-        alignment: AlignmentType.JUSTIFIED,
-        spacing: { after: 140, line: 300 },
-        children: [new TextRun({ text: bloco, color: DOCX_TEXT, size: 22 })],
-      }));
-    }
+  for (const bloco of data.abertura_blocos || []) {
+    children.push(criarParagrafoRotuloDocx(bloco.label, bloco.texto));
   }
 
-  children.push(criarTituloSecaoDocx('Checklist de Cômodos'));
+  if ((data.dados_imovel || []).length) {
+    children.push(criarTituloSecaoDocx('Dados do imóvel'));
+    children.push(criarTabelaDadosDocx(data.dados_imovel));
+  }
 
-  for (const comodo of data.comodos || []) {
-    children.push(criarBlocoComodoDocx(comodo));
-    children.push(new Paragraph({ spacing: { after: 180 }, children: [new TextRun({ text: '' })] }));
+  children.push(criarTituloSecaoDocx('Observações sobre a vistoria e seu entendimento'));
+  for (const observacao of data.observacoes_padrao || []) {
+    children.push(criarObservacaoDocx(observacao));
+  }
+
+  if ((data.comodos || []).length > 0) {
+    children.push(criarTituloSecaoDocx('Descrição dos ambientes', { pageBreakBefore: true }));
+
+    for (const comodo of data.comodos || []) {
+      children.push(...criarBlocoComodoDocx(comodo));
+    }
   }
 
   if ((data.fotos_sem_comodo || []).length > 0) {
@@ -525,12 +747,48 @@ async function criarDocxBuffer(data) {
       properties: {
         page: {
           margin: {
-            top: 1440,
-            right: 1080,
-            bottom: 1080,
-            left: 1080,
+            top: 900,
+            right: 900,
+            bottom: 720,
+            left: 900,
           },
         },
+      },
+      headers: {
+        default: new Header({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.LEFT,
+              spacing: { after: 100 },
+              children: logo
+                ? [new ImageRun({
+                    type: logo.type,
+                    data: logo.buffer,
+                    transformation: { width: 135, height: 66 },
+                  })]
+                : [new TextRun({ text: data.empresa_nome || 'VistoriaPro', bold: true, size: 24 })],
+            }),
+          ],
+        }),
+      },
+      footers: {
+        default: new Footer({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              border: {
+                top: { color: DOCX_TEXT, space: 8, style: BorderStyle.SINGLE, size: 8 },
+              },
+              spacing: { before: 80 },
+              children: [
+                new TextRun({ text: `${data.empresa_nome || 'VistoriaPro'} · Gerado em ${data.data_geracao} · Página `, size: 14, color: DOCX_MUTED }),
+                new TextRun({ children: [PageNumber.CURRENT], size: 14, color: DOCX_MUTED }),
+                new TextRun({ text: ' de ', size: 14, color: DOCX_MUTED }),
+                new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: DOCX_MUTED }),
+              ],
+            }),
+          ],
+        }),
       },
       children,
     }],
@@ -572,6 +830,7 @@ async function carregarImagemCompactada(req, url) {
 
 const vistoriaModel = require('../models/vistoriaModel');
 const imovelModel = require('../models/imovelModel');
+const empresaModel = require('../models/empresaModel');
 
 const fotoModel = require('../models/fotoModel');
 const comodoVistoriaModel = require('../models/comodoVistoriaModel');
@@ -597,7 +856,8 @@ module.exports = {
       // Busca imóvel relacionado
       const imovel = await imovelModel.buscarPorId(vistoria.imovel_id || vistoria.imovel || vistoria.imovelId, vistoria.empresa_id);
 
-
+      // Busca dados da empresa para cabeçalho e rodapé do laudo
+      const empresa = await empresaModel.buscarPorId(req.usuario.empresa_id);
 
       // Busca fotos
       const fotos = await fotoModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id);
@@ -645,12 +905,30 @@ module.exports = {
       }
 
 
-      // Monta array de cômodos com fotos (id como string) e sempre força array
-      const comodosCompletos = comodos.map(c => ({
-        nome: c.nome,
-        descricao: c.descricao && c.descricao.trim() !== '' && c.descricao !== 'Cômodo vistoriado via app' ? c.descricao : '',
-        fotos: Array.isArray(fotosPorComodo[String(c.id)]) ? fotosPorComodo[String(c.id)] : (fotosPorComodo[c.nome] || [])
-      }));
+      // Monta array de cômodos com fotos e tópicos técnicos para o laudo
+      const comodosCompletos = comodos.map((c, index) => {
+        const fotosDoComodo = Array.isArray(fotosPorComodo[String(c.id)])
+          ? fotosPorComodo[String(c.id)]
+          : (fotosPorComodo[c.nome] || []);
+        const descricaoComodo = c.descricao && c.descricao.trim() !== '' && c.descricao !== 'Cômodo vistoriado via app'
+          ? c.descricao
+          : '';
+        const topicos = extrairTopicos(
+          descricaoComodo,
+          ...fotosDoComodo.map((foto) => foto.descricao)
+        );
+
+        return {
+          indice: index + 1,
+          nome: c.nome,
+          estado_geral: c.estado_geral || '',
+          descricao: descricaoComodo,
+          topicos,
+          tem_topicos: topicos.length > 0,
+          fotos: fotosDoComodo,
+          tem_fotos: fotosDoComodo.length > 0,
+        };
+      }).filter((comodo) => comodo.tem_topicos || comodo.tem_fotos);
 
       // Fotos sem cômodo (caso existam)
       const fotosSemComodo = fotosPorComodo['outros'] || [];
@@ -661,6 +939,9 @@ module.exports = {
         numero_contrato: vistoria.numero_contrato || '',
         objeto: vistoria.objeto || '',
         data_vistoria: vistoria.data_vistoria || vistoria.data || '',
+        data: vistoria.data || '',
+        tipo_vistoria: vistoria.tipo_vistoria || 'Entrada',
+        tipo_imovel: imovel?.tipo || '',
         imovel_endereco: imovel?.endereco_completo || vistoria.endereco || '',
         imovel_matricula: imovel?.imovel_matricula || imovel?.matricula || '',
         imovel_cartorio: imovel?.imovel_cartorio || imovel?.cartorio || '',
@@ -679,6 +960,12 @@ module.exports = {
         socio_cpf: imovel?.socio_cpf || '',
         socio_profissao: imovel?.socio_profissao || '',
         representante_tipo: imovel?.representante_tipo || '',
+        observacoes_gerais: vistoria.observacoes_gerais || '',
+        empresa_nome: empresa?.nome || 'VistoriaPro',
+        empresa_cnpj: empresa?.cnpj || '',
+        empresa_email: empresa?.email || '',
+        empresa_telefone: empresa?.telefone || '',
+        empresa_endereco: empresa?.endereco || '',
         locatarios: locatarios,
         comodos: comodosCompletos,
         fotos_sem_comodo: fotosSemComodo,
@@ -686,18 +973,20 @@ module.exports = {
         logo_data_uri: getLogoDataUri(),
       };
 
-      // Gera o texto de abertura formatado
-      data.texto_abertura = gerarTextoAbertura(data);
+      data.abertura_blocos = montarAberturaBlocos(data);
+      data.dados_imovel = montarDadosImovel(data);
+      data.observacoes_padrao = montarObservacoesPadrao(data);
+      data.tem_dados_imovel = data.dados_imovel.length > 0;
+      data.tem_comodos = data.comodos.length > 0;
+      data.tem_fotos_sem_comodo = data.fotos_sem_comodo.length > 0;
+      data.texto_abertura = data.abertura_blocos
+        .map((bloco) => `${bloco.label}: ${bloco.texto}`)
+        .join('\n\n');
 
       // Renderização do template com Mustache
       const templatePath = path.join(__dirname, '../templates/relatorio.html');
       const htmlBase = fs.readFileSync(templatePath, 'utf8');
-      const htmlFinalDebug = mustache.render(htmlBase, data);
-      console.log('======= HTML FINAL GERADO PARA O PDF =======\n', htmlFinalDebug);
-      // Log para debug
-      console.log('[gerarRelatorio] Dados enviados para o template:', data);
-
-      const html = htmlFinalDebug;
+      const html = mustache.render(htmlBase, data);
 
       let buffer;
       let contentType;
@@ -716,6 +1005,7 @@ module.exports = {
         });
         const page = await browser.newPage();
         await page.setContent(html, { waitUntil: 'networkidle0' });
+        await page.emulateMediaType('print');
         await page.evaluate(async () => {
           await Promise.all(Array.from(document.images).map((img) => {
             if (img.complete && img.naturalWidth > 0) return Promise.resolve();
@@ -730,25 +1020,15 @@ module.exports = {
         });
         buffer = await page.pdf({
           format: 'A4',
+          printBackground: true,
           displayHeaderFooter: true,
-          headerTemplate: `
-            <div style='width:100%; padding:0; margin:0; height:12px; font-size:1px; line-height:1px;'></div>
-          `,
-          footerTemplate: `
-            <div style='width:100%; text-align:center; font-size:12px; color:#888; padding:8px 0;'>
-              <span class='pageNumber'></span><span class='totalPages'></span>
-              <script>
-                if (this.pageNumber == this.totalPages) {
-                  document.write('Gerado por VistoriaPro - ${new Date().toLocaleDateString('pt-BR')}');
-                }
-              </script>
-            </div>
-          `,
+          headerTemplate: montarHeaderTemplatePdf(data),
+          footerTemplate: montarFooterTemplatePdf(data),
           margin: {
-            top: '110px', // aumenta o topo para evitar sobreposição nas páginas seguintes
-            bottom: '30px',
-            left: '18mm',
-            right: '18mm'
+            top: '68px',
+            bottom: '56px',
+            left: '16mm',
+            right: '16mm'
           }
         });
         await browser.close();

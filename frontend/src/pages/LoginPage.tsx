@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
@@ -327,9 +326,7 @@ export const LoginPage: React.FC = () => {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const { login, loading: authInitializing } = useAuth()
-  const navigate = useNavigate()
+  const { login, loading } = useAuth()
   const [preInit, setPreInit] = useState(true)
 
   useEffect(() => {
@@ -346,20 +343,11 @@ export const LoginPage: React.FC = () => {
       return
     }
 
-    setIsSubmitting(true)
-    try {
-      const success = await login(email, password)
-      if (!success) {
-        setError('Email ou senha incorretos')
-        return
-      }
-      navigate('/dashboard', { replace: true })
-    } finally {
-      setIsSubmitting(false)
+    const success = await login(email, password)
+    if (!success) {
+      setError('Email ou senha incorretos')
     }
   }
-
-  const isBusy = authInitializing || isSubmitting
 
   return (
     <Container>
@@ -401,7 +389,7 @@ export const LoginPage: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu@email.com"
-              disabled={isBusy}
+              disabled={loading}
               autoComplete="username"
               inputMode="email"
             />
@@ -415,13 +403,13 @@ export const LoginPage: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                disabled={isBusy}
+                disabled={loading}
                 autoComplete="current-password"
               />
               <PasswordToggle
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                disabled={isBusy}
+                disabled={loading}
                 aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -429,8 +417,8 @@ export const LoginPage: React.FC = () => {
             </InputWrapper>
           </InputGroup>
           {error && <ErrorMessage>{error}</ErrorMessage>}
-          <SubmitButton type="submit" disabled={isBusy}>
-            {isSubmitting ? (
+          <SubmitButton type="submit" disabled={loading}>
+            {loading ? (
               <>
                 <Loader2 size={20} className="spin" />
                 Entrando...

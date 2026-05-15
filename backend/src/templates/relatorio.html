@@ -4,157 +4,288 @@
   <meta charset="UTF-8">
   <title>Laudo de Vistoria: Locação de Imóvel Residencial</title>
   <style>
-    body {
-      font-family: 'Segoe UI', Arial, sans-serif;
-      margin: 30mm 18mm 25mm 18mm;
-      background: #fff;
-      color: #222;
-      /* sem padding-top, header só no Puppeteer */
+    * {
       box-sizing: border-box;
     }
-    .section {
-      margin-bottom: 22px;
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+      color: #171717;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 9.8pt;
+      line-height: 1.23;
     }
-    .no-page-break {
-      break-inside: avoid;
-      break-inside: avoid-page;
-      page-break-inside: avoid;
+
+    body {
+      position: relative;
     }
-    .brand {
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      margin: 0 0 18px 0;
-      break-inside: avoid;
+
+    .watermark {
+      position: fixed;
+      inset: 72px 16mm 76px 16mm;
+      background-image: url("{{{logo_data_uri}}}");
+      background-position: center 45%;
+      background-repeat: no-repeat;
+      background-size: 72% auto;
+      opacity: 0.035;
+      z-index: 0;
+      pointer-events: none;
     }
-    .brand img {
-      width: 280px;
-      max-width: 280px;
-      height: auto;
-      display: block;
-    }
-    .section-title {
-      background: #e3eafc;
-      color: #ff6933;
-      padding: 6px 12px;
-      font-size: 1.1em;
-      font-weight: bold;
-      border-left: 5px solid #ff6933;
-      margin-bottom: 10px;
-    }
-    .dados, .pessoa, .contrato {
-      margin-bottom: 7px;
-      font-size: 1em;
-    }
-    .dados strong, .contrato strong {
-      display: inline-block;
-      min-width: 120px;
-      color: #ff6933;
-    }
-    .comodos-table {
+
+    .document {
+      position: relative;
+      z-index: 1;
       width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 20px;
-      font-size: 0.98em;
     }
-    .comodos-table th {
-      background: #ff6933;
-      color: #fff;
-      padding: 8px;
-      border: 1px solid #ff6933;
+
+    .document-title {
+      margin: 0 0 18px;
+      text-align: center;
+      text-transform: uppercase;
+      font-weight: 700;
+      line-height: 1.22;
+    }
+
+    .document-title .main {
+      display: block;
+      font-size: 13.6pt;
+      text-decoration: underline;
+    }
+
+    .document-title .sub {
+      display: block;
+      margin-top: 2px;
+      font-size: 11.6pt;
       font-weight: 600;
     }
-    .comodos-table td {
-      border: 1px solid #b0bec5;
-      padding: 7px 8px;
-      background: #f7fafd;
+
+    .intro {
+      margin-bottom: 12px;
     }
-    .fotos {
-      margin-top: 18px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 18px;
-      break-inside: avoid;
-      page-break-inside: avoid;
+
+    .intro p,
+    .standard-note-text,
+    .room-line {
+      text-align: justify;
     }
-    .foto-item {
-      width: 200px;
+
+    .intro p {
+      margin: 0 0 7px;
+    }
+
+    .section-title {
+      margin: 14px 0 8px;
       text-align: center;
-      margin-bottom: 10px;
+      text-transform: uppercase;
+      text-decoration: underline;
+      font-size: 10.8pt;
+      line-height: 1.2;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 5px 14px;
+      margin: 0 0 10px;
+      padding: 8px 10px;
+      border: 1px solid #dedede;
+      background: rgba(247, 239, 235, 0.72);
       break-inside: avoid;
-      break-inside: avoid-page;
       page-break-inside: avoid;
     }
-    .foto-item img {
-      width: 100%;
-      border: 2px solid #a1370d;
-      border-radius: 4px;
+
+    .info-item.full {
+      grid-column: 1 / -1;
+    }
+
+    .label {
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .standard-notes {
+      margin: 0 0 10px;
+    }
+
+    .standard-note {
+      display: grid;
+      grid-template-columns: 14px minmax(0, 1fr);
+      gap: 4px;
+      margin: 0 0 4px;
+    }
+
+    .standard-note.criteria {
+      grid-template-columns: 22px minmax(0, 1fr);
+      margin-left: 16px;
+      margin-bottom: 2px;
+    }
+
+    .rooms-section {
+      break-before: page;
+      page-break-before: always;
+    }
+
+    .room {
+      margin: 0 0 26px;
+      break-inside: auto;
+      page-break-inside: auto;
+    }
+
+    .room-heading {
+      margin: 0 0 8px;
+      padding-left: 10px;
+      border-left: 4px solid #ff6933;
+      text-transform: uppercase;
+      font-size: 12.5pt;
+      line-height: 1.25;
+      break-after: avoid;
+      page-break-after: avoid;
+    }
+
+    .room-lines {
+      margin: 0 0 12px;
+    }
+
+    .room-line {
+      margin: 0 0 4px;
+      text-align: justify;
+    }
+
+    .room-line:last-child {
       margin-bottom: 4px;
     }
-    hr {
-      border: none;
-      border-top: 1px solid #b0bec5;
-      margin: 10px 0;
+
+    .room-empty {
+      margin: 0 0 12px;
+      color: #666;
+      font-style: italic;
     }
-    .comodo {
-      margin-bottom: 24px;
+
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+      break-inside: auto;
+      page-break-inside: auto;
+    }
+
+    .photo-tile {
+      height: 54mm;
+      margin: 0;
+      padding: 5px;
+      border: 1px solid #d5d5d5;
+      background: #ffffff;
+      box-shadow: 0 1.5px 5px rgba(0, 0, 0, 0.22);
       break-inside: avoid;
-      break-inside: avoid-page;
       page-break-inside: avoid;
     }
-    .comodo-nome,
-    .foto-descricao,
-    .comodo-observacoes {
-      break-inside: avoid;
-      page-break-inside: avoid;
+
+    .photo-tile img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      object-position: center;
+    }
+
+    .standalone-photos {
+      margin-top: 18px;
+    }
+
+    @media print {
+      .section-title,
+      .room-heading {
+        break-after: avoid;
+        page-break-after: avoid;
+      }
+
+      .photo-tile {
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+      }
     }
   </style>
 </head>
 <body>
   {{#logo_data_uri}}
-  <div class="brand">
-    <img src="{{logo_data_uri}}" alt="VistoriaPro" />
-  </div>
+  <div class="watermark"></div>
   {{/logo_data_uri}}
 
-  <div class="section" style="margin-bottom: 32px;">
-    <div class="texto-abertura" style="white-space: pre-line; font-size: 1.08em; text-align: justify;">
-      {{{texto_abertura}}}
-    </div>
-  </div>
-  <div class="section">
-    <div class="section-title">Checklist de Cômodos</div>
-    {{#comodos}}
-      <div class="comodo no-page-break">
-        <div class="comodo-nome"><strong>{{nome}}</strong></div>
-        <div class="fotos">
-          {{#fotos}}
-            <div class="foto-item">
-              <img src="{{url}}" alt="Foto do cômodo" />
-              <div class="foto-descricao">{{descricao}}</div>
-            </div>
-          {{/fotos}}
-        </div>
-        {{^fotos}}
-          <div style="color:#888; font-size:0.95em;">Nenhuma foto cadastrada para este cômodo.</div>
-        {{/fotos}}
-        <div class="comodo-observacoes"><strong>Descrição:</strong> {{descricao}}</div>
-        <hr/>
-      </div>
-    {{/comodos}}
-    {{^comodos}}
-      <div style="color:#888; font-size:0.95em;">Nenhum cômodo cadastrado para esta vistoria.</div>
-    {{/comodos}}
-  </div>
+  <main class="document">
+    <h1 class="document-title">
+      <span class="main">Laudo de Vistoria: Locação de Imóvel Residencial</span>
+      <span class="sub">Anexo ao contrato de locação nº {{numero_contrato}}</span>
+    </h1>
 
-  {{#fotos_sem_comodo}}
-    <div class="section fotos no-page-break">
-      <div class="section-title">Fotos sem cômodo vinculado</div>
-      <div class="foto-item">
-        <img src="{{url}}" alt="Foto">
-        <p>{{descricao}}</p>
+    {{#abertura_blocos}}
+    <section class="intro">
+      <p><span class="label">{{label}}:</span> {{texto}}</p>
+    </section>
+    {{/abertura_blocos}}
+
+    {{#tem_dados_imovel}}
+    <h2 class="section-title">Dados do imóvel</h2>
+    <section class="info-grid">
+      {{#dados_imovel}}
+      <div class="info-item {{#full}}full{{/full}}">
+        <span class="label">{{label}}:</span> {{valor}}
       </div>
-    </div>
-  {{/fotos_sem_comodo}}
+      {{/dados_imovel}}
+    </section>
+    {{/tem_dados_imovel}}
+
+    <h2 class="section-title">Observações sobre a vistoria e seu entendimento</h2>
+    <section class="standard-notes">
+      {{#observacoes_padrao}}
+      <p class="standard-note {{#criterio}}criteria{{/criterio}}">
+        <span class="standard-note-prefix">{{prefixo}}</span>
+        <span class="standard-note-text">{{texto}}</span>
+      </p>
+      {{/observacoes_padrao}}
+    </section>
+
+    {{#tem_comodos}}
+    <section class="rooms-section">
+    <h2 class="section-title">Descrição dos ambientes</h2>
+    {{#comodos}}
+    <section class="room">
+      <h3 class="room-heading">{{nome}}</h3>
+
+      {{#tem_topicos}}
+      <div class="room-lines">
+        {{#topicos}}
+        <p class="room-line">{{.}}</p>
+        {{/topicos}}
+      </div>
+      {{/tem_topicos}}
+
+      {{#tem_fotos}}
+      <div class="photo-grid">
+        {{#fotos}}
+        <figure class="photo-tile">
+          <img src="{{url}}" alt="Foto de {{nome}}">
+        </figure>
+        {{/fotos}}
+      </div>
+      {{/tem_fotos}}
+    </section>
+    {{/comodos}}
+    </section>
+    {{/tem_comodos}}
+
+    {{#tem_fotos_sem_comodo}}
+    <h2 class="section-title">Fotos sem cômodo vinculado</h2>
+    <section class="photo-grid standalone-photos">
+      {{#fotos_sem_comodo}}
+      <figure class="photo-tile">
+        <img src="{{url}}" alt="Foto sem cômodo vinculado">
+      </figure>
+      {{/fotos_sem_comodo}}
+    </section>
+    {{/tem_fotos_sem_comodo}}
+  </main>
 </body>
 </html>

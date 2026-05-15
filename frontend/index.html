@@ -8,50 +8,36 @@
     <link rel="icon" type="image/png" href="/VistoriaPro.png" />
     <script>
       (function () {
-        var isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-        var cleanupVersion = '2026-05-14-sw-reset';
-        var storageKey = 'vistoriapro-sw-cleanup-version';
-
-        if (!('serviceWorker' in navigator)) {
+        if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
           return;
         }
 
-        if (!isLocalhost && localStorage.getItem(storageKey) === cleanupVersion) {
+        if (!('serviceWorker' in navigator) || sessionStorage.getItem('vistoriapro-sw-cleanup-done')) {
           return;
         }
+
+        sessionStorage.setItem('vistoriapro-sw-cleanup-done', '1');
 
         navigator.serviceWorker.getRegistrations().then(function (registrations) {
-          if (!registrations.length && !isLocalhost) {
-            localStorage.setItem(storageKey, cleanupVersion);
+          if (!registrations.length) {
             return;
           }
 
-          return Promise.all(registrations.map(function (registration) {
+          Promise.all(registrations.map(function (registration) {
             return registration.unregister();
           })).then(function () {
             if ('caches' in window) {
-              return caches.keys().then(function (keys) {
+              caches.keys().then(function (keys) {
                 return Promise.all(keys.map(function (key) {
                   return caches.delete(key);
                 }));
               });
             }
-          }).then(function () {
-            if (!isLocalhost) {
-              localStorage.setItem(storageKey, cleanupVersion);
-            }
 
-            if (sessionStorage.getItem('vistoriapro-sw-cleanup-reload')) {
-              return;
-            }
-
-            sessionStorage.setItem('vistoriapro-sw-cleanup-reload', '1');
             window.location.reload();
           });
         }).catch(function () {
-          if (!isLocalhost) {
-            localStorage.setItem(storageKey, cleanupVersion);
-          }
+          // Ignora falhas de limpeza em desenvolvimento.
         });
       })();
     </script>

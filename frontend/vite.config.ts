@@ -8,8 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      selfDestroying: true,
-      injectRegister: null,
+      injectRegister: 'auto',
       manifest: {
         name: 'Imob Vistorias - Sistema Profissional',
         short_name: 'Imob Vistorias',
@@ -36,7 +35,12 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,json}'],
+        globPatterns: ['**/*.{js,css,ico,png,svg,webp,woff,woff2}'],
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//, /^\/uploads\//, /\.(?:js|css|map|png|jpg|jpeg|gif|webp|svg|ico|woff2?)$/],
       },
       devOptions: {
         enabled: false,

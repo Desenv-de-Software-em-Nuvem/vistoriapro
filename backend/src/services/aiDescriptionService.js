@@ -93,7 +93,8 @@ function buildPrompt({ imagens, comodoNome, instrucoesDoVistoriador, consolidar 
     'Priorize esta ordem quando os itens estiverem visíveis: Instalação elétrica/tomadas/interruptores; Ponto de luz/luminárias; Paredes/revestimentos/pintura/rodapés; Piso; Forro/teto; Portas/maçanetas/fechaduras; Janelas/esquadrias/travas; Bancadas/pias/tanques/torneiras/metais; Louças sanitárias/box/chuveiro; Armários/móveis/equipamentos aparentes; Observações de avarias, manchas, furos, desgastes ou marcas de uso.',
     'Use frases no estilo: "Paredes em alvenaria com pintura na cor branca, em bom estado de conservação." ou "Piso revestido em cerâmica na cor branca, apresentando marcas de uso pontuais."',
     'Quando houver dano, descreva a avaria com precisão e sem exagero: "possui marcas de uso", "apresenta pequenos furos", "com manchas aparentes", "com desgaste aparente", "com avaria visível".',
-    'Classifique a conservação com naturalidade: "em bom estado de conservação", "com marcas de uso", "em estado regular de conservação" ou "com avaria visível", conforme a evidência.',
+    'Use obrigatoriamente estes critérios de conservação quando classificar o estado: Estado BOM: sem sinais de desgastes ou com pequenas irregularidades; Estado REGULAR: com avarias; Estado RUIM: com danos graves e/ou relevantes.',
+    'Não use Estado NOVO. Quando houver evidência suficiente, descreva o item como "em Estado BOM", "em Estado REGULAR" ou "em Estado RUIM" e complemente com a avaria observada.',
     'Nunca afirme "funcionando" para lâmpadas, tomadas, interruptores, torneiras, descargas, chuveiros, fechaduras, trancas, ar-condicionado ou eletrodomésticos apenas pela foto. Só use "funcionando" se as instruções complementares do vistoriador informarem que foi testado.',
     'Se não houver teste informado, use "aparentemente em bom estado de conservação" ou apenas descreva o item e seu estado físico visível.',
     'Não cite itens ausentes. Não escreva "não visível", "não identificado", "não é possível determinar", "parece", "a imagem mostra", "foto mostra" ou "na imagem".',
@@ -102,8 +103,8 @@ function buildPrompt({ imagens, comodoNome, instrucoesDoVistoriador, consolidar 
     instrucoesDoVistoriador
       ? `Instruções complementares do vistoriador: ${instrucoesDoVistoriador}`
       : '',
-    'Formato obrigatório da resposta: português do Brasil, sem título, com 4 a 10 tópicos iniciados por "•". Cada tópico deve começar pelo elemento vistoriado, por exemplo: "• Paredes:", "• Piso:", "• Porta:", "• Janela:", "• Móveis:", "• Observação:".',
-    'Cada tópico deve ser uma frase técnica completa, preferencialmente curta, mas específica o suficiente para servir em laudo imobiliário.'
+    'Formato obrigatório da resposta: português do Brasil, sem título, com 4 a 10 linhas técnicas, sem bullets, sem marcadores e sem numeração. Cada linha deve começar pelo elemento vistoriado, por exemplo: "Paredes:", "Piso:", "Porta:", "Janela:", "Móveis:", "Observação:".',
+    'Cada linha deve ser uma frase técnica completa, preferencialmente curta, mas específica o suficiente para servir em laudo imobiliário.'
   ].filter(Boolean).join(' ');
 }
 
@@ -114,8 +115,8 @@ function normalizarDescricaoLaudo(descricao) {
     .filter(Boolean);
 
   const topicos = linhas
-    .map((linha) => linha.replace(/^[-*]\s+/, '• '))
-    .filter((linha) => linha.startsWith('• '))
+    .map((linha) => linha.replace(/^[•\-*]\s+/, '').replace(/^\d+[.)]\s+/, '').trim())
+    .filter(Boolean)
     .filter((linha) => {
       const texto = linha.toLowerCase();
       return ![
@@ -150,9 +151,9 @@ async function requestDescricao({ baseUrl, apiKey, model, prompt, imagens }) {
           role: 'system',
           content: [
             'Você responde exclusivamente como vistoriador imobiliário técnico.',
-            'Sua resposta deve conter somente tópicos de laudo iniciados por "• ".',
-            'É proibido explicar limitações, pedir mais fotos, criar exemplos hipotéticos, fazer observações sobre a tarefa ou escrever qualquer texto fora dos tópicos.',
-            'Se a foto tiver pouca informação, descreva apenas os poucos elementos visíveis em tópicos técnicos.'
+            'Sua resposta deve conter somente linhas técnicas de laudo, sem bullets, sem marcadores e sem numeração.',
+            'É proibido explicar limitações, pedir mais fotos, criar exemplos hipotéticos, fazer observações sobre a tarefa ou escrever qualquer texto fora das linhas técnicas.',
+            'Se a foto tiver pouca informação, descreva apenas os poucos elementos visíveis em linhas técnicas.'
           ].join(' ')
         },
         {

@@ -11,6 +11,11 @@ import { MobileTabBar } from '../components/MobileTabBar'
 
 type ReportFormat = 'pdf' | 'word'
 
+type GeneratingReportState = {
+  vistoriaId: number
+  formato: ReportFormat
+}
+
 const Container = styled.div`
   min-height: 100vh;
   min-height: 100dvh;
@@ -271,7 +276,7 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'succe
           background: ${theme.colors.primary};
           color: ${theme.colors.textWhite};
           border: none;
-          &:hover {
+          &:hover:not(:disabled) {
             background: ${theme.colors.primaryDark};
             transform: translateY(-1px);
           }
@@ -281,7 +286,7 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'succe
           background: rgba(16, 185, 129, 0.12);
           color: ${theme.colors.success};
           border: 1px solid ${theme.colors.success};
-          &:hover {
+          &:hover:not(:disabled) {
             background: rgba(16, 185, 129, 0.18);
             transform: translateY(-1px);
           }
@@ -301,13 +306,28 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'succe
           background: transparent;
           color: ${theme.colors.text};
           border: 1px solid ${theme.colors.border};
-          &:hover {
+          &:hover:not(:disabled) {
             background: ${theme.colors.backgroundTertiary};
             transform: translateY(-1px);
           }
         `;
     }
   }}
+`
+
+const ButtonSpinner = styled.span`
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  flex: 0 0 auto;
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
 `
 
 const EmptyState = styled.div`
@@ -388,6 +408,19 @@ export const PropertyLaudoPage: React.FC = () => {
   const [showDetailsForm, setShowDetailsForm] = useState(false)
   const [allRequiredFilled, setAllRequiredFilled] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [generatingReport, setGeneratingReport] = useState<GeneratingReportState | null>(null)
+
+  const isGeneratingReport = (vistoriaId: number, formato?: ReportFormat) => {
+    if (!generatingReport) return false
+    if (generatingReport.vistoriaId !== vistoriaId) return false
+    return formato ? generatingReport.formato === formato : true
+  }
+
+  const getReportButtonLabel = (vistoriaId: number, formato: ReportFormat, defaultLabel: string) => {
+    if (!isGeneratingReport(vistoriaId, formato)) return defaultLabel
+    return formato === 'pdf' ? 'Gerando PDF...' : 'Gerando Word...'
+  }
+
   const handleExcluirVistoria = async (vistoriaId: number) => {
     if (!window.confirm('Tem certeza que deseja excluir esta vistoria? Esta ação não pode ser desfeita.')) {
       return;
@@ -457,6 +490,12 @@ export const PropertyLaudoPage: React.FC = () => {
   }
 
   const handleGerarLaudo = async (vistoriaId: number, formato: ReportFormat) => {
+    if (generatingReport) {
+      return;
+    }
+
+    setGeneratingReport({ vistoriaId, formato });
+
     try {
       // 1. Gera o laudo e pega a URL do arquivo
       const response = await api.post('/relatorios/gerar', {
@@ -499,6 +538,8 @@ export const PropertyLaudoPage: React.FC = () => {
     } catch (err: any) {
       console.error('Erro ao gerar laudo:', err);
       alert('Erro ao gerar laudo. Verifique se todos os dados foram preenchidos.');
+    } finally {
+      setGeneratingReport(null);
     }
   }
 
@@ -564,16 +605,20 @@ export const PropertyLaudoPage: React.FC = () => {
                 <ActionButton 
                   $variant="success" 
                   onClick={() => handleGerarLaudo(selectedVistoria, 'pdf')}
+                  disabled={Boolean(generatingReport)}
+                  aria-busy={isGeneratingReport(selectedVistoria, 'pdf')}
                 >
-                  <FileText size={16} />
-                  Gerar Laudo PDF
+                  {isGeneratingReport(selectedVistoria, 'pdf') ? <ButtonSpinner /> : <FileText size={16} />}
+                  {getReportButtonLabel(selectedVistoria, 'pdf', 'Gerar Laudo PDF')}
                 </ActionButton>
                 <ActionButton
                   $variant="success"
                   onClick={() => handleGerarLaudo(selectedVistoria, 'word')}
+                  disabled={Boolean(generatingReport)}
+                  aria-busy={isGeneratingReport(selectedVistoria, 'word')}
                 >
-                  <FileText size={16} />
-                  Gerar Laudo Word
+                  {isGeneratingReport(selectedVistoria, 'word') ? <ButtonSpinner /> : <FileText size={16} />}
+                  {getReportButtonLabel(selectedVistoria, 'word', 'Gerar Laudo Word')}
                 </ActionButton>
               </DetailsGenerateActions>
             )}
@@ -655,28 +700,35 @@ export const PropertyLaudoPage: React.FC = () => {
                   </VistoriaMain>
 
                   <VistoriaActions>
-                    <ActionButton onClick={() => handlePreencherDadosLaudo(vistoria.id)}>
+                    <ActionButton
+                      onClick={() => handlePreencherDadosLaudo(vistoria.id)}
+                      disabled={Boolean(generatingReport)}
+                    >
                       <Eye size={14} />
                       Dados
                     </ActionButton>
                     <ActionButton 
                       $variant="success" 
                       onClick={() => handleGerarLaudo(vistoria.id, 'pdf')}
+                      disabled={Boolean(generatingReport)}
+                      aria-busy={isGeneratingReport(vistoria.id, 'pdf')}
                     >
-                      <FileText size={14} />
-                      PDF
+                      {isGeneratingReport(vistoria.id, 'pdf') ? <ButtonSpinner /> : <FileText size={14} />}
+                      {getReportButtonLabel(vistoria.id, 'pdf', 'PDF')}
                     </ActionButton>
                     <ActionButton
                       $variant="success"
                       onClick={() => handleGerarLaudo(vistoria.id, 'word')}
+                      disabled={Boolean(generatingReport)}
+                      aria-busy={isGeneratingReport(vistoria.id, 'word')}
                     >
-                      <FileText size={14} />
-                      Word
+                      {isGeneratingReport(vistoria.id, 'word') ? <ButtonSpinner /> : <FileText size={14} />}
+                      {getReportButtonLabel(vistoria.id, 'word', 'Word')}
                     </ActionButton>
                     <ActionButton
                       $variant="danger"
                       onClick={() => handleExcluirVistoria(vistoria.id)}
-                      disabled={deletingId === vistoria.id}
+                      disabled={deletingId === vistoria.id || Boolean(generatingReport)}
                     >
                       <Trash2 size={14} />
                       {deletingId === vistoria.id ? 'Excluindo...' : 'Excluir'}

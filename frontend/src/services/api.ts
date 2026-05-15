@@ -31,26 +31,15 @@ api.interceptors.request.use(
   }
 );
 
-function isLoginRequest(url: string | undefined): boolean {
-  if (!url) return false;
-  const normalized = url.split('?')[0] ?? '';
-  return normalized.endsWith('/usuarios/login') || normalized.endsWith('usuarios/login');
-}
-
 // Interceptor para tratar respostas de erro
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      const requestUrl = String(error.config?.url || '');
-      // Login inválido deve exibir erro na tela, sem recarregar a página.
-      if (isLoginRequest(requestUrl)) {
-        return Promise.reject(error);
-      }
-
+      // Token expirado ou inválido - fazer logout
       localStorage.removeItem('vistoriapro_token');
       localStorage.removeItem('vistoriapro_user');
-      window.dispatchEvent(new Event('vistoriapro:session-expired'));
+      window.location.href = '/';
     }
     return Promise.reject(error);
   }

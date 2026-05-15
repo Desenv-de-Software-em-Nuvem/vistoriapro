@@ -13,7 +13,7 @@ module.exports = {
     return result.rows;
   },
   async buscarPorId(id) {
-    const result = await pool.query('SELECT id, nome, cnpj, email, created_at FROM empresas WHERE id = $1', [id]);
+    const result = await pool.query('SELECT id, nome, cnpj, email, telefone, endereco, created_at FROM empresas WHERE id = $1', [id]);
     return result.rows[0];
   },
   async atualizar(id, dados) {

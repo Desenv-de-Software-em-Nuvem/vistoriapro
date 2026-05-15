@@ -7,7 +7,6 @@
   to = "/index.html"
   status = 200
 
-# Garante que o service worker e o manifest sejam servidos corretamente
 [[headers]]
   for = "/"
   [headers.values]
@@ -27,11 +26,6 @@
   for = "/sw.js"
   [headers.values]
     Service-Worker-Allowed = "/"
-    Cache-Control = "no-cache, no-store, must-revalidate"
-
-[[headers]]
-  for = "/workbox-*.js"
-  [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
 
 [[headers]]

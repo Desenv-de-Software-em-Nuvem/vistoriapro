@@ -19,18 +19,6 @@ interface ApiUsuario {
 
 interface JwtPayload {
   papel?: UserRole
-  exp?: number
-}
-
-function isTokenExpired(token: string): boolean {
-  const payload = decodeJwtPayload(token)
-  if (!payload?.exp) return false
-  return payload.exp * 1000 <= Date.now()
-}
-
-function clearStoredSession() {
-  localStorage.removeItem('vistoriapro_user')
-  localStorage.removeItem('vistoriapro_token')
 }
 
 function decodeJwtPayload(token: string): JwtPayload | null {
@@ -68,16 +56,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     // Verificar se há um usuário logado no localStorage
     const savedUser = localStorage.getItem('vistoriapro_user')
-    const token = localStorage.getItem('vistoriapro_token')
-
-    if (!savedUser || !token || isTokenExpired(token)) {
-      clearStoredSession()
-      setLoading(false)
-      return
-    }
-
     if (savedUser) {
       try {
+        const token = localStorage.getItem('vistoriapro_token')
         const parsedUser = JSON.parse(savedUser) as Partial<User> & { nome?: string }
         const restoredUser = normalizeUser({
           id: parsedUser.id || '',
@@ -89,7 +70,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }, token)
 
         if (!restoredUser) {
-          clearStoredSession()
+          localStorage.removeItem('vistoriapro_user')
+          localStorage.removeItem('vistoriapro_token')
           setLoading(false)
           return
         }
@@ -98,22 +80,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('vistoriapro_user', JSON.stringify(restoredUser))
       } catch (error) {
         console.error('Erro ao carregar usuário salvo:', error)
-        clearStoredSession()
+        localStorage.removeItem('vistoriapro_user')
+        localStorage.removeItem('vistoriapro_token')
       }
     }
     setLoading(false)
   }, [])
 
-  useEffect(() => {
-    const handleSessionExpired = () => {
-      setUser(null)
-    }
-
-    window.addEventListener('vistoriapro:session-expired', handleSessionExpired)
-    return () => window.removeEventListener('vistoriapro:session-expired', handleSessionExpired)
-  }, [])
-
   const login = async (email: string, password: string): Promise<boolean> => {
+    setLoading(true)
     try {
       // Não logar credenciais nem respostas em produção
       const response = await api.post('/usuarios/login', { 
@@ -129,6 +104,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(normalizedUser)
       localStorage.setItem('vistoriapro_user', JSON.stringify(normalizedUser))
       localStorage.setItem('vistoriapro_token', token)
+      setLoading(false)
       return true
     } catch (error: any) {
       console.error('Erro no login:', error)
@@ -136,6 +112,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('Dados da resposta de erro:', error.response.data)
         console.error('Status da resposta:', error.response.status)
       }
+      setLoading(false)
       return false
     }
   }
