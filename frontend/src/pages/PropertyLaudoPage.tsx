@@ -537,7 +537,17 @@ export const PropertyLaudoPage: React.FC = () => {
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error('Erro ao gerar laudo:', err);
-      alert('Erro ao gerar laudo. Verifique se todos os dados foram preenchidos.');
+      const apiMsg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        (typeof err?.message === 'string' && err.message !== 'Request failed with status code 500'
+          ? err.message
+          : null);
+      alert(
+        apiMsg
+          ? `Erro ao gerar laudo: ${apiMsg}`
+          : 'Erro ao gerar laudo. Verifique o console ou tente outro formato (PDF/Word).',
+      );
     } finally {
       setGeneratingReport(null);
     }

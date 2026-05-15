@@ -1283,6 +1283,31 @@ const comodoVistoriaModel = require('../models/comodoVistoriaModel');
 const locatarioVistoriaListModel = require('../models/locatarioVistoriaListModel');
 const transcricaoModel = require('../models/transcricaoModel');
 
+/**
+ * Remove Buffers e strings gigantes (logo base64) antes de persistir em JSONB.
+ * Sem isso, o INSERT em relatorios.dados_adicionais estoura limite ou falha na serialização.
+ */
+function sanitizarDadosAdicionaisParaBanco(data) {
+  try {
+    return JSON.parse(
+      JSON.stringify(data, (key, value) => {
+        if (Buffer.isBuffer(value)) return undefined;
+        if (key === 'logo_data_uri' && typeof value === 'string' && value.length > 4000) {
+          return `[base64 omitido: ${value.length} caracteres]`;
+        }
+        return value;
+      }),
+    );
+  } catch (err) {
+    console.warn('[gerarRelatorio] Falha ao sanitizar dados_adicionais:', err.message);
+    return {
+      erro_serializacao: err.message,
+      data_geracao: data?.data_geracao,
+      numero_contrato: data?.numero_contrato,
+    };
+  }
+}
+
 module.exports = {
   async gerarRelatorio(req, res) {
     try {
@@ -1494,7 +1519,11 @@ module.exports = {
       const fileUrl = await salvarArquivoRelatorio(req, nomeArquivo, buffer, contentType);
 
       // Salva no banco
-      const relatorio = await relatorioModel.gerar({ vistoria_id, url_arquivo: nomeArquivo, dados_adicionais: data });
+      const relatorio = await relatorioModel.gerar({
+        vistoria_id,
+        url_arquivo: nomeArquivo,
+        dados_adicionais: sanitizarDadosAdicionaisParaBanco(data),
+      });
       res.status(201).json({ message: 'Relatório gerado', relatorio, url: fileUrl, formato });
     } catch (err) {
       console.error('[gerarRelatorio] Erro ao gerar relatório:', err);

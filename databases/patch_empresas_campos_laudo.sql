@@ -1,0 +1,2 @@
+-- Obsoleto: use o arquivo completo `supabase_sync_schema.sql` no SQL Editor do Supabase.
+-- Ele inclui empresas + todo o restante do schema local.
