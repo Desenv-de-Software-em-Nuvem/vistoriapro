@@ -14,7 +14,6 @@ const {
   Header,
   HeadingLevel,
   ImageRun,
-  PageNumber,
   Packer,
   Paragraph,
   ShadingType,
@@ -68,11 +67,15 @@ const relatoriosDir = path.join(__dirname, '../../uploads/relatorios');
 const FOTO_MAX_WIDTH = 720;
 const FOTO_MAX_HEIGHT = 720;
 const FOTO_JPEG_QUALITY = 38;
-const DOCX_ORANGE = 'FF6933';
+const LOGO_MAX_WIDTH = 900;
+const LOGO_MAX_HEIGHT = 360;
+const LOGO_CROP_PADDING_RATIO = 0.02;
+const DOCX_ORANGE = 'FF4500';
 const DOCX_BLUE_LIGHT = 'F5E7E1';
 const DOCX_TEXT = '222222';
 const DOCX_MUTED = '555555';
 const DOCX_BORDER = 'D8D8D8';
+const SYSTEM_ORANGE_STRIPE_COLORS = ['#ff4500', '#ff6b35', '#ff8c42'];
 const logoCandidates = [
   path.join(__dirname, '../../public/VistoriaPro1.png'),
   path.join(process.cwd(), 'public/VistoriaPro1.png'),
@@ -154,6 +157,208 @@ function getDocxImageType(mimeType = '') {
   return null;
 }
 
+function isLogoContentPixel(r, g, b, alpha) {
+  if (alpha < 20) return false;
+  if (alpha < 245) return true;
+
+  return r < 246 || g < 246 || b < 246;
+}
+
+function encontrarCaixaConteudoLogo(image) {
+  const { data, width, height } = image.bitmap;
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const idx = (width * y + x) * 4;
+      if (!isLogoContentPixel(data[idx], data[idx + 1], data[idx + 2], data[idx + 3])) continue;
+
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+
+  if (maxX < 0 || maxY < 0) return null;
+
+  return {
+    x: minX,
+    y: minY,
+    w: maxX - minX + 1,
+    h: maxY - minY + 1,
+  };
+}
+
+function expandirCaixaLogo(box, image) {
+  const { width, height } = image.bitmap;
+  const padding = Math.max(6, Math.round(Math.max(box.w, box.h) * LOGO_CROP_PADDING_RATIO));
+  const x = Math.max(0, box.x - padding);
+  const y = Math.max(0, box.y - padding);
+  const right = Math.min(width, box.x + box.w + padding);
+  const bottom = Math.min(height, box.y + box.h + padding);
+
+  return {
+    x,
+    y,
+    w: Math.max(1, right - x),
+    h: Math.max(1, bottom - y),
+  };
+}
+
+async function prepararLogoParaLaudo(imageData) {
+  const mimeType = imageData?.mimeType?.split(';')[0] || '';
+  const type = getDocxImageType(mimeType);
+  if (!imageData?.buffer || !type || mimeType.includes('svg')) return null;
+
+  try {
+    const image = await Jimp.read(imageData.buffer);
+    const contentBox = encontrarCaixaConteudoLogo(image);
+
+    if (contentBox) {
+      const cropBox = expandirCaixaLogo(contentBox, image);
+      const shouldCrop = cropBox.w < image.bitmap.width - 8 || cropBox.h < image.bitmap.height - 8;
+
+      if (shouldCrop) {
+        image.crop(cropBox);
+      }
+    }
+
+    image.scaleToFit({ w: LOGO_MAX_WIDTH, h: LOGO_MAX_HEIGHT });
+    const buffer = await image.getBuffer(JimpMime.png);
+
+    return {
+      mimeType: JimpMime.png,
+      type: 'png',
+      buffer,
+      width: image.bitmap.width,
+      height: image.bitmap.height,
+    };
+  } catch (err) {
+    console.warn('[gerarRelatorio] Nao foi possivel preparar a logomarca:', err.message);
+    return {
+      mimeType,
+      type,
+      buffer: imageData.buffer,
+    };
+  }
+}
+
+function clampColor(value) {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function rgbToHex({ r, g, b }) {
+  return `#${[r, g, b].map((channel) => clampColor(channel).toString(16).padStart(2, '0')).join('')}`;
+}
+
+function hexToRgb(hex) {
+  const clean = String(hex || '').replace('#', '');
+  if (!/^[\da-f]{6}$/i.test(clean)) return { r: 255, g: 69, b: 0 };
+
+  return {
+    r: parseInt(clean.slice(0, 2), 16),
+    g: parseInt(clean.slice(2, 4), 16),
+    b: parseInt(clean.slice(4, 6), 16),
+  };
+}
+
+function mixHex(hex, targetHex, amount) {
+  const base = hexToRgb(hex);
+  const target = hexToRgb(targetHex);
+
+  return rgbToHex({
+    r: base.r + (target.r - base.r) * amount,
+    g: base.g + (target.g - base.g) * amount,
+    b: base.b + (target.b - base.b) * amount,
+  });
+}
+
+function rgbToHsl({ r, g, b }) {
+  const nr = r / 255;
+  const ng = g / 255;
+  const nb = b / 255;
+  const max = Math.max(nr, ng, nb);
+  const min = Math.min(nr, ng, nb);
+  const lightness = (max + min) / 2;
+  const delta = max - min;
+
+  if (delta === 0) {
+    return { hue: 0, saturation: 0, lightness };
+  }
+
+  const saturation = delta / (1 - Math.abs(2 * lightness - 1));
+  let hue;
+  if (max === nr) hue = ((ng - nb) / delta) % 6;
+  else if (max === ng) hue = (nb - nr) / delta + 2;
+  else hue = (nr - ng) / delta + 4;
+
+  return { hue: (hue * 60 + 360) % 360, saturation, lightness };
+}
+
+function criarCoresFaixaPorBase(baseHex) {
+  return [
+    baseHex,
+    mixHex(baseHex, '#ffffff', 0.22),
+    mixHex(baseHex, '#ffffff', 0.42),
+  ];
+}
+
+async function extrairCoresFaixaDaLogo(logoImageData) {
+  if (!logoImageData?.buffer) return SYSTEM_ORANGE_STRIPE_COLORS;
+
+  try {
+    const image = await Jimp.read(logoImageData.buffer);
+    const { data, width, height } = image.bitmap;
+    const sampleStep = Math.max(1, Math.floor(Math.sqrt((width * height) / 6000)));
+    const buckets = new Map();
+
+    for (let y = 0; y < height; y += sampleStep) {
+      for (let x = 0; x < width; x += sampleStep) {
+        const idx = (width * y + x) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        const alpha = data[idx + 3];
+        if (alpha < 120) continue;
+
+        const hsl = rgbToHsl({ r, g, b });
+        const colorfulness = Math.max(r, g, b) - Math.min(r, g, b);
+        const isAlmostWhite = r > 238 && g > 238 && b > 238;
+        const isAlmostBlack = r < 35 && g < 35 && b < 35;
+        if (isAlmostWhite || isAlmostBlack) continue;
+        if (hsl.saturation < 0.22 || colorfulness < 32 || hsl.lightness < 0.16 || hsl.lightness > 0.88) continue;
+
+        const bucketKey = Math.round(hsl.hue / 18) * 18;
+        const bucket = buckets.get(bucketKey) || { weight: 0, r: 0, g: 0, b: 0 };
+        const weight = hsl.saturation * (1 - Math.abs(hsl.lightness - 0.5) * 0.45);
+        bucket.weight += weight;
+        bucket.r += r * weight;
+        bucket.g += g * weight;
+        bucket.b += b * weight;
+        buckets.set(bucketKey, bucket);
+      }
+    }
+
+    const dominant = [...buckets.values()].sort((a, b) => b.weight - a.weight)[0];
+    if (!dominant?.weight) return SYSTEM_ORANGE_STRIPE_COLORS;
+
+    const baseHex = rgbToHex({
+      r: dominant.r / dominant.weight,
+      g: dominant.g / dominant.weight,
+      b: dominant.b / dominant.weight,
+    });
+
+    return criarCoresFaixaPorBase(baseHex);
+  } catch (err) {
+    console.warn('[gerarRelatorio] Nao foi possivel extrair cores da logomarca:', err.message);
+    return SYSTEM_ORANGE_STRIPE_COLORS;
+  }
+}
+
 function montarLinhaEmpresa(data) {
   return joinNonEmpty([
     data.empresa_nome,
@@ -174,32 +379,31 @@ function montarContatoEmpresa(data) {
   ], ' | ');
 }
 
-async function getEmpresaLogoDataUri(req, empresa) {
+async function getEmpresaLogoReportData(req, empresa) {
   const logoUrl = valorInformado(empresa?.logo_url);
   if (logoUrl) {
     const imageData = await obterImagemBuffer(req, logoUrl);
     const mimeType = imageData?.mimeType?.split(';')[0] || '';
 
     if (imageData?.buffer && /^image\//i.test(mimeType)) {
-      return `data:${mimeType};base64,${imageData.buffer.toString('base64')}`;
+      if (mimeType.includes('svg')) {
+        return {
+          dataUri: `data:${mimeType};base64,${imageData.buffer.toString('base64')}`,
+          imageData: null,
+        };
+      }
+
+      const logo = await prepararLogoParaLaudo({ ...imageData, mimeType });
+      if (logo?.buffer) {
+        return {
+          dataUri: `data:${logo.mimeType};base64,${logo.buffer.toString('base64')}`,
+          imageData: logo,
+        };
+      }
     }
   }
 
-  return getLogoDataUri();
-}
-
-async function getEmpresaLogoImageData(req, empresa) {
-  const logoUrl = valorInformado(empresa?.logo_url);
-  if (logoUrl) {
-    const imageData = await obterImagemBuffer(req, logoUrl);
-    const type = getDocxImageType(imageData?.mimeType);
-
-    if (imageData?.buffer && type) {
-      return { type, buffer: imageData.buffer };
-    }
-  }
-
-  return getLogoImageData();
+  return { dataUri: '', imageData: null };
 }
 
 function escapeHtml(value) {
@@ -397,30 +601,110 @@ function extrairTopicos(...textos) {
 
 function montarHeaderTemplatePdf(data) {
   const logo = data.logo_data_uri
-    ? `<img src="${data.logo_data_uri}" style="height:42px; max-width:170px; object-fit:contain; object-position:left center;" />`
-    : `<div style="font-size:17px; font-weight:700; color:#222;">${escapeHtml(data.empresa_nome || 'VistoriaPro')}</div>`;
+    ? `<img src="${data.logo_data_uri}" style="width:260px; height:74px; object-fit:contain; object-position:left top;" />`
+    : `<div style="font-size:24px; line-height:1.1; font-weight:800; color:#222;">${escapeHtml(data.empresa_nome || 'Empresa')}</div>`;
 
   return `
-    <div style="width:100%; height:62px; box-sizing:border-box; padding:10px 16mm 0 16mm; font-family:Arial, sans-serif;">
+    <div style="width:100%; height:96px; box-sizing:border-box; padding:8px 16mm 0 16mm; font-family:Arial, sans-serif; display:flex; align-items:flex-start; color:#222;">
       ${logo}
     </div>
   `;
 }
 
-function montarFooterTemplatePdf(data) {
-  const linhaEmpresa = montarLinhaEmpresa(data);
-  const contato = montarContatoEmpresa(data);
+function formatarSiteRodape(value) {
+  return valorInformado(value)
+    .replace(/^https?:\/\//i, '')
+    .replace(/^www\./i, 'www.')
+    .replace(/\/$/, '');
+}
+
+function formatarInstagramRodape(value) {
+  const text = valorInformado(value)
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')
+    .replace(/\/$/, '');
+
+  if (!text) return '';
+  return text.startsWith('@') ? text : `@${text}`;
+}
+
+function rodapeIconeSvg(tipo) {
+  const common = 'width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="#111" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"';
+
+  if (tipo === 'pin') {
+    return `<svg ${common}><path d="M12 21s7-5.2 7-12a7 7 0 0 0-14 0c0 6.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.4"/></svg>`;
+  }
+
+  if (tipo === 'globe') {
+    return `<svg ${common}><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.2 2.5 3.3 5.5 3.3 9S14.2 18.5 12 21"/><path d="M12 3c-2.2 2.5-3.3 5.5-3.3 9S9.8 18.5 12 21"/></svg>`;
+  }
+
+  if (tipo === 'mail') {
+    return `<svg ${common}><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>`;
+  }
+
+  return `<svg ${common}><path d="M20.5 11.7a8.5 8.5 0 0 1-12.6 7.4L4 20l1-3.8A8.5 8.5 0 1 1 20.5 11.7z"/><path d="M9.2 7.8c.2-.4.4-.4.7-.4h.6c.2 0 .5.1.6.5l.7 1.7c.1.4 0 .6-.2.8l-.5.5c.7 1.3 1.7 2.2 3 2.9l.5-.5c.2-.2.5-.3.8-.2l1.7.8c.4.2.5.4.5.7v.6c0 .3-.1.6-.4.8-.5.3-1.1.5-1.8.5-3.6-.1-8.1-4.4-8.2-8.1 0-.7.2-1.3.5-1.8z"/></svg>`;
+}
+
+function montarLinhaIconeRodape(tipo, texto) {
+  if (!valorInformado(texto)) return '';
 
   return `
-    <div style="width:100%; box-sizing:border-box; padding:0 16mm 6px 16mm; font-family:Arial, sans-serif; color:#242424;">
-      <div style="border-top:1px solid #222; padding-top:4px; display:flex; justify-content:space-between; gap:10px; align-items:flex-end; font-size:6.7px; line-height:1.16;">
-        <div style="max-width:70%; white-space:normal;">
-          <div style="font-weight:700;">${escapeHtml(linhaEmpresa || data.empresa_nome || 'VistoriaPro')}</div>
-          <div>${escapeHtml(contato)}</div>
-        </div>
-        <div style="text-align:right; white-space:nowrap;">Gerado em ${escapeHtml(data.data_geracao)} | Pagina <span class="pageNumber"></span> de <span class="totalPages"></span></div>
+    <div style="display:flex; align-items:center; gap:8px; min-height:31px;">
+      <span style="display:inline-flex; width:30px; justify-content:center; flex:0 0 30px;">${rodapeIconeSvg(tipo)}</span>
+      <span style="display:block; padding-top:1px;">${escapeHtml(texto)}</span>
+    </div>
+  `;
+}
+
+function obterCoresFaixaRodape(data) {
+  const cores = Array.isArray(data?.faixa_rodape_cores) && data.faixa_rodape_cores.length >= 3
+    ? data.faixa_rodape_cores
+    : SYSTEM_ORANGE_STRIPE_COLORS;
+
+  return SYSTEM_ORANGE_STRIPE_COLORS.map((fallback, index) => {
+    const cor = String(cores[index] || '').trim();
+    return /^#[\da-f]{6}$/i.test(cor) ? cor : fallback;
+  });
+}
+
+function obterCoresFaixaRodapeDocx(data) {
+  return obterCoresFaixaRodape(data).map((cor) => cor.replace('#', '').toUpperCase());
+}
+
+function montarFooterTemplatePdf(data) {
+  const endereco = valorInformado(data.empresa_endereco);
+  const site = formatarSiteRodape(data.empresa_site);
+  const email = valorInformado(data.empresa_email);
+  const telefone = valorInformado(data.empresa_telefone);
+  const whatsapp = valorInformado(data.empresa_whatsapp);
+  const instagram = formatarInstagramRodape(data.empresa_instagram);
+  const contatoDireita = [telefone, whatsapp].filter(Boolean).map(escapeHtml).join('<br>');
+  const [faixaCor1, faixaCor2, faixaCor3] = obterCoresFaixaRodape(data);
+
+  return `
+    <div style="width:100%; height:182px; box-sizing:border-box; padding:0; font-family:Arial, Helvetica, sans-serif; color:#111; position:relative; top:20px; overflow:hidden;">
+      <div style="position:absolute; left:38px; bottom:42px; width:260px; display:grid; gap:6px; font-size:12px; line-height:1.16; font-weight:700; white-space:normal;">
+        ${montarLinhaIconeRodape('pin', endereco)}
+        ${montarLinhaIconeRodape('globe', site)}
+        ${montarLinhaIconeRodape('mail', email)}
       </div>
-      <div style="height:5px; margin:5px -16mm 0 -16mm; background:linear-gradient(90deg,#ff6933 0%,#ff6933 45%,#cf5d49 45%,#cf5d49 78%,#d98983 78%,#d98983 100%);"></div>
+      <div style="position:absolute; right:24px; bottom:49px; width:220px; font-size:12px; line-height:1.16; font-weight:700; text-align:left;">
+        ${contatoDireita ? `
+          <div style="display:flex; align-items:flex-start; gap:7px; margin-bottom:17px;">
+            <span style="display:inline-flex; width:30px; flex:0 0 30px; justify-content:center;">${rodapeIconeSvg('whatsapp')}</span>
+            <span style="display:block; padding-top:3px;">${contatoDireita}</span>
+          </div>
+        ` : ''}
+        ${instagram ? `<div style="padding-left:37px;"><div style="margin-bottom:4px;">Siga no Instagram:</div><div>${escapeHtml(instagram)}</div></div>` : ''}
+      </div>
+      <svg width="100%" height="4" viewBox="0 0 1000 4" preserveAspectRatio="none" style="position:absolute; left:0; right:0; bottom:36px; width:100%; height:4px; display:block;">
+        <rect x="0" y="0" width="1000" height="4" fill="#111111"></rect>
+      </svg>
+      <svg width="100%" height="23" viewBox="0 0 1000 23" preserveAspectRatio="none" style="position:absolute; left:0; bottom:0; width:100%; height:23px; display:block;">
+        <rect x="0" y="0" width="443" height="23" fill="${faixaCor1}"></rect>
+        <rect x="443" y="0" width="347" height="23" fill="${faixaCor2}"></rect>
+        <rect x="790" y="0" width="210" height="23" fill="${faixaCor3}"></rect>
+      </svg>
     </div>
   `;
 }
@@ -735,12 +1019,128 @@ function criarBlocoComodoDocx(comodo) {
   return children;
 }
 
+function criarParagrafoRodapeDocx(label, value) {
+  if (!valorInformado(value)) return null;
+
+  const children = [];
+  if (label) {
+    children.push(new TextRun({ text: `${label}: `, bold: true, color: DOCX_TEXT, size: 16 }));
+  }
+  children.push(new TextRun({ text: String(value), bold: true, color: DOCX_TEXT, size: 16 }));
+
+  return new Paragraph({
+    spacing: { after: 55 },
+    children,
+  });
+}
+
+function criarRodapeEmpresaDocx(data) {
+  const contatos = joinNonEmpty([data.empresa_whatsapp, data.empresa_telefone], ' / ');
+  const instagram = formatarInstagramRodape(data.empresa_instagram);
+  const [faixaCor1, faixaCor2, faixaCor3] = obterCoresFaixaRodapeDocx(data);
+
+  const leftChildren = [
+    criarParagrafoRodapeDocx('', data.empresa_endereco),
+    criarParagrafoRodapeDocx('', formatarSiteRodape(data.empresa_site)),
+    criarParagrafoRodapeDocx('', data.empresa_email),
+  ].filter(Boolean);
+
+  const rightChildren = [
+    criarParagrafoRodapeDocx('', contatos),
+    instagram ? new Paragraph({
+      spacing: { before: 90, after: 30 },
+      children: [new TextRun({ text: 'Siga no Instagram:', bold: true, color: DOCX_TEXT, size: 16 })],
+    }) : null,
+    criarParagrafoRodapeDocx('', instagram),
+  ].filter(Boolean);
+
+  return [
+    new Paragraph({
+      border: {
+        top: { color: DOCX_TEXT, space: 8, style: BorderStyle.SINGLE, size: 8 },
+      },
+      spacing: { before: 80, after: 60 },
+      children: [new TextRun({ text: '' })],
+    }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.FIXED,
+      borders: TableBorders.NONE,
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 58, type: WidthType.PERCENTAGE },
+              borders: TableBorders.NONE,
+              margins: { top: 0, bottom: 0, left: 0, right: 120 },
+              children: leftChildren.length ? leftChildren : [new Paragraph({ text: '' })],
+            }),
+            new TableCell({
+              width: { size: 42, type: WidthType.PERCENTAGE },
+              borders: TableBorders.NONE,
+              margins: { top: 0, bottom: 0, left: 120, right: 0 },
+              children: rightChildren.length ? rightChildren : [new Paragraph({ text: '' })],
+            }),
+          ],
+        }),
+      ],
+    }),
+    new Paragraph({ spacing: { before: 70, after: 0 }, children: [new TextRun({ text: '' })] }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.FIXED,
+      borders: TableBorders.NONE,
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 44, type: WidthType.PERCENTAGE },
+              borders: TableBorders.NONE,
+              shading: { type: ShadingType.CLEAR, fill: faixaCor1, color: 'auto' },
+              children: [new Paragraph({ spacing: { before: 40, after: 40 }, children: [new TextRun({ text: '' })] })],
+            }),
+            new TableCell({
+              width: { size: 35, type: WidthType.PERCENTAGE },
+              borders: TableBorders.NONE,
+              shading: { type: ShadingType.CLEAR, fill: faixaCor2, color: 'auto' },
+              children: [new Paragraph({ spacing: { before: 40, after: 40 }, children: [new TextRun({ text: '' })] })],
+            }),
+            new TableCell({
+              width: { size: 21, type: WidthType.PERCENTAGE },
+              borders: TableBorders.NONE,
+              shading: { type: ShadingType.CLEAR, fill: faixaCor3, color: 'auto' },
+              children: [new Paragraph({ spacing: { before: 40, after: 40 }, children: [new TextRun({ text: '' })] })],
+            }),
+          ],
+        }),
+      ],
+    }),
+  ];
+}
+
+function calcularDimensoesLogoDocx(logo, maxWidth = 220, maxHeight = 82) {
+  const width = Number(logo?.width);
+  const height = Number(logo?.height);
+  if (!width || !height) return { width: maxWidth, height: maxHeight };
+
+  const ratio = width / height;
+  let finalWidth = maxWidth;
+  let finalHeight = Math.round(finalWidth / ratio);
+
+  if (finalHeight > maxHeight) {
+    finalHeight = maxHeight;
+    finalWidth = Math.round(finalHeight * ratio);
+  }
+
+  return {
+    width: Math.max(1, finalWidth),
+    height: Math.max(1, finalHeight),
+  };
+}
+
 async function criarDocxBuffer(data, logoImageData = null) {
   const children = [];
-  const logo = logoImageData || getLogoImageData();
-  const linhaEmpresa = montarLinhaEmpresa(data);
-  const contatoEmpresa = montarContatoEmpresa(data);
-  const rodapeEmpresa = joinNonEmpty([linhaEmpresa || data.empresa_nome || 'VistoriaPro', contatoEmpresa], ' | ');
+  const logo = logoImageData;
 
   children.push(
     new Paragraph({
@@ -809,7 +1209,7 @@ async function criarDocxBuffer(data, logoImageData = null) {
           margin: {
             top: 900,
             right: 900,
-            bottom: 720,
+            bottom: 1120,
             left: 900,
           },
         },
@@ -824,30 +1224,16 @@ async function criarDocxBuffer(data, logoImageData = null) {
                 ? [new ImageRun({
                     type: logo.type,
                     data: logo.buffer,
-                    transformation: { width: 135, height: 66 },
+                    transformation: calcularDimensoesLogoDocx(logo),
                   })]
-                : [new TextRun({ text: data.empresa_nome || 'VistoriaPro', bold: true, size: 24 })],
+                : [new TextRun({ text: data.empresa_nome || 'Empresa', bold: true, size: 30 })],
             }),
           ],
         }),
       },
       footers: {
         default: new Footer({
-          children: [
-            new Paragraph({
-              alignment: AlignmentType.CENTER,
-              border: {
-                top: { color: DOCX_TEXT, space: 8, style: BorderStyle.SINGLE, size: 8 },
-              },
-              spacing: { before: 80 },
-              children: [
-                new TextRun({ text: `${rodapeEmpresa} | Gerado em ${data.data_geracao} | Pagina `, size: 13, color: DOCX_MUTED }),
-                new TextRun({ children: [PageNumber.CURRENT], size: 14, color: DOCX_MUTED }),
-                new TextRun({ text: ' de ', size: 14, color: DOCX_MUTED }),
-                new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: DOCX_MUTED }),
-              ],
-            }),
-          ],
+          children: criarRodapeEmpresaDocx(data),
         }),
       },
       children,
@@ -918,8 +1304,8 @@ module.exports = {
 
       // Busca dados da empresa para cabeçalho e rodapé do laudo
       const empresa = await empresaModel.buscarPorId(vistoria.empresa_id);
-      const logoDataUri = await getEmpresaLogoDataUri(req, empresa);
-      const logoImageData = await getEmpresaLogoImageData(req, empresa);
+      const { dataUri: logoDataUri, imageData: logoImageData } = await getEmpresaLogoReportData(req, empresa);
+      const faixaRodapeCores = await extrairCoresFaixaDaLogo(logoImageData);
 
       // Busca fotos
       const fotos = await fotoModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id);
@@ -1038,6 +1424,7 @@ module.exports = {
         fotos_sem_comodo: fotosSemComodo,
         data_geracao: new Date().toLocaleDateString('pt-BR'),
         logo_data_uri: logoDataUri,
+        faixa_rodape_cores: faixaRodapeCores,
       };
 
       data.abertura_blocos = montarAberturaBlocos(data);
@@ -1092,8 +1479,8 @@ module.exports = {
           headerTemplate: montarHeaderTemplatePdf(data),
           footerTemplate: montarFooterTemplatePdf(data),
           margin: {
-            top: '68px',
-            bottom: '56px',
+            top: '112px',
+            bottom: '182px',
             left: '16mm',
             right: '16mm'
           }
