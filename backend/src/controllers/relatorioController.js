@@ -145,6 +145,63 @@ function getLogoImageData() {
   return null;
 }
 
+function getDocxImageType(mimeType = '') {
+  const normalized = mimeType.toLowerCase().split(';')[0];
+  if (normalized.includes('png')) return 'png';
+  if (normalized.includes('jpeg') || normalized.includes('jpg')) return 'jpg';
+  if (normalized.includes('gif')) return 'gif';
+  if (normalized.includes('bmp')) return 'bmp';
+  return null;
+}
+
+function montarLinhaEmpresa(data) {
+  return joinNonEmpty([
+    data.empresa_nome,
+    data.empresa_cnpj ? `CNPJ: ${data.empresa_cnpj}` : '',
+    data.empresa_creci ? `CRECI: ${data.empresa_creci}` : ''
+  ], ' | ');
+}
+
+function montarContatoEmpresa(data) {
+  return joinNonEmpty([
+    data.empresa_endereco,
+    data.empresa_responsavel_nome ? `Resp.: ${data.empresa_responsavel_nome}` : '',
+    data.empresa_email,
+    data.empresa_site,
+    data.empresa_telefone ? `Tel.: ${data.empresa_telefone}` : '',
+    data.empresa_whatsapp ? `WhatsApp: ${data.empresa_whatsapp}` : '',
+    data.empresa_instagram ? `Instagram: ${data.empresa_instagram}` : ''
+  ], ' | ');
+}
+
+async function getEmpresaLogoDataUri(req, empresa) {
+  const logoUrl = valorInformado(empresa?.logo_url);
+  if (logoUrl) {
+    const imageData = await obterImagemBuffer(req, logoUrl);
+    const mimeType = imageData?.mimeType?.split(';')[0] || '';
+
+    if (imageData?.buffer && /^image\//i.test(mimeType)) {
+      return `data:${mimeType};base64,${imageData.buffer.toString('base64')}`;
+    }
+  }
+
+  return getLogoDataUri();
+}
+
+async function getEmpresaLogoImageData(req, empresa) {
+  const logoUrl = valorInformado(empresa?.logo_url);
+  if (logoUrl) {
+    const imageData = await obterImagemBuffer(req, logoUrl);
+    const type = getDocxImageType(imageData?.mimeType);
+
+    if (imageData?.buffer && type) {
+      return { type, buffer: imageData.buffer };
+    }
+  }
+
+  return getLogoImageData();
+}
+
 function escapeHtml(value) {
   return String(value || '')
     .replace(/&/g, '&amp;')
@@ -351,17 +408,17 @@ function montarHeaderTemplatePdf(data) {
 }
 
 function montarFooterTemplatePdf(data) {
-  const contato = joinNonEmpty([
-    data.empresa_endereco,
-    data.empresa_email,
-    data.empresa_telefone
-  ], ' • ');
+  const linhaEmpresa = montarLinhaEmpresa(data);
+  const contato = montarContatoEmpresa(data);
 
   return `
     <div style="width:100%; box-sizing:border-box; padding:0 16mm 6px 16mm; font-family:Arial, sans-serif; color:#242424;">
-      <div style="border-top:1px solid #222; padding-top:4px; display:flex; justify-content:space-between; gap:10px; align-items:flex-end; font-size:7px; line-height:1.2;">
-        <div style="max-width:68%; white-space:normal;">${escapeHtml(contato || data.empresa_nome || 'VistoriaPro')}</div>
-        <div style="text-align:right; white-space:nowrap;">Gerado em ${escapeHtml(data.data_geracao)} · Página <span class="pageNumber"></span> de <span class="totalPages"></span></div>
+      <div style="border-top:1px solid #222; padding-top:4px; display:flex; justify-content:space-between; gap:10px; align-items:flex-end; font-size:6.7px; line-height:1.16;">
+        <div style="max-width:70%; white-space:normal;">
+          <div style="font-weight:700;">${escapeHtml(linhaEmpresa || data.empresa_nome || 'VistoriaPro')}</div>
+          <div>${escapeHtml(contato)}</div>
+        </div>
+        <div style="text-align:right; white-space:nowrap;">Gerado em ${escapeHtml(data.data_geracao)} | Pagina <span class="pageNumber"></span> de <span class="totalPages"></span></div>
       </div>
       <div style="height:5px; margin:5px -16mm 0 -16mm; background:linear-gradient(90deg,#ff6933 0%,#ff6933 45%,#cf5d49 45%,#cf5d49 78%,#d98983 78%,#d98983 100%);"></div>
     </div>
@@ -678,9 +735,12 @@ function criarBlocoComodoDocx(comodo) {
   return children;
 }
 
-async function criarDocxBuffer(data) {
+async function criarDocxBuffer(data, logoImageData = null) {
   const children = [];
-  const logo = getLogoImageData();
+  const logo = logoImageData || getLogoImageData();
+  const linhaEmpresa = montarLinhaEmpresa(data);
+  const contatoEmpresa = montarContatoEmpresa(data);
+  const rodapeEmpresa = joinNonEmpty([linhaEmpresa || data.empresa_nome || 'VistoriaPro', contatoEmpresa], ' | ');
 
   children.push(
     new Paragraph({
@@ -781,7 +841,7 @@ async function criarDocxBuffer(data) {
               },
               spacing: { before: 80 },
               children: [
-                new TextRun({ text: `${data.empresa_nome || 'VistoriaPro'} · Gerado em ${data.data_geracao} · Página `, size: 14, color: DOCX_MUTED }),
+                new TextRun({ text: `${rodapeEmpresa} | Gerado em ${data.data_geracao} | Pagina `, size: 13, color: DOCX_MUTED }),
                 new TextRun({ children: [PageNumber.CURRENT], size: 14, color: DOCX_MUTED }),
                 new TextRun({ text: ' de ', size: 14, color: DOCX_MUTED }),
                 new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: DOCX_MUTED }),
@@ -857,7 +917,9 @@ module.exports = {
       const imovel = await imovelModel.buscarPorId(vistoria.imovel_id || vistoria.imovel || vistoria.imovelId, vistoria.empresa_id);
 
       // Busca dados da empresa para cabeçalho e rodapé do laudo
-      const empresa = await empresaModel.buscarPorId(req.usuario.empresa_id);
+      const empresa = await empresaModel.buscarPorId(vistoria.empresa_id);
+      const logoDataUri = await getEmpresaLogoDataUri(req, empresa);
+      const logoImageData = await getEmpresaLogoImageData(req, empresa);
 
       // Busca fotos
       const fotos = await fotoModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id);
@@ -965,12 +1027,17 @@ module.exports = {
         empresa_cnpj: empresa?.cnpj || '',
         empresa_email: empresa?.email || '',
         empresa_telefone: empresa?.telefone || '',
+        empresa_whatsapp: empresa?.whatsapp || '',
         empresa_endereco: empresa?.endereco || '',
+        empresa_site: empresa?.site || '',
+        empresa_instagram: empresa?.instagram || '',
+        empresa_responsavel_nome: empresa?.responsavel_nome || '',
+        empresa_creci: empresa?.creci || '',
         locatarios: locatarios,
         comodos: comodosCompletos,
         fotos_sem_comodo: fotosSemComodo,
         data_geracao: new Date().toLocaleDateString('pt-BR'),
-        logo_data_uri: getLogoDataUri(),
+        logo_data_uri: logoDataUri,
       };
 
       data.abertura_blocos = montarAberturaBlocos(data);
@@ -993,7 +1060,7 @@ module.exports = {
       let extensao;
 
       if (formato === 'word') {
-        buffer = await criarDocxBuffer(data);
+        buffer = await criarDocxBuffer(data, logoImageData);
         contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         extensao = 'docx';
       } else {

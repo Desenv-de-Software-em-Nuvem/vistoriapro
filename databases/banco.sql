@@ -25,7 +25,13 @@ CREATE TABLE IF NOT EXISTS empresas (
   cnpj VARCHAR(18) UNIQUE,
   email VARCHAR(200),
   telefone VARCHAR(30),
+  whatsapp VARCHAR(30),
   endereco TEXT,
+  site VARCHAR(200),
+  instagram VARCHAR(120),
+  responsavel_nome VARCHAR(200),
+  creci VARCHAR(80),
+  logo_url TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

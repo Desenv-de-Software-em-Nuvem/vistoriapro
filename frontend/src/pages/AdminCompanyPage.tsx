@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import { Building2, ExternalLink, Plus, RefreshCw, Search } from 'lucide-react';
+import { Building2, Edit3, ExternalLink, ImagePlus, Plus, RefreshCw, Save, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { AppHeader } from '../components/AppHeader';
@@ -11,14 +11,35 @@ interface Empresa {
   nome: string;
   cnpj: string;
   email: string;
+  telefone?: string | null;
+  whatsapp?: string | null;
+  endereco?: string | null;
+  site?: string | null;
+  instagram?: string | null;
+  responsavel_nome?: string | null;
+  creci?: string | null;
+  logo_url?: string | null;
   created_at?: string;
 }
 
-const EMPTY_FORM = {
+type EmpresaForm = Omit<Empresa, 'id' | 'created_at'>;
+
+const EMPTY_FORM: EmpresaForm = {
   nome: '',
   cnpj: '',
   email: '',
+  telefone: '',
+  whatsapp: '',
+  endereco: '',
+  site: '',
+  instagram: '',
+  responsavel_nome: '',
+  creci: '',
+  logo_url: '',
 };
+
+const MAX_LOGO_SIZE_BYTES = 1.5 * 1024 * 1024;
+const ALLOWED_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/jpg'];
 
 const Container = styled.div`
   width: 100%;
@@ -35,7 +56,7 @@ const Container = styled.div`
 
 const Content = styled.main`
   width: 100%;
-  max-width: 1120px;
+  max-width: 1180px;
   margin: 0 auto;
   display: grid;
   gap: 1rem;
@@ -73,11 +94,11 @@ const MetricLabel = styled.span`
 
 const WorkArea = styled.div`
   display: grid;
-  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  grid-template-columns: minmax(330px, 460px) minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
 
-  @media (max-width: 980px) {
+  @media (max-width: 1020px) {
     grid-template-columns: 1fr;
   }
 `;
@@ -128,6 +149,16 @@ const Form = styled.form`
   padding: 1rem;
 `;
 
+const FieldRow = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
 const FieldGroup = styled.label`
   display: grid;
   gap: 0.35rem;
@@ -161,12 +192,96 @@ const Input = styled.input`
   }
 `;
 
+const TextArea = styled.textarea`
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  background: ${({ theme }) => theme.colors.backgroundSecondary};
+  color: ${({ theme }) => theme.colors.text};
+  font-family: inherit;
+  font-size: ${({ theme }) => theme.fontSizes.base};
+  line-height: 1.45;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:focus {
+    border-color: ${({ theme }) => theme.colors.primaryLight};
+    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.backgroundGlass};
+  }
+`;
+
+const LogoUpload = styled.div`
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.85rem;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  background: ${({ theme }) => theme.colors.backgroundSecondary};
+
+  @media (max-width: 520px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const LogoPreview = styled.div`
+  width: 112px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  background: ${({ theme }) => theme.colors.backgroundCard};
+  overflow: hidden;
+
+  @media (max-width: 520px) {
+    width: 100%;
+  }
+`;
+
+const LogoImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 0.35rem;
+`;
+
+const LogoPlaceholder = styled.div`
+  display: grid;
+  place-items: center;
+  gap: 0.25rem;
+  color: ${({ theme }) => theme.colors.textLight};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 800;
+  text-align: center;
+`;
+
+const LogoActions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+`;
+
+const HiddenFileInput = styled.input`
+  display: none;
+`;
+
 const FormActions = styled.div`
   display: flex;
   justify-content: flex-end;
+  gap: 0.55rem;
+
+  @media (max-width: 520px) {
+    flex-direction: column;
+  }
 `;
 
-const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
+const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
   min-height: 40px;
   display: inline-flex;
   align-items: center;
@@ -175,7 +290,11 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
   padding: 0.65rem 0.9rem;
   border: 1px solid ${({ theme, $variant }) => $variant === 'primary' ? theme.colors.primary : theme.colors.borderLight};
   border-radius: ${({ theme }) => theme.borderRadius.lg};
-  background: ${({ theme, $variant }) => $variant === 'primary' ? theme.colors.primary : 'transparent'};
+  background: ${({ theme, $variant }) => {
+    if ($variant === 'primary') return theme.colors.primary;
+    if ($variant === 'ghost') return theme.colors.backgroundSecondary;
+    return 'transparent';
+  }};
   color: ${({ theme, $variant }) => $variant === 'primary' ? theme.colors.textWhite : theme.colors.textSecondary};
   font-size: ${({ theme }) => theme.fontSizes.sm};
   font-weight: 800;
@@ -192,10 +311,6 @@ const Button = styled.button<{ $variant?: 'primary' | 'secondary' }>`
     cursor: not-allowed;
     opacity: 0.65;
     transform: none;
-  }
-
-  @media (max-width: 520px) {
-    width: 100%;
   }
 `;
 
@@ -343,6 +458,33 @@ const CompanyTableCell = styled.td`
   }
 `;
 
+const CompanyIdentity = styled.div`
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: center;
+`;
+
+const CompanyAvatar = styled.div`
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  background: ${({ theme }) => theme.colors.backgroundCard};
+  overflow: hidden;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-weight: 900;
+`;
+
+const CompanyLogoThumb = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 0.2rem;
+`;
+
 const CompanyName = styled.span`
   display: block;
   max-width: 260px;
@@ -354,6 +496,25 @@ const CompanyName = styled.span`
   @media (max-width: 760px) {
     max-width: none;
     white-space: normal;
+  }
+`;
+
+const CompanyMeta = styled.span`
+  display: block;
+  margin-top: 0.18rem;
+  overflow: hidden;
+  color: ${({ theme }) => theme.colors.textLight};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const ActionCell = styled.div`
+  display: flex;
+  justify-content: flex-end;
+
+  @media (max-width: 760px) {
+    justify-content: flex-start;
   }
 `;
 
@@ -385,14 +546,49 @@ function formatDate(value?: string) {
   return new Intl.DateTimeFormat('pt-BR').format(date);
 }
 
+function toForm(empresa: Empresa): EmpresaForm {
+  return {
+    nome: empresa.nome || '',
+    cnpj: empresa.cnpj || '',
+    email: empresa.email || '',
+    telefone: empresa.telefone || '',
+    whatsapp: empresa.whatsapp || '',
+    endereco: empresa.endereco || '',
+    site: empresa.site || '',
+    instagram: empresa.instagram || '',
+    responsavel_nome: empresa.responsavel_nome || '',
+    creci: empresa.creci || '',
+    logo_url: empresa.logo_url || '',
+  };
+}
+
+function buildPayload(form: EmpresaForm) {
+  return Object.entries(form).reduce<Record<string, string>>((payload, [key, value]) => {
+    payload[key] = String(value || '').trim();
+    return payload;
+  }, {});
+}
+
+function getInitials(nome: string) {
+  return nome
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'E';
+}
+
 const AdminCompanyPage: React.FC = () => {
   const navigate = useNavigate();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState<EmpresaForm>(EMPTY_FORM);
+  const [editingEmpresaId, setEditingEmpresaId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const isEditing = editingEmpresaId !== null;
 
   const fetchEmpresas = async () => {
     setLoading(true);
@@ -418,16 +614,50 @@ const AdminCompanyPage: React.FC = () => {
       empresa.nome,
       empresa.cnpj,
       empresa.email,
-    ].some((value) => value.toLowerCase().includes(normalizedSearch)));
+      empresa.telefone,
+      empresa.whatsapp,
+      empresa.endereco,
+      empresa.site,
+      empresa.instagram,
+      empresa.creci,
+    ].some((value) => String(value || '').toLowerCase().includes(normalizedSearch)));
   }, [empresas, searchTerm]);
 
-  const companiesWithCnpj = empresas.filter((empresa) => empresa.cnpj).length;
-  const companiesCreatedThisMonth = empresas.filter((empresa) => {
-    if (!empresa.created_at) return false;
-    const createdAt = new Date(empresa.created_at);
-    const now = new Date();
-    return createdAt.getMonth() === now.getMonth() && createdAt.getFullYear() === now.getFullYear();
-  }).length;
+  const companiesWithLogo = empresas.filter((empresa) => empresa.logo_url).length;
+  const companiesWithReportContacts = empresas.filter((empresa) => (
+    empresa.telefone || empresa.whatsapp || empresa.endereco || empresa.site || empresa.instagram
+  )).length;
+
+  const resetForm = () => {
+    setForm(EMPTY_FORM);
+    setEditingEmpresaId(null);
+  };
+
+  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    if (!ALLOWED_LOGO_TYPES.includes(file.type)) {
+      setFeedback({ type: 'error', message: 'Selecione uma logomarca em PNG ou JPG.' });
+      return;
+    }
+
+    if (file.size > MAX_LOGO_SIZE_BYTES) {
+      setFeedback({ type: 'error', message: 'A logomarca deve ter ate 1,5 MB.' });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((current) => ({ ...current, logo_url: String(reader.result || '') }));
+      setFeedback(null);
+    };
+    reader.onerror = () => {
+      setFeedback({ type: 'error', message: 'Nao foi possivel ler a imagem selecionada.' });
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -435,19 +665,28 @@ const AdminCompanyPage: React.FC = () => {
     setFeedback(null);
 
     try {
-      await api.post('/empresas', {
-        nome: form.nome.trim(),
-        cnpj: form.cnpj.trim(),
-        email: form.email.trim(),
-      });
-      setForm(EMPTY_FORM);
-      setFeedback({ type: 'success', message: 'Empresa cadastrada. Agora você pode vincular usuários a ela.' });
+      const payload = buildPayload(form);
+      if (isEditing) {
+        await api.put(`/empresas/${editingEmpresaId}`, payload);
+        setFeedback({ type: 'success', message: 'Identidade da empresa atualizada. Os proximos laudos ja usam esses dados.' });
+      } else {
+        await api.post('/empresas', payload);
+        setFeedback({ type: 'success', message: 'Empresa cadastrada. Agora voce pode vincular usuarios a ela.' });
+      }
+
+      resetForm();
       await fetchEmpresas();
     } catch (error) {
       setFeedback({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleEdit = (empresa: Empresa) => {
+    setForm(toForm(empresa));
+    setEditingEmpresaId(empresa.id);
+    setFeedback(null);
   };
 
   return (
@@ -461,12 +700,12 @@ const AdminCompanyPage: React.FC = () => {
               <MetricLabel>Total de empresas</MetricLabel>
             </Metric>
             <Metric>
-              <MetricValue>{companiesWithCnpj}</MetricValue>
-              <MetricLabel>Com CNPJ preenchido</MetricLabel>
+              <MetricValue>{companiesWithLogo}</MetricValue>
+              <MetricLabel>Com logomarca</MetricLabel>
             </Metric>
             <Metric>
-              <MetricValue>{companiesCreatedThisMonth}</MetricValue>
-              <MetricLabel>Criadas neste mês</MetricLabel>
+              <MetricValue>{companiesWithReportContacts}</MetricValue>
+              <MetricLabel>Com dados para laudo</MetricLabel>
             </Metric>
           </MetricsRow>
 
@@ -475,35 +714,98 @@ const AdminCompanyPage: React.FC = () => {
               <PanelHeader>
                 <PanelTitleGroup>
                   <PanelTitle>
-                    <Plus size={20} />
-                    Nova empresa
+                    {isEditing ? <Edit3 size={20} /> : <Plus size={20} />}
+                    {isEditing ? 'Editar empresa' : 'Nova empresa'}
                   </PanelTitle>
-                  <PanelHint>Cadastre primeiro a empresa; depois crie os usuários vinculados a ela.</PanelHint>
+                  <PanelHint>
+                    Logomarca e contatos salvos aqui aparecem automaticamente no cabeçalho e rodape dos laudos.
+                  </PanelHint>
                 </PanelTitleGroup>
               </PanelHeader>
 
               <Form onSubmit={handleSubmit}>
                 <FieldGroup>
+                  <LabelText>Logomarca para o laudo</LabelText>
+                  <LogoUpload>
+                    <LogoPreview>
+                      {form.logo_url ? (
+                        <LogoImage src={form.logo_url} alt="Logomarca da empresa" />
+                      ) : (
+                        <LogoPlaceholder>
+                          <ImagePlus size={22} />
+                          PNG ou JPG
+                        </LogoPlaceholder>
+                      )}
+                    </LogoPreview>
+                    <LogoActions>
+                      <Button as="label" htmlFor="company-logo-input" type="button" $variant="ghost">
+                        <ImagePlus size={16} />
+                        Escolher imagem
+                      </Button>
+                      <HiddenFileInput
+                        id="company-logo-input"
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg"
+                        onChange={handleLogoChange}
+                      />
+                      {form.logo_url && (
+                        <Button
+                          type="button"
+                          $variant="secondary"
+                          onClick={() => setForm((current) => ({ ...current, logo_url: '' }))}
+                        >
+                          <X size={16} />
+                          Remover
+                        </Button>
+                      )}
+                    </LogoActions>
+                  </LogoUpload>
+                </FieldGroup>
+
+                <FieldGroup>
                   <LabelText>Razão social ou nome fantasia</LabelText>
                   <Input
                     name="nome"
                     autoComplete="organization"
-                    placeholder="Ex.: Imobiliária Central"
+                    placeholder="Ex.: Imobiliaria Central"
                     value={form.nome}
                     onChange={(event) => setForm((current) => ({ ...current, nome: event.target.value }))}
                     required
                   />
                 </FieldGroup>
 
+                <FieldRow>
+                  <FieldGroup>
+                    <LabelText>CNPJ</LabelText>
+                    <Input
+                      name="cnpj"
+                      inputMode="numeric"
+                      placeholder="00.000.000/0000-00"
+                      value={form.cnpj}
+                      onChange={(event) => setForm((current) => ({ ...current, cnpj: event.target.value }))}
+                      required
+                    />
+                  </FieldGroup>
+
+                  <FieldGroup>
+                    <LabelText>CRECI / registro</LabelText>
+                    <Input
+                      name="creci"
+                      placeholder="Ex.: CRECI 00000-J"
+                      value={form.creci || ''}
+                      onChange={(event) => setForm((current) => ({ ...current, creci: event.target.value }))}
+                    />
+                  </FieldGroup>
+                </FieldRow>
+
                 <FieldGroup>
-                  <LabelText>CNPJ</LabelText>
+                  <LabelText>Responsavel</LabelText>
                   <Input
-                    name="cnpj"
-                    inputMode="numeric"
-                    placeholder="00.000.000/0000-00"
-                    value={form.cnpj}
-                    onChange={(event) => setForm((current) => ({ ...current, cnpj: event.target.value }))}
-                    required
+                    name="responsavel_nome"
+                    autoComplete="name"
+                    placeholder="Nome do responsavel pela empresa"
+                    value={form.responsavel_nome || ''}
+                    onChange={(event) => setForm((current) => ({ ...current, responsavel_nome: event.target.value }))}
                   />
                 </FieldGroup>
 
@@ -520,6 +822,63 @@ const AdminCompanyPage: React.FC = () => {
                   />
                 </FieldGroup>
 
+                <FieldRow>
+                  <FieldGroup>
+                    <LabelText>Telefone</LabelText>
+                    <Input
+                      name="telefone"
+                      inputMode="tel"
+                      placeholder="(11) 3333-3333"
+                      value={form.telefone || ''}
+                      onChange={(event) => setForm((current) => ({ ...current, telefone: event.target.value }))}
+                    />
+                  </FieldGroup>
+
+                  <FieldGroup>
+                    <LabelText>WhatsApp</LabelText>
+                    <Input
+                      name="whatsapp"
+                      inputMode="tel"
+                      placeholder="(11) 99999-9999"
+                      value={form.whatsapp || ''}
+                      onChange={(event) => setForm((current) => ({ ...current, whatsapp: event.target.value }))}
+                    />
+                  </FieldGroup>
+                </FieldRow>
+
+                <FieldRow>
+                  <FieldGroup>
+                    <LabelText>Site</LabelText>
+                    <Input
+                      name="site"
+                      inputMode="url"
+                      placeholder="www.empresa.com.br"
+                      value={form.site || ''}
+                      onChange={(event) => setForm((current) => ({ ...current, site: event.target.value }))}
+                    />
+                  </FieldGroup>
+
+                  <FieldGroup>
+                    <LabelText>Instagram</LabelText>
+                    <Input
+                      name="instagram"
+                      placeholder="@empresa"
+                      value={form.instagram || ''}
+                      onChange={(event) => setForm((current) => ({ ...current, instagram: event.target.value }))}
+                    />
+                  </FieldGroup>
+                </FieldRow>
+
+                <FieldGroup>
+                  <LabelText>Endereço para rodape</LabelText>
+                  <TextArea
+                    name="endereco"
+                    placeholder="Rua, numero, bairro, cidade/UF"
+                    value={form.endereco || ''}
+                    onChange={(event) => setForm((current) => ({ ...current, endereco: event.target.value }))}
+                  />
+                </FieldGroup>
+
                 {feedback && (
                   <Feedback $error={feedback.type === 'error'}>
                     {feedback.message}
@@ -527,15 +886,21 @@ const AdminCompanyPage: React.FC = () => {
                 )}
 
                 <FormActions>
+                  {isEditing && (
+                    <Button type="button" $variant="secondary" onClick={resetForm} disabled={saving}>
+                      <X size={17} />
+                      Cancelar
+                    </Button>
+                  )}
                   <Button type="submit" $variant="primary" disabled={saving}>
-                    <Plus size={17} />
-                    {saving ? 'Cadastrando...' : 'Cadastrar'}
+                    {isEditing ? <Save size={17} /> : <Plus size={17} />}
+                    {saving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Cadastrar'}
                   </Button>
                 </FormActions>
               </Form>
 
               <NoteBox>
-                Após salvar, use a tela de usuários para criar o administrador, vistoriadores e demais acessos dessa empresa.
+                As informações preenchidas aqui entram nos proximos PDF e Word gerados para vistorias dessa empresa.
               </NoteBox>
             </Panel>
 
@@ -572,20 +937,47 @@ const AdminCompanyPage: React.FC = () => {
                     <CompanyTableHeader>
                       <tr>
                         <CompanyTableHeadCell>Empresa</CompanyTableHeadCell>
-                        <CompanyTableHeadCell>CNPJ</CompanyTableHeadCell>
-                        <CompanyTableHeadCell>Email</CompanyTableHeadCell>
+                        <CompanyTableHeadCell>Contato</CompanyTableHeadCell>
+                        <CompanyTableHeadCell>Laudo</CompanyTableHeadCell>
                         <CompanyTableHeadCell>Cadastro</CompanyTableHeadCell>
+                        <CompanyTableHeadCell>Ações</CompanyTableHeadCell>
                       </tr>
                     </CompanyTableHeader>
                     <tbody>
                       {filteredEmpresas.map((empresa) => (
                         <CompanyTableRow key={empresa.id}>
                           <CompanyTableCell data-label="Empresa">
-                            <CompanyName>{empresa.nome}</CompanyName>
+                            <CompanyIdentity>
+                              <CompanyAvatar>
+                                {empresa.logo_url ? (
+                                  <CompanyLogoThumb src={empresa.logo_url} alt="" />
+                                ) : (
+                                  getInitials(empresa.nome)
+                                )}
+                              </CompanyAvatar>
+                              <div>
+                                <CompanyName>{empresa.nome}</CompanyName>
+                                <CompanyMeta>{empresa.cnpj || 'Sem CNPJ'}{empresa.creci ? ` | ${empresa.creci}` : ''}</CompanyMeta>
+                              </div>
+                            </CompanyIdentity>
                           </CompanyTableCell>
-                          <CompanyTableCell data-label="CNPJ">{empresa.cnpj}</CompanyTableCell>
-                          <CompanyTableCell data-label="Email">{empresa.email}</CompanyTableCell>
+                          <CompanyTableCell data-label="Contato">
+                            {empresa.email || '-'}
+                            <CompanyMeta>{empresa.telefone || empresa.whatsapp || 'Sem telefone'}</CompanyMeta>
+                          </CompanyTableCell>
+                          <CompanyTableCell data-label="Laudo">
+                            {empresa.endereco || empresa.site || empresa.instagram || 'Dados pendentes'}
+                            <CompanyMeta>{empresa.logo_url ? 'Logomarca configurada' : 'Sem logomarca'}</CompanyMeta>
+                          </CompanyTableCell>
                           <CompanyTableCell data-label="Cadastro">{formatDate(empresa.created_at)}</CompanyTableCell>
+                          <CompanyTableCell data-label="Ações">
+                            <ActionCell>
+                              <Button type="button" $variant="ghost" onClick={() => handleEdit(empresa)}>
+                                <Edit3 size={16} />
+                                Editar
+                              </Button>
+                            </ActionCell>
+                          </CompanyTableCell>
                         </CompanyTableRow>
                       ))}
                     </tbody>
