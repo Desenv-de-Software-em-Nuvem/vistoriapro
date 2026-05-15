@@ -6,6 +6,8 @@ const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 const mustache = require('mustache');
 const { Jimp, JimpMime } = require('jimp');
+let sharp;
+try { sharp = require('sharp'); } catch { sharp = null; }
 const {
   AlignmentType,
   BorderStyle,
@@ -106,7 +108,6 @@ async function obtainPdfBrowser() {
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-background-networking',
-        '--disable-web-security',
       ],
       protocolTimeout: 300_000,
     })
@@ -150,6 +151,37 @@ const DOCX_TEXT = '222222';
 const DOCX_MUTED = '555555';
 const DOCX_BORDER = 'D8D8D8';
 const SYSTEM_ORANGE_STRIPE_COLORS = ['#ff4500', '#ff6b35', '#ff8c42'];
+const MESES_PT_BR = [
+  'janeiro',
+  'fevereiro',
+  'março',
+  'abril',
+  'maio',
+  'junho',
+  'julho',
+  'agosto',
+  'setembro',
+  'outubro',
+  'novembro',
+  'dezembro',
+];
+const CONCLUSAO_TEXTOS = [
+  'O presente laudo é parte integrante do contrato de locação realizado entre o locatário e o locador acima qualificados, o locatário reconhece no presente ato o compromisso assumido de entregar o imóvel locado nas mesmas condições que por ele recebido e neste laudo descrita.',
+  'Este relatório retratará fidedignamente o estado do imóvel no momento da vistoria. Caso algo não esteja relatado em forma de texto, mas estejam visíveis nas fotos que acompanham a vistoria, as mesmas poderão ser utilizadas para efeitos de comprovação das características e estado de conservação, se encontrando as imagens em qualidade e resolução superior arquivadas com a administradora, podendo ser solicitados os arquivos originais mediante requerimento escrito.',
+];
+const DISPOSITIVO_LEI_LINHAS = [
+  { prefixo: 'Dispositivo da Lei 8.245/91:', texto: '' },
+  { prefixo: 'Art. 23', texto: '- O Locatário é obrigado a:' },
+  { prefixo: 'II', texto: '- Servir-se do imóvel para uso convencionado ou presumido, compatível com a natureza deste e com o fim a que se destina, devendo tratá-lo com o mesmo cuidado como se fosse seu;' },
+  { prefixo: 'III', texto: '- restituir o imóvel, finda a locação, no estado em que o recebeu, salvo as deteriorações decorrentes do seu uso normal;' },
+  { prefixo: 'IV', texto: '- Não modificar a forma interna ou externa do imóvel sem o consentimento prévio e por escrito do locador;' },
+  { prefixo: 'IX', texto: '- Permitir a vistoria do imóvel pelo Locador ou por seu mandatário, mediante combinação prévia de dia e hora, bem como admitir que seja visitado e examinado por terceiros, na hipótese prevista no art.27;' },
+  { prefixo: 'PARÁGRAFO ÚNICO:', texto: 'qualquer discordância por parte do locatário, com relação ao laudo de vistoria, deverá ser feita, no prazo improrrogável de até 05(cinco) dias contados da data de realização da mesma.' },
+];
+const DECLARACAO_ASSINATURA_TEXTOS = [
+  'Declaro ter participado pessoalmente da vistoria acima descrita, que fica fazendo parte integrante do Contrato de Locação por mim firmado, assumindo neste ato o encargo de deixar o imóvel nas mesmas condições em que ora recebo.',
+  'Declaro para os devidos fins, que concordo com todos os itens do termo de vistoria acima.',
+];
 const logoCandidates = [
   path.join(__dirname, '../../public/VistoriaPro1.png'),
   path.join(process.cwd(), 'public/VistoriaPro1.png'),
@@ -527,6 +559,52 @@ function formatarDataBR(value) {
   return date.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 }
 
+function obterPartesData(value) {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      return {
+        ano: Number(match[1]),
+        mes: Number(match[2]),
+        dia: Number(match[3]),
+      };
+    }
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return {
+    ano: date.getUTCFullYear(),
+    mes: date.getUTCMonth() + 1,
+    dia: date.getUTCDate(),
+  };
+}
+
+function formatarDataExtenso(value) {
+  const partes = obterPartesData(value);
+  if (!partes) return formatarDataBR(value);
+
+  return `${String(partes.dia).padStart(2, '0')} de ${MESES_PT_BR[partes.mes - 1]} de ${partes.ano}`;
+}
+
+function formatarLocalDataExtenso(data) {
+  const local = joinNonEmpty([data.imovel_cidade, data.imovel_uf], ', ');
+  const dataExtenso = formatarDataExtenso(data.data_vistoria || data.data);
+
+  return joinNonEmpty([local, dataExtenso], ' ');
+}
+
+function documentoCpf(value) {
+  const cpf = valorInformado(value);
+  return cpf ? `CPF: ${cpf}` : 'CPF:';
+}
+
+function documentoCnpj(value) {
+  const cnpj = valorInformado(value);
+  return cnpj ? `CNPJ: ${cnpj}` : '';
+}
+
 function primeiraMaiuscula(value) {
   const text = valorInformado(value);
   if (!text) return '';
@@ -659,6 +737,26 @@ function montarObservacoesPadrao() {
       criterio: true,
     },
   ];
+}
+
+function montarDadosConclusao(data) {
+  const locatario = (data.locatarios || []).find((item) => valorInformado(item.nome)) || {};
+  const vistoriadorNome = valorInformado(data.vistoriador_nome).toUpperCase();
+  const locadorNome = valorInformado(data.empresa_nome).toUpperCase();
+  const locatarioNome = valorInformado(locatario.nome).toUpperCase();
+
+  return {
+    conclusao_textos: CONCLUSAO_TEXTOS,
+    dispositivo_lei: DISPOSITIVO_LEI_LINHAS,
+    declaracao_assinatura_textos: DECLARACAO_ASSINATURA_TEXTOS,
+    vistoriador_nome: vistoriadorNome,
+    vistoriador_cpf: valorInformado(data.vistoriador_cpf),
+    local_data_extenso: formatarLocalDataExtenso(data),
+    locador_assinatura_nome: locadorNome,
+    locador_assinatura_documento: documentoCnpj(data.empresa_cnpj),
+    locatario_assinatura_nome: locatarioNome,
+    locatario_assinatura_documento: documentoCpf(locatario.cpf),
+  };
 }
 
 function extrairTopicos(...textos) {
@@ -841,6 +939,27 @@ async function compactarImagemParaRelatorio(req, url) {
     return { url: resolvedUrl, buffer: null };
   }
 
+  // Sharp: nativo/libvips, ~50x mais rápido que Jimp para fotos de câmera (>3MB)
+  if (sharp) {
+    try {
+      const compactedBuffer = await sharp(imageData.buffer)
+        .rotate()
+        .resize(FOTO_MAX_WIDTH, FOTO_MAX_HEIGHT, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: FOTO_JPEG_QUALITY })
+        .toBuffer();
+      const finalMeta = await sharp(compactedBuffer).metadata();
+      return {
+        url: `data:image/jpeg;base64,${compactedBuffer.toString('base64')}`,
+        buffer: compactedBuffer,
+        width: finalMeta.width || FOTO_MAX_WIDTH,
+        height: finalMeta.height || FOTO_MAX_HEIGHT,
+      };
+    } catch (err) {
+      console.warn('[gerarRelatorio] Sharp falhou, usando Jimp:', err.message);
+    }
+  }
+
+  // Fallback: Jimp (puro JS, mais lento mas sempre disponível)
   try {
     const image = await Jimp.read(imageData.buffer);
     image.scaleToFit({ w: FOTO_MAX_WIDTH, h: FOTO_MAX_HEIGHT });
@@ -849,7 +968,7 @@ async function compactarImagemParaRelatorio(req, url) {
       url: `data:image/jpeg;base64,${compactedBuffer.toString('base64')}`,
       buffer: compactedBuffer,
       width: image.bitmap.width,
-      height: image.bitmap.height
+      height: image.bitmap.height,
     };
   } catch (err) {
     console.warn('[gerarRelatorio] Não foi possível compactar imagem do relatório:', err.message);
@@ -1226,6 +1345,165 @@ function calcularDimensoesLogoDocx(logo, maxWidth = 220, maxHeight = 82) {
   };
 }
 
+function criarParagrafoTextoDocx(texto, options = {}) {
+  return new Paragraph({
+    pageBreakBefore: Boolean(options.pageBreakBefore),
+    alignment: options.alignment || AlignmentType.JUSTIFIED,
+    spacing: options.spacing || { after: 140, line: 235 },
+    indent: options.indent,
+    children: [
+      new TextRun({
+        text: texto,
+        bold: Boolean(options.bold),
+        italics: Boolean(options.italics),
+        color: DOCX_TEXT,
+        size: options.size || 18,
+      }),
+    ],
+  });
+}
+
+function criarLinhaLeiDocx(item) {
+  return new Paragraph({
+    alignment: AlignmentType.JUSTIFIED,
+    spacing: { after: 80, line: 220 },
+    indent: { left: 1700, right: 1400 },
+    children: [
+      new TextRun({ text: item.prefixo, bold: true, italics: true, color: DOCX_TEXT, size: 18 }),
+      new TextRun({ text: item.texto ? ` ${item.texto}` : '', italics: true, color: DOCX_TEXT, size: 18 }),
+    ],
+  });
+}
+
+function criarLinhaAssinaturaDocx(label, nome, documento, options = {}) {
+  return [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: options.before || 640, after: 35 },
+      children: [new TextRun({ text: '___________________________________________', color: DOCX_TEXT, size: 18 })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 25 },
+      children: [new TextRun({ text: label, bold: true, color: DOCX_TEXT, size: 18 })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 20 },
+      children: [new TextRun({ text: nome || '', bold: true, color: DOCX_TEXT, size: 18 })],
+    }),
+    documento ? new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 20 },
+      children: [new TextRun({ text: documento, bold: true, color: DOCX_TEXT, size: 18 })],
+    }) : null,
+  ].filter(Boolean);
+}
+
+function criarConclusaoDocx(data) {
+  const conclusao = montarDadosConclusao(data);
+  const children = [
+    criarTituloSecaoDocx('Conclusão', { pageBreakBefore: true }),
+    ...conclusao.conclusao_textos.map((texto) => criarParagrafoTextoDocx(texto, {
+      indent: { left: 520, right: 520 },
+      spacing: { after: 145, line: 230 },
+    })),
+    new Paragraph({ spacing: { before: 560, after: 120 }, children: [new TextRun({ text: '' })] }),
+    ...conclusao.dispositivo_lei.map(criarLinhaLeiDocx),
+  ];
+
+  return children;
+}
+
+function criarAssinaturasDocx(data) {
+  const conclusao = montarDadosConclusao(data);
+  return [
+    criarParagrafoTextoDocx(conclusao.declaracao_assinatura_textos[0], {
+      pageBreakBefore: true,
+      indent: { left: 520, right: 520 },
+      spacing: { before: 120, after: 160, line: 230 },
+    }),
+    criarParagrafoTextoDocx(conclusao.declaracao_assinatura_textos[1], {
+      indent: { left: 520, right: 520 },
+      spacing: { after: 520, line: 230 },
+    }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.FIXED,
+      borders: TableBorders.NONE,
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              borders: TableBorders.NONE,
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  spacing: { after: 35 },
+                  children: [new TextRun({ text: '______________________________', color: DOCX_TEXT, size: 18 })],
+                }),
+                new Paragraph({
+                  alignment: AlignmentType.LEFT,
+                  children: [new TextRun({ text: `VISTORIADOR: ${conclusao.vistoriador_nome}`, bold: true, color: DOCX_TEXT, size: 17 })],
+                }),
+                new Paragraph({
+                  alignment: AlignmentType.LEFT,
+                  children: [new TextRun({ text: documentoCpf(conclusao.vistoriador_cpf), bold: true, color: DOCX_TEXT, size: 17 })],
+                }),
+              ],
+            }),
+            new TableCell({
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              borders: TableBorders.NONE,
+              verticalAlign: VerticalAlign.BOTTOM,
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.RIGHT,
+                  spacing: { before: 220 },
+                  children: [new TextRun({ text: conclusao.local_data_extenso, color: DOCX_TEXT, size: 17 })],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    ...criarLinhaAssinaturaDocx('LOCADOR(A):', conclusao.locador_assinatura_nome, conclusao.locador_assinatura_documento, { before: 660 }),
+    ...criarLinhaAssinaturaDocx('LOCATÁRIO(A):', conclusao.locatario_assinatura_nome, conclusao.locatario_assinatura_documento, { before: 700 }),
+    new Paragraph({ spacing: { before: 760, after: 80 }, children: [new TextRun({ text: '' })] }),
+    new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      layout: TableLayoutType.FIXED,
+      borders: TableBorders.NONE,
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              borders: TableBorders.NONE,
+              children: [
+                new Paragraph({ children: [new TextRun({ text: 'Testemunha 1', color: DOCX_TEXT, size: 16 })] }),
+                new Paragraph({ children: [new TextRun({ text: 'CPF:', color: DOCX_TEXT, size: 16 })] }),
+                new Paragraph({ children: [new TextRun({ text: 'Nome:', color: DOCX_TEXT, size: 16 })] }),
+              ],
+            }),
+            new TableCell({
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              borders: TableBorders.NONE,
+              children: [
+                new Paragraph({ children: [new TextRun({ text: 'Testemunha 2', color: DOCX_TEXT, size: 16 })] }),
+                new Paragraph({ children: [new TextRun({ text: 'CPF:', color: DOCX_TEXT, size: 16 })] }),
+                new Paragraph({ children: [new TextRun({ text: 'Nome:', color: DOCX_TEXT, size: 16 })] }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+  ];
+}
+
 async function criarDocxBuffer(data, logoImageData = null) {
   const children = [];
   const logo = logoImageData;
@@ -1287,6 +1565,9 @@ async function criarDocxBuffer(data, logoImageData = null) {
       children.push(new Paragraph({ spacing: { after: 140 }, children: [new TextRun({ text: '' })] }));
     }
   }
+
+  children.push(...criarConclusaoDocx(data));
+  children.push(...criarAssinaturasDocx(data));
 
   const document = new Document({
     creator: 'VistoriaPro',
@@ -1370,6 +1651,7 @@ const fotoModel = require('../models/fotoModel');
 const comodoVistoriaModel = require('../models/comodoVistoriaModel');
 const locatarioVistoriaListModel = require('../models/locatarioVistoriaListModel');
 const transcricaoModel = require('../models/transcricaoModel');
+const usuarioModel = require('../models/usuarioModel');
 
 /**
  * Remove Buffers e strings gigantes (logo base64) antes de persistir em JSONB.
@@ -1413,13 +1695,14 @@ module.exports = {
       if (!vistoria) return res.status(404).json({ error: 'Vistoria não encontrada.' });
 
       // Busca imóvel, empresa e dados da vistoria em paralelo (reduz round-trips ao banco)
-      const [imovel, empresa, fotos, transcricoes, comodos, locatariosRaw] = await Promise.all([
+      const [imovel, empresa, fotos, transcricoes, comodos, locatariosRaw, vistoriador] = await Promise.all([
         imovelModel.buscarPorId(vistoria.imovel_id || vistoria.imovel || vistoria.imovelId, vistoria.empresa_id),
         empresaModel.buscarPorId(vistoria.empresa_id),
         fotoModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id),
         transcricaoModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id),
         comodoVistoriaModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id),
         locatarioVistoriaListModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id),
+        usuarioModel.buscarPorId(vistoria.usuario_id || req.usuario.id),
       ]);
 
       // Logo com cache por empresa (evita reprocessar Jimp a cada geração)
@@ -1445,22 +1728,12 @@ module.exports = {
         if (t.foto_id) transcricaoPorFoto[String(t.foto_id)] = t.texto;
       });
 
-      // Agrupa fotos por cômodo.
-      // PDF: Puppeteer/Chrome carrega e renderiza URLs nativamente (hardware-accelerated).
-      //       Pular Jimp elimina o maior gargalo (3-8s por foto de câmera em JS puro).
-      // Word: precisa de buffer real para ImageRun; mantém Jimp com concorrência limitada.
+      // Compacta fotos com Sharp (nativo, ~50x mais rápido que Jimp) — concorrência limitada a 6
       const fotosPorComodo = {};
       const fotosEnriquecidas = await mapComConcorrencia(
         fotos,
         async (f) => {
           const descricao = transcricaoPorFoto[String(f.id)] || f.descricao;
-          if (formato === 'pdf') {
-            return {
-              f,
-              descricao,
-              imagemCompactada: { url: normalizarUrlImagem(req, f.url), buffer: null, width: null, height: null },
-            };
-          }
           const imagemCompactada = await carregarImagemCompactada(req, f.url);
           return { f, descricao, imagemCompactada };
         },
@@ -1517,6 +1790,8 @@ module.exports = {
         tipo_vistoria: vistoria.tipo_vistoria || 'Entrada',
         tipo_imovel: imovel?.tipo || '',
         imovel_endereco: imovel?.endereco_completo || vistoria.endereco || '',
+        imovel_cidade: imovel?.cidade || '',
+        imovel_uf: imovel?.uf || '',
         imovel_matricula: imovel?.imovel_matricula || imovel?.matricula || '',
         imovel_cartorio: imovel?.imovel_cartorio || imovel?.cartorio || '',
         proprietario_nome: imovel?.proprietario_nome || '',
@@ -1545,6 +1820,9 @@ module.exports = {
         empresa_instagram: empresa?.instagram || '',
         empresa_responsavel_nome: empresa?.responsavel_nome || '',
         empresa_creci: empresa?.creci || '',
+        vistoriador_nome: vistoriador?.nome || '',
+        vistoriador_cpf: vistoriador?.cpf || '',
+        vistoriador_email: vistoriador?.email || '',
         locatarios: locatarios,
         comodos: comodosCompletos,
         fotos_sem_comodo: fotosSemComodo,
@@ -1556,6 +1834,7 @@ module.exports = {
       data.abertura_blocos = montarAberturaBlocos(data);
       data.dados_imovel = montarDadosImovel(data);
       data.observacoes_padrao = montarObservacoesPadrao(data);
+      Object.assign(data, montarDadosConclusao(data));
       data.tem_dados_imovel = data.dados_imovel.length > 0;
       data.tem_comodos = data.comodos.length > 0;
       data.tem_fotos_sem_comodo = data.fotos_sem_comodo.length > 0;
@@ -1581,35 +1860,8 @@ module.exports = {
         const browser = await obtainPdfBrowser();
         const page = await browser.newPage();
         try {
-          await page.setContent(html, { waitUntil: 'load', timeout: 300_000 });
+          await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 300_000 });
           await page.emulateMediaType('print');
-          // Aguarda todas as imagens carregarem (incluindo URLs externas do Supabase)
-          await page.evaluate(async () => {
-            await Promise.all(Array.from(document.images).map((img) => {
-              if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-              if (typeof img.decode === 'function') {
-                return img.decode().catch(() => undefined);
-              }
-              return new Promise((resolve) => {
-                img.onload = resolve;
-                img.onerror = resolve;
-              });
-            }));
-          });
-          // Comprime fotos via Canvas nativo do Chrome (codec JPEG hardware-accelerated).
-          // Equivale ao Jimp mas ~50x mais rápido; substitui img.src por data URI comprimida.
-          await page.evaluate(({ maxW, maxH, quality }) => {
-            document.querySelectorAll('.photo-tile img, .standalone-photos img').forEach((img) => {
-              if (!img.complete || img.naturalWidth === 0) return;
-              const ratio = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
-              if (ratio >= 1 && img.naturalWidth * img.naturalHeight < 800 * 800) return;
-              const canvas = document.createElement('canvas');
-              canvas.width = Math.round(img.naturalWidth * ratio);
-              canvas.height = Math.round(img.naturalHeight * ratio);
-              canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-              img.src = canvas.toDataURL('image/jpeg', quality);
-            });
-          }, { maxW: FOTO_MAX_WIDTH, maxH: FOTO_MAX_HEIGHT, quality: FOTO_JPEG_QUALITY / 100 });
           buffer = await page.pdf({
             format: 'A4',
             printBackground: true,
