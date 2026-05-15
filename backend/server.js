@@ -37,10 +37,18 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log('==========================');
 });
 
-// Graceful shutdown
+// Graceful shutdown (fecha Chrome compartilhado do Puppeteer, se houver)
 process.on('SIGTERM', () => {
   console.log('SIGTERM recebido, encerrando servidor...');
-  server.close(() => {
+  server.close(async () => {
+    try {
+      const { closeSharedPdfBrowser } = require('./src/controllers/relatorioController');
+      if (typeof closeSharedPdfBrowser === 'function') {
+        await closeSharedPdfBrowser();
+      }
+    } catch (e) {
+      console.warn('Ao encerrar Chrome Puppeteer:', e.message);
+    }
     console.log('Servidor encerrado.');
     process.exit(0);
   });

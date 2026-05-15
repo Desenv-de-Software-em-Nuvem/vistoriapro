@@ -60,6 +60,79 @@ const findChromeExecutable = () => {
   return undefined;
 };
 
+/** Chrome compartilhado entre gerações de PDF (evita ~5–20s de launch a cada laudo no Render). */
+let pdfBrowserSingleton = null;
+let pdfBrowserLaunchPromise = null;
+
+/** Cache de logo processada por empresa (Jimp crop+resize+cores extraídas). TTL de 5 min. */
+const logoProcessadaCache = new Map();
+const LOGO_CACHE_TTL_MS = 5 * 60 * 1000;
+
+/** Executa fn em paralelo com no máximo `limit` concurrent. Mantém ordem do array original. */
+async function mapComConcorrencia(items, fn, limit = 6) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await fn(items[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
+async function obtainPdfBrowser() {
+  if (pdfBrowserSingleton) {
+    try {
+      if (typeof pdfBrowserSingleton.isConnected === 'function' && pdfBrowserSingleton.isConnected()) {
+        return pdfBrowserSingleton;
+      }
+    } catch {
+      /* browser inválido */
+    }
+    pdfBrowserSingleton = null;
+  }
+  if (pdfBrowserLaunchPromise) {
+    return pdfBrowserLaunchPromise;
+  }
+  const chromePath = findChromeExecutable();
+  pdfBrowserLaunchPromise = puppeteer
+    .launch({
+      headless: 'new',
+      ...(chromePath ? { executablePath: chromePath } : {}),
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-background-networking',
+      ],
+      protocolTimeout: 300_000,
+    })
+    .then((browser) => {
+      pdfBrowserSingleton = browser;
+      pdfBrowserLaunchPromise = null;
+      browser.on('disconnected', () => {
+        pdfBrowserSingleton = null;
+      });
+      return browser;
+    })
+    .catch((err) => {
+      pdfBrowserLaunchPromise = null;
+      throw err;
+    });
+  return pdfBrowserLaunchPromise;
+}
+
+async function closeSharedPdfBrowser() {
+  const b = pdfBrowserSingleton;
+  pdfBrowserSingleton = null;
+  pdfBrowserLaunchPromise = null;
+  if (b) {
+    await b.close().catch(() => {});
+  }
+}
+
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_API_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
@@ -404,6 +477,20 @@ async function getEmpresaLogoReportData(req, empresa) {
   }
 
   return { dataUri: '', imageData: null };
+}
+
+async function getEmpresaLogoReportDataCached(req, empresa) {
+  const cacheKey = String(empresa?.id || '');
+  const logoUrl = valorInformado(empresa?.logo_url);
+  const cached = logoProcessadaCache.get(cacheKey);
+  if (cached && cached.logoUrl === logoUrl && (Date.now() - cached.timestamp) < LOGO_CACHE_TTL_MS) {
+    return cached;
+  }
+  const { dataUri, imageData } = await getEmpresaLogoReportData(req, empresa);
+  const faixaRodapeCores = await extrairCoresFaixaDaLogo(imageData);
+  const entry = { dataUri, imageData, faixaRodapeCores, logoUrl, timestamp: Date.now() };
+  logoProcessadaCache.set(cacheKey, entry);
+  return entry;
 }
 
 function escapeHtml(value) {
@@ -1324,24 +1411,21 @@ module.exports = {
       const vistoria = await vistoriaModel.buscarPorId(vistoria_id, req.usuario.empresa_id);
       if (!vistoria) return res.status(404).json({ error: 'Vistoria não encontrada.' });
 
-      // Busca imóvel relacionado
-      const imovel = await imovelModel.buscarPorId(vistoria.imovel_id || vistoria.imovel || vistoria.imovelId, vistoria.empresa_id);
+      // Busca imóvel, empresa e dados da vistoria em paralelo (reduz round-trips ao banco)
+      const [imovel, empresa, fotos, transcricoes, comodos, locatariosRaw] = await Promise.all([
+        imovelModel.buscarPorId(vistoria.imovel_id || vistoria.imovel || vistoria.imovelId, vistoria.empresa_id),
+        empresaModel.buscarPorId(vistoria.empresa_id),
+        fotoModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id),
+        transcricaoModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id),
+        comodoVistoriaModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id),
+        locatarioVistoriaListModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id),
+      ]);
 
-      // Busca dados da empresa para cabeçalho e rodapé do laudo
-      const empresa = await empresaModel.buscarPorId(vistoria.empresa_id);
-      const { dataUri: logoDataUri, imageData: logoImageData } = await getEmpresaLogoReportData(req, empresa);
-      const faixaRodapeCores = await extrairCoresFaixaDaLogo(logoImageData);
+      // Logo com cache por empresa (evita reprocessar Jimp a cada geração)
+      const { dataUri: logoDataUri, imageData: logoImageData, faixaRodapeCores } = await getEmpresaLogoReportDataCached(req, empresa);
 
-      // Busca fotos
-      const fotos = await fotoModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id);
-      // Busca transcrições
-      const transcricoes = await transcricaoModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id);
-      // Busca cômodos
-      const comodos = await comodoVistoriaModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id);
-      // Busca locatários detalhados
-      let locatarios = await locatarioVistoriaListModel.listarPorVistoria(vistoria_id, req.usuario.empresa_id);
       // Garante que todos os campos dos locatários sejam string (evita null no template)
-      locatarios = locatarios.map(l => ({
+      let locatarios = locatariosRaw.map(l => ({
         id: l.id,
         vistoria_id: l.vistoria_id,
         nome: l.nome || '',
@@ -1360,14 +1444,26 @@ module.exports = {
         if (t.foto_id) transcricaoPorFoto[String(t.foto_id)] = t.texto;
       });
 
-      // Agrupa fotos por cômodo — compactação em paralelo (sequencial estourava timeout com muitas fotos)
+      // Agrupa fotos por cômodo.
+      // PDF: Puppeteer/Chrome carrega e renderiza URLs nativamente (hardware-accelerated).
+      //       Pular Jimp elimina o maior gargalo (3-8s por foto de câmera em JS puro).
+      // Word: precisa de buffer real para ImageRun; mantém Jimp com concorrência limitada.
       const fotosPorComodo = {};
-      const fotosEnriquecidas = await Promise.all(
-        fotos.map(async (f) => {
+      const fotosEnriquecidas = await mapComConcorrencia(
+        fotos,
+        async (f) => {
           const descricao = transcricaoPorFoto[String(f.id)] || f.descricao;
+          if (formato === 'pdf') {
+            return {
+              f,
+              descricao,
+              imagemCompactada: { url: normalizarUrlImagem(req, f.url), buffer: null, width: null, height: null },
+            };
+          }
           const imagemCompactada = await carregarImagemCompactada(req, f.url);
           return { f, descricao, imagemCompactada };
-        }),
+        },
+        6,
       );
       for (const { f, descricao, imagemCompactada } of fotosEnriquecidas) {
         const key = f.comodo_id ? String(f.comodo_id) : (f.comodo_nome || 'outros');
@@ -1480,44 +1576,40 @@ module.exports = {
         contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         extensao = 'docx';
       } else {
-        // Geração do PDF (Chrome do sistema ou binário baixado pelo Puppeteer no build)
-        const chromePath = findChromeExecutable();
-        const browser = await puppeteer.launch({
-          headless: 'new',
-          ...(chromePath ? { executablePath: chromePath } : {}),
-          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-          protocolTimeout: 300_000,
-        });
+        // Geração do PDF: reutiliza o mesmo Chrome entre laudos (fecha só a aba)
+        const browser = await obtainPdfBrowser();
         const page = await browser.newPage();
-        // load + espera explícita nas imagens é mais rápido e estável que networkidle0 em HTML grande com data URIs
-        await page.setContent(html, { waitUntil: 'load', timeout: 300_000 });
-        await page.emulateMediaType('print');
-        await page.evaluate(async () => {
-          await Promise.all(Array.from(document.images).map((img) => {
-            if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-            if (typeof img.decode === 'function') {
-              return img.decode().catch(() => undefined);
+        try {
+          await page.setContent(html, { waitUntil: 'load', timeout: 300_000 });
+          await page.emulateMediaType('print');
+          await page.evaluate(async () => {
+            await Promise.all(Array.from(document.images).map((img) => {
+              if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+              if (typeof img.decode === 'function') {
+                return img.decode().catch(() => undefined);
+              }
+              return new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = resolve;
+              });
+            }));
+          });
+          buffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            displayHeaderFooter: true,
+            headerTemplate: montarHeaderTemplatePdf(data),
+            footerTemplate: montarFooterTemplatePdf(data),
+            margin: {
+              top: '112px',
+              bottom: '182px',
+              left: '16mm',
+              right: '16mm'
             }
-            return new Promise((resolve) => {
-              img.onload = resolve;
-              img.onerror = resolve;
-            });
-          }));
-        });
-        buffer = await page.pdf({
-          format: 'A4',
-          printBackground: true,
-          displayHeaderFooter: true,
-          headerTemplate: montarHeaderTemplatePdf(data),
-          footerTemplate: montarFooterTemplatePdf(data),
-          margin: {
-            top: '112px',
-            bottom: '182px',
-            left: '16mm',
-            right: '16mm'
-          }
-        });
-        await browser.close();
+          });
+        } finally {
+          await page.close().catch(() => {});
+        }
         contentType = 'application/pdf';
         extensao = 'pdf';
       }
@@ -1604,4 +1696,5 @@ module.exports = {
       res.status(500).json({ error: err.message });
     }
   },
+  closeSharedPdfBrowser,
 };
