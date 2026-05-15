@@ -33,7 +33,8 @@ api.interceptors.request.use(
 
 function isLoginRequest(url: string | undefined): boolean {
   if (!url) return false;
-  return /\/usuarios\/login(?:\?|$)/.test(url);
+  const normalized = url.split('?')[0] ?? '';
+  return normalized.endsWith('/usuarios/login') || normalized.endsWith('usuarios/login');
 }
 
 // Interceptor para tratar respostas de erro
@@ -47,13 +48,9 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      const hadSession = Boolean(localStorage.getItem('vistoriapro_token'));
       localStorage.removeItem('vistoriapro_token');
       localStorage.removeItem('vistoriapro_user');
-
-      if (hadSession && !window.location.pathname.startsWith('/login')) {
-        window.location.replace('/login');
-      }
+      window.dispatchEvent(new Event('vistoriapro:session-expired'));
     }
     return Promise.reject(error);
   }

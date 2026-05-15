@@ -8,36 +8,50 @@
     <link rel="icon" type="image/png" href="/VistoriaPro.png" />
     <script>
       (function () {
-        if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+        var isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+        var cleanupVersion = '2026-05-14-sw-reset';
+        var storageKey = 'vistoriapro-sw-cleanup-version';
+
+        if (!('serviceWorker' in navigator)) {
           return;
         }
 
-        if (!('serviceWorker' in navigator) || sessionStorage.getItem('vistoriapro-sw-cleanup-done')) {
+        if (!isLocalhost && localStorage.getItem(storageKey) === cleanupVersion) {
           return;
         }
-
-        sessionStorage.setItem('vistoriapro-sw-cleanup-done', '1');
 
         navigator.serviceWorker.getRegistrations().then(function (registrations) {
-          if (!registrations.length) {
+          if (!registrations.length && !isLocalhost) {
+            localStorage.setItem(storageKey, cleanupVersion);
             return;
           }
 
-          Promise.all(registrations.map(function (registration) {
+          return Promise.all(registrations.map(function (registration) {
             return registration.unregister();
           })).then(function () {
             if ('caches' in window) {
-              caches.keys().then(function (keys) {
+              return caches.keys().then(function (keys) {
                 return Promise.all(keys.map(function (key) {
                   return caches.delete(key);
                 }));
               });
             }
+          }).then(function () {
+            if (!isLocalhost) {
+              localStorage.setItem(storageKey, cleanupVersion);
+            }
 
+            if (sessionStorage.getItem('vistoriapro-sw-cleanup-reload')) {
+              return;
+            }
+
+            sessionStorage.setItem('vistoriapro-sw-cleanup-reload', '1');
             window.location.reload();
           });
         }).catch(function () {
-          // Ignora falhas de limpeza em desenvolvimento.
+          if (!isLocalhost) {
+            localStorage.setItem(storageKey, cleanupVersion);
+          }
         });
       })();
     </script>
