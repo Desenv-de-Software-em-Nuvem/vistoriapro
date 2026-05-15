@@ -30,17 +30,31 @@ const isAllowedDevOrigin = (origin) => {
   }
 };
 
+const productionAllowedOrigins = new Set([
+  'https://imob-vistorias.netlify.app',
+  'https://vistoriapro.netlify.app',
+  'capacitor://localhost',
+  'file://',
+  'https://localhost',
+]);
+
+const isAllowedProductionOrigin = (origin) => {
+  if (!origin) return true;
+  if (productionAllowedOrigins.has(origin)) return true;
+  return /^https:\/\/[a-z0-9-]+\.netlify\.app$/i.test(origin);
+};
+
 // Configuração CORS
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production'
-    ? [
-        'https://imob-vistorias.netlify.app',
-        'https://vistoriapro.netlify.app',
-        'https://*.netlify.app',
-        'capacitor://localhost',
-        'file://',
-        'https://localhost'
-      ]
+    ? (origin, callback) => {
+        if (isAllowedProductionOrigin(origin)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(new Error(`Origem bloqueada pelo CORS: ${origin}`));
+      }
     : (origin, callback) => {
         if (isAllowedDevOrigin(origin)) {
           callback(null, true);

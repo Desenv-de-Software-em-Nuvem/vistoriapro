@@ -2,7 +2,8 @@ import { useState, useEffect, useContext } from 'react'
 import type { ReactNode } from 'react'
 import api from '../services/api'
 import { AuthContext } from './authContext'
-import type { AuthContextType, User, UserRole } from './authContext'
+import axios from 'axios'
+import type { AuthContextType, LoginResult, User, UserRole } from './authContext'
 
 interface AuthProviderProps {
   children: ReactNode
@@ -113,30 +114,58 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => window.removeEventListener('vistoriapro:session-expired', handleSessionExpired)
   }, [])
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<LoginResult> => {
+    const normalizedEmail = email.trim()
+    const normalizedPassword = password.trim()
+
     try {
       const response = await api.post('/usuarios/login', {
-        email,
-        senha: password,
+        email: normalizedEmail,
+        senha: normalizedPassword,
       })
       const { token, usuario } = response.data
       const normalizedUser = normalizeUser(usuario, token)
       if (!normalizedUser) {
-        throw new Error('Usuário autenticado sem papel de acesso.')
+        return {
+          success: false,
+          message: 'Usuário autenticado sem papel de acesso. Contate o administrador.',
+        }
       }
 
       setUser(normalizedUser)
       localStorage.setItem('vistoriapro_user', JSON.stringify(normalizedUser))
       localStorage.setItem('vistoriapro_token', token)
-      return true
+      return { success: true }
     } catch (error: unknown) {
       console.error('Erro no login:', error)
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: unknown; status?: number } }
-        console.error('Dados da resposta de erro:', axiosError.response?.data)
-        console.error('Status da resposta:', axiosError.response?.status)
+
+      if (axios.isAxiosError(error)) {
+        if (!error.response) {
+          return {
+            success: false,
+            message: 'Não foi possível conectar à API. Verifique se o backend está online.',
+          }
+        }
+
+        if (error.response.status === 401) {
+          return { success: false, message: 'Email ou senha incorretos.' }
+        }
+
+        const apiMessage =
+          typeof error.response.data === 'object' &&
+          error.response.data &&
+          'error' in error.response.data &&
+          typeof error.response.data.error === 'string'
+            ? error.response.data.error
+            : null
+
+        return {
+          success: false,
+          message: apiMessage || 'Erro ao entrar. Tente novamente em instantes.',
+        }
       }
-      return false
+
+      return { success: false, message: 'Erro inesperado ao entrar. Tente novamente.' }
     }
   }
 
