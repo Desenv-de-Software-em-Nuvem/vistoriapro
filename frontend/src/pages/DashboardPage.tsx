@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
-import { Plus, LogOut, Building2, List } from 'lucide-react';
+import { Plus, LogOut, Building2, List, Menu, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { VistoriaProLogo } from '../components/VistoriaProLogo';
@@ -23,7 +23,7 @@ const Container = styled.div<{ $sidebarOpen: boolean }>`
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  padding-left: ${({ $sidebarOpen }) => ($sidebarOpen ? '220px' : '0')};
+  padding-left: ${({ $sidebarOpen }) => ($sidebarOpen ? '280px' : '0')};
   transition: padding-left 0.3s cubic-bezier(0.4,0,0.2,1);
   will-change: transform;
   @media (max-width: 640px) {
@@ -56,6 +56,43 @@ const FixedHeader = styled.header`
 const Logo = styled.div`
   display: flex;
   align-items: center;
+`
+
+const HeaderLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+`
+
+const AdminMenuButton = styled.button`
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  background: ${({ theme }) => theme.colors.backgroundGlass};
+  color: ${({ theme }) => theme.colors.primaryLight};
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  cursor: pointer;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.backgroundSecondary};
+    border-color: ${({ theme }) => theme.colors.border};
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  @media (max-width: 640px) {
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
+  }
 `
 
 const UserSection = styled.div`
@@ -345,30 +382,20 @@ export const DashboardPage: React.FC = () => {
       {isAdmin && sidebarOpen && <AdminSidebarMotion sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />}
       <Container $sidebarOpen={sidebarOpen}>
         <FixedHeader>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <HeaderLeft>
             {isAdmin && (
-              <button
+              <AdminMenuButton
+                type="button"
                 aria-label={sidebarOpen ? 'Fechar menu' : 'Abrir menu'}
                 onClick={() => setSidebarOpen((prev) => !prev)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#ff6600',
-                  fontSize: '2rem',
-                  cursor: 'pointer',
-                  outline: 'none',
-                  zIndex: 101,
-                  position: 'relative',
-                  display: 'block',
-                }}
               >
-                {sidebarOpen ? '←' : '☰'}
-              </button>
+                {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
+              </AdminMenuButton>
             )}
             <Logo>
               <VistoriaProLogo size="small" variant="icon-only" withBackground={true} />
             </Logo>
-          </div>
+          </HeaderLeft>
           <UserSection>
             <UserInfo>
               <UserName>{user?.name}</UserName>

@@ -51,7 +51,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { getCanonicalPropertyType } from '../constants/propertyTypes';
 import { roomChecklists } from '../data/roomChecklists';
 import { AppHeader } from '../components/AppHeader';
-import { MobileTabBar } from '../components/MobileTabBar';
 import { Snackbar } from '../components/Snackbar';
 
 
@@ -72,7 +71,7 @@ const Container = styled.div`
   box-sizing: border-box;
   padding-top: 88px;
   padding-bottom: 96px;
-  will-change: transform;
+
   @media (max-width: 600px) {
     padding-top: 80px;
     padding-bottom: 96px;
@@ -87,7 +86,7 @@ const Main = styled.main`
   width: calc(100% - 2rem);
   min-width: 0;
   box-sizing: border-box;
-  will-change: transform;
+
   @media (max-width: 768px) {
     width: calc(100% - 2rem);
   }
@@ -774,7 +773,7 @@ export const InspectionPage: React.FC = () => {
           saving ? (
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '32px 0 0 0' }}>
               <div className="loader" style={{ marginBottom: 12 }} />
-              <span style={{ color: '#2ecc40', fontWeight: 600, fontSize: '1.1rem' }}>Salvando vistoria...</span>
+              <span style={{ color: '#2ecc40', fontWeight: 600, fontSize: '1.1rem' }}>Salvando checklist...</span>
             </div>
           ) : (
             <button
@@ -902,7 +901,6 @@ export const InspectionPage: React.FC = () => {
         duration={snackbar.duration}
         onClose={() => setSnackbar(s => ({ ...s, open: false }))}
       />
-      <MobileTabBar />
     </Container>
   )
 }

@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Home, FileText, Building2 } from 'lucide-react'
 import { v4 as uuidv4 } from 'uuid'
 import { useAuth } from '../hooks/useAuth'
+import { useFeedback } from './FeedbackProvider'
 
 // Barra inferior fixa para UX estilo aplicativo (mobile-first)
 // Itens: Dashboard, Imóveis, Nova Vistoria
@@ -86,6 +87,7 @@ export const MobileTabBar: React.FC = () => {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { notify } = useFeedback()
 
   // Se o backend não popular 'permitidoVistoria', permitimos por padrão
   const permitidoVistoria = user?.permitidoVistoria !== false
@@ -98,7 +100,7 @@ export const MobileTabBar: React.FC = () => {
 
   const startInspectionFlow = () => {
     if (!permitidoVistoria) {
-      alert('Você está bloqueado para iniciar novas vistorias.')
+      notify({ message: 'Você está bloqueado para iniciar novas vistorias.', type: 'error' })
       return
     }
     const inspectionId = uuidv4()

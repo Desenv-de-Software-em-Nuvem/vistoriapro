@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
+import { useFeedback } from './FeedbackProvider';
 
 import {
   addLocatario,
@@ -437,6 +438,7 @@ export const InspectionDetailsForm: React.FC<InspectionDetailsFormProps> = ({
   onDetailsSaved,
   onAllRequiredFilled,
 }) => {
+  const { notify } = useFeedback();
   const [locatarios, setLocatarios] = useState<Locatario[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -483,7 +485,7 @@ export const InspectionDetailsForm: React.FC<InspectionDetailsFormProps> = ({
       await updateInspectionDetails(inspectionId, pickFields(form, INSPECTION_DETAIL_FIELDS));
       onDetailsSaved?.();
     } catch {
-      alert('Erro ao salvar os detalhes do laudo. Tente novamente.');
+      notify({ message: 'Erro ao salvar os detalhes do laudo. Tente novamente.', type: 'error' });
     } finally {
       setSaving(false);
     }

@@ -165,6 +165,30 @@ const MESES_PT_BR = [
   'novembro',
   'dezembro',
 ];
+const PROPERTY_TYPE_DISPLAY = {
+  APARTAMENTO: 'Apartamento',
+  CASA_RESIDENCIAL: 'Casa Residencial',
+  CASA_COMERCIAL: 'Casa Comercial',
+  LOJA: 'Loja',
+  SALA_COMERCIAL: 'Sala Comercial',
+  GALPAO: 'Galpão',
+  CASA: 'Casa Residencial',
+  COMERCIAL: 'Comercial',
+  TERRENO: 'Terreno',
+  OUTRO: 'Outro',
+};
+const PROPERTY_TYPE_BY_NORMALIZED = {
+  APARTAMENTO: 'APARTAMENTO',
+  CASA: 'CASA_RESIDENCIAL',
+  CASARESIDENCIAL: 'CASA_RESIDENCIAL',
+  CASACOMERCIAL: 'CASA_COMERCIAL',
+  COMERCIAL: 'COMERCIAL',
+  LOJA: 'LOJA',
+  SALACOMERCIAL: 'SALA_COMERCIAL',
+  GALPAO: 'GALPAO',
+  TERRENO: 'TERRENO',
+  OUTRO: 'OUTRO',
+};
 const CONCLUSAO_TEXTOS = [
   'O presente laudo é parte integrante do contrato de locação realizado entre o locatário e o locador acima qualificados, o locatário reconhece no presente ato o compromisso assumido de entregar o imóvel locado nas mesmas condições que por ele recebido e neste laudo descrita.',
   'Este relatório retratará fidedignamente o estado do imóvel no momento da vistoria. Caso algo não esteja relatado em forma de texto, mas estejam visíveis nas fotos que acompanham a vistoria, as mesmas poderão ser utilizadas para efeitos de comprovação das características e estado de conservação, se encontrando as imagens em qualidade e resolução superior arquivadas com a administradora, podendo ser solicitados os arquivos originais mediante requerimento escrito.',
@@ -605,10 +629,30 @@ function documentoCnpj(value) {
   return cnpj ? `CNPJ: ${cnpj}` : '';
 }
 
-function primeiraMaiuscula(value) {
+function normalizarTipoImovelRelatorio(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s_-]+/g, '')
+    .toUpperCase();
+}
+
+function formatarTipoImovelRelatorio(value) {
   const text = valorInformado(value);
   if (!text) return '';
-  return text.charAt(0).toUpperCase() + text.slice(1);
+
+  const normalized = normalizarTipoImovelRelatorio(text);
+  const key = PROPERTY_TYPE_BY_NORMALIZED[normalized] || normalized;
+  if (PROPERTY_TYPE_DISPLAY[key]) return PROPERTY_TYPE_DISPLAY[key];
+
+  return text
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .split(' ')
+    .map((word) => word ? word.charAt(0).toUpperCase() + word.slice(1) : '')
+    .join(' ');
 }
 
 function montarPessoa({ nome, nacionalidade, profissao, cpf, rg, rg_orgao, rg_uf, endereco }) {
@@ -669,7 +713,7 @@ function montarAberturaBlocos(data) {
   }
 
   const objeto = joinNonEmpty([
-    data.objeto || data.tipo_imovel ? `O imóvel objeto da presente locação é ${data.objeto || primeiraMaiuscula(data.tipo_imovel)}` : '',
+    data.objeto || data.tipo_imovel ? `O imóvel objeto da presente locação é ${data.objeto || formatarTipoImovelRelatorio(data.tipo_imovel)}` : '',
     data.imovel_endereco ? `localizado à ${data.imovel_endereco}` : '',
     data.imovel_matricula ? `matrícula nº ${data.imovel_matricula}` : '',
     data.imovel_cartorio ? `registrado no ${data.imovel_cartorio}` : ''
@@ -693,7 +737,7 @@ function montarDadosImovel(data) {
 
   return [
     { label: 'Tipo de vistoria', valor: data.tipo_vistoria || 'Entrada' },
-    { label: 'Tipo de imóvel', valor: data.tipo_imovel },
+    { label: 'Tipo de imóvel', valor: formatarTipoImovelRelatorio(data.tipo_imovel) },
     { label: 'Contrato', valor: data.numero_contrato },
     { label: 'Data da vistoria', valor: formatarDataBR(data.data_vistoria || data.data) },
     { label: 'Endereço', valor: data.imovel_endereco, full: true },
@@ -1788,7 +1832,7 @@ module.exports = {
         data_vistoria: vistoria.data_vistoria || vistoria.data || '',
         data: vistoria.data || '',
         tipo_vistoria: vistoria.tipo_vistoria || 'Entrada',
-        tipo_imovel: imovel?.tipo || '',
+        tipo_imovel: formatarTipoImovelRelatorio(imovel?.tipo || ''),
         imovel_endereco: imovel?.endereco_completo || vistoria.endereco || '',
         imovel_cidade: imovel?.cidade || '',
         imovel_uf: imovel?.uf || '',

@@ -10,28 +10,56 @@ import { AppHeader } from '../components/AppHeader'
 const Container = styled.div`
   min-height: 100vh;
   min-height: 100dvh;
+  background:
+    radial-gradient(circle at top left, rgba(255, 69, 0, 0.16), transparent 32rem),
+    ${({ theme }) => theme.colors.background};
   height: var(--vistoriapro-app-height, 100dvh);
   min-height: 0;
-  background: ${({ theme }) => theme.colors.background};
   width: 100%;
   max-width: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior-y: contain;
-  touch-action: pan-y;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: ${({ theme }) => theme.colors.primary} transparent;
   box-sizing: border-box;
-  padding: ${({ theme }) => theme.spacing.lg};
-  padding-top: 88px;
+  padding: 88px clamp(1rem, 4vw, 2.5rem) 96px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 0;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.colors.primary};
+    border-radius: ${({ theme }) => theme.borderRadius.full};
+  }
+
+  &::-webkit-scrollbar:horizontal {
+    display: none;
+    height: 0;
+  }
 
   @media (max-width: 768px) {
-    padding: ${({ theme }) => theme.spacing.md};
-    padding-top: 80px;
+    padding: 80px 1rem 96px;
   }
 `
 
+const ContentWrapper = styled.main`
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+`
+
 const FormCard = styled.div`
+  width: 100%;
   background: ${({ theme }) => theme.colors.backgroundCard};
   backdrop-filter: blur(20px);
   border: 1px solid ${({ theme }) => theme.colors.border};
@@ -40,8 +68,6 @@ const FormCard = styled.div`
   box-shadow: 0 25px 50px -12px ${({ theme }) => theme.colors.shadowDark};
   max-width: 800px;
   margin: 0 auto;
-  max-height: calc(var(--vistoriapro-app-height, 100dvh) - 104px);
-  overflow-y: auto;
   box-sizing: border-box;
 
   @media (max-width: 768px) {
@@ -386,165 +412,167 @@ export const PropertyRegistrationPage: React.FC = () => {
         onBack={() => navigate(-1)}
       />
 
-      <FormCard>
-        {loadingData ? (
-          <LoadingContainer>
-            <LoadingSpinner />
-            <p>Carregando dados do imóvel...</p>
-          </LoadingContainer>
-        ) : (
-          <Form onSubmit={handleSubmit}>
-          <FormSection>
-            <SectionTitle>
-              <Building2 size={20} />
-              Informações Básicas
-            </SectionTitle>
-            
-            <FormGroup>
-              <Label htmlFor="nome">Nome do Imóvel *</Label>
-              <Input
-                id="nome"
-                name="nome"
-                type="text"
-                value={formData.nome}
-                onChange={handleInputChange}
-                placeholder="Ex: Edifício São Paulo, Casa da Praia, etc."
-                disabled={loading}
-                required
-              />
-            </FormGroup>
+      <ContentWrapper>
+        <FormCard>
+          {loadingData ? (
+            <LoadingContainer>
+              <LoadingSpinner />
+              <p>Carregando dados do imóvel...</p>
+            </LoadingContainer>
+          ) : (
+            <Form onSubmit={handleSubmit}>
+              <FormSection>
+                <SectionTitle>
+                  <Building2 size={20} />
+                  Informações Básicas
+                </SectionTitle>
+                
+                <FormGroup>
+                  <Label htmlFor="nome">Nome do Imóvel *</Label>
+                  <Input
+                    id="nome"
+                    name="nome"
+                    type="text"
+                    value={formData.nome}
+                    onChange={handleInputChange}
+                    placeholder="Ex: Edifício São Paulo, Casa da Praia, etc."
+                    disabled={loading}
+                    required
+                  />
+                </FormGroup>
 
-            <FormGroup>
-              <Label htmlFor="tipo">Tipo do Imóvel *</Label>
-              <Select
-                id="tipo"
-                name="tipo"
-                value={formData.tipo}
-                onChange={handleInputChange}
-                disabled={loading}
-                required
-              >
-                {TIPOS_IMOVEL.map(tipo => (
-                  <option key={tipo.value} value={tipo.value}>
-                    {tipo.label}
-                  </option>
-                ))}
-              </Select>
-            </FormGroup>
-          </FormSection>
+                <FormGroup>
+                  <Label htmlFor="tipo">Tipo do Imóvel *</Label>
+                  <Select
+                    id="tipo"
+                    name="tipo"
+                    value={formData.tipo}
+                    onChange={handleInputChange}
+                    disabled={loading}
+                    required
+                  >
+                    {TIPOS_IMOVEL.map(tipo => (
+                      <option key={tipo.value} value={tipo.value}>
+                        {tipo.label}
+                      </option>
+                    ))}
+                  </Select>
+                </FormGroup>
+              </FormSection>
 
-          <FormSection>
-            <SectionTitle>
-              <MapPin size={20} />
-              Endereço
-            </SectionTitle>
-            
-            <FormGroup>
-              <Label htmlFor="endereco_completo">Endereço Completo *</Label>
-              <Input
-                id="endereco_completo"
-                name="endereco_completo"
-                type="text"
-                value={formData.endereco_completo}
-                onChange={handleInputChange}
-                placeholder="Rua, número, bairro"
-                disabled={loading}
-                required
-              />
-            </FormGroup>
+              <FormSection>
+                <SectionTitle>
+                  <MapPin size={20} />
+                  Endereço
+                </SectionTitle>
+                
+                <FormGroup>
+                  <Label htmlFor="endereco_completo">Endereço Completo *</Label>
+                  <Input
+                    id="endereco_completo"
+                    name="endereco_completo"
+                    type="text"
+                    value={formData.endereco_completo}
+                    onChange={handleInputChange}
+                    placeholder="Rua, número, bairro"
+                    disabled={loading}
+                    required
+                  />
+                </FormGroup>
 
-            <FormRow>
-              <FormGroup>
-                <Label htmlFor="unidade">Unidade</Label>
-                <Input
-                  id="unidade"
-                  name="unidade"
-                  type="text"
-                  value={formData.unidade}
-                  onChange={handleInputChange}
-                  placeholder="Apto 101, Casa 2, etc."
-                  disabled={loading}
-                />
-              </FormGroup>
+                <FormRow>
+                  <FormGroup>
+                    <Label htmlFor="unidade">Unidade</Label>
+                    <Input
+                      id="unidade"
+                      name="unidade"
+                      type="text"
+                      value={formData.unidade}
+                      onChange={handleInputChange}
+                      placeholder="Apto 101, Casa 2, etc."
+                      disabled={loading}
+                    />
+                  </FormGroup>
 
-              <FormGroup>
-                <Label htmlFor="cep">CEP</Label>
-                <Input
-                  id="cep"
-                  name="cep"
-                  type="text"
-                  value={formData.cep}
-                  onChange={handleInputChange}
-                  placeholder="12345-678"
-                  disabled={loading}
-                />
-              </FormGroup>
-            </FormRow>
+                  <FormGroup>
+                    <Label htmlFor="cep">CEP</Label>
+                    <Input
+                      id="cep"
+                      name="cep"
+                      type="text"
+                      value={formData.cep}
+                      onChange={handleInputChange}
+                      placeholder="12345-678"
+                      disabled={loading}
+                    />
+                  </FormGroup>
+                </FormRow>
 
-            <FormRow>
-              <FormGroup>
-                <Label htmlFor="cidade">Cidade *</Label>
-                <Input
-                  id="cidade"
-                  name="cidade"
-                  type="text"
-                  value={formData.cidade}
-                  onChange={handleInputChange}
-                  placeholder="São Paulo"
-                  disabled={loading}
-                  required
-                />
-              </FormGroup>
+                <FormRow>
+                  <FormGroup>
+                    <Label htmlFor="cidade">Cidade *</Label>
+                    <Input
+                      id="cidade"
+                      name="cidade"
+                      type="text"
+                      value={formData.cidade}
+                      onChange={handleInputChange}
+                      placeholder="São Paulo"
+                      disabled={loading}
+                      required
+                    />
+                  </FormGroup>
 
-              <FormGroup>
-                <Label htmlFor="uf">Estado *</Label>
-                <Select
-                  id="uf"
-                  name="uf"
-                  value={formData.uf}
-                  onChange={handleInputChange}
-                  disabled={loading}
-                  required
-                >
-                  {ESTADOS_BRASIL.map(uf => (
-                    <option key={uf} value={uf}>
-                      {uf}
-                    </option>
-                  ))}
-                </Select>
-              </FormGroup>
-            </FormRow>
-          </FormSection>
+                  <FormGroup>
+                    <Label htmlFor="uf">Estado *</Label>
+                    <Select
+                      id="uf"
+                      name="uf"
+                      value={formData.uf}
+                      onChange={handleInputChange}
+                      disabled={loading}
+                      required
+                    >
+                      {ESTADOS_BRASIL.map(uf => (
+                        <option key={uf} value={uf}>
+                          {uf}
+                        </option>
+                      ))}
+                    </Select>
+                  </FormGroup>
+                </FormRow>
+              </FormSection>
 
-          <FormSection>
-            <SectionTitle>
-              <Home size={20} />
-              Observações
-            </SectionTitle>
-            
-            <FormGroup>
-              <Label htmlFor="observacoes">Observações Adicionais</Label>
-              <TextArea
-                id="observacoes"
-                name="observacoes"
-                value={formData.observacoes}
-                onChange={handleInputChange}
-                placeholder="Informações adicionais sobre o imóvel..."
-                disabled={loading}
-              />
-            </FormGroup>
-          </FormSection>
+              <FormSection>
+                <SectionTitle>
+                  <Home size={20} />
+                  Observações
+                </SectionTitle>
+                
+                <FormGroup>
+                  <Label htmlFor="observacoes">Observações Adicionais</Label>
+                  <TextArea
+                    id="observacoes"
+                    name="observacoes"
+                    value={formData.observacoes}
+                    onChange={handleInputChange}
+                    placeholder="Informações adicionais sobre o imóvel..."
+                    disabled={loading}
+                  />
+                </FormGroup>
+              </FormSection>
 
-          {error && <ErrorMessage>{error}</ErrorMessage>}
-          {success && <SuccessMessage>{success}</SuccessMessage>}
+              {error && <ErrorMessage>{error}</ErrorMessage>}
+              {success && <SuccessMessage>{success}</SuccessMessage>}
 
-          <SubmitButton type="submit" disabled={loading}>
-            <Save size={20} />
-            {loading ? 'Salvando...' : isEditing ? 'Atualizar Imóvel' : 'Salvar Imóvel'}
-          </SubmitButton>
-        </Form>
-        )}
-      </FormCard>
+              <SubmitButton type="submit" disabled={loading}>
+                <Save size={20} />
+                {loading ? 'Salvando...' : isEditing ? 'Atualizar Imóvel' : 'Salvar Imóvel'}
+              </SubmitButton>
+            </Form>
+          )}
+        </FormCard>
+      </ContentWrapper>
     </Container>
   )
 }

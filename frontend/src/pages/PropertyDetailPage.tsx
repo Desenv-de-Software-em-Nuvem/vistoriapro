@@ -4,6 +4,7 @@ import { ArrowLeft, Edit3, Trash2, MapPin, Building2, FileText } from 'lucide-re
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '../services/api'
 import { ConfirmationModal } from '../components/ConfirmationModal'
+import { useFeedback } from '../components/FeedbackProvider'
 import { getTipoDisplay } from '../constants/propertyTypes'
 import { AppHeader } from '../components/AppHeader'
 
@@ -309,6 +310,7 @@ interface Imovel {
 export const PropertyDetailPage: React.FC = () => {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
+  const { notify } = useFeedback()
   const [imovel, setImovel] = useState<Imovel | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -349,7 +351,7 @@ export const PropertyDetailPage: React.FC = () => {
       setIsModalOpen(false)
       navigate('/property-list')
     } catch {
-      alert('Erro ao excluir imóvel')
+      notify({ message: 'Erro ao excluir imóvel.', type: 'error' })
       setIsModalOpen(false)
     }
   }

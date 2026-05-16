@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import styled, { keyframes } from 'styled-components';
 const shutterSound = '/camera-shutter.mp3';
 
@@ -9,12 +10,16 @@ const fadeIn = keyframes`
 
 const Overlay = styled.div`
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
+  inset: 0;
   background: rgba(0,0,0,0.85);
-  z-index: 9999;
+  z-index: 15000;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 100dvh;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   animation: ${fadeIn} 0.2s;
 `;
 
@@ -27,11 +32,15 @@ const CameraBox = styled.div`
   flex-direction: column;
   align-items: center;
   position: relative;
+  width: min(92vw, 520px);
+  max-height: calc(100dvh - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
 `;
 
 const Video = styled.video`
-  width: 340px;
-  height: 255px;
+  width: min(100%, 440px);
+  aspect-ratio: 4 / 3;
+  height: auto;
   border-radius: 16px;
   background: #000;
   box-shadow: 0 2px 16px #0006;
@@ -74,9 +83,9 @@ const FlashOverlay = styled.div`
 `;
 
 const CloseButton = styled.button`
-  position: absolute;
-  top: 24px;
-  right: 24px;
+  position: fixed;
+  top: calc(18px + env(safe-area-inset-top, 0px));
+  right: calc(18px + env(safe-area-inset-right, 0px));
   background: none;
   border: none;
   color: #fff;
@@ -180,7 +189,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({ open, onClose, onCaptu
 
   if (!open) return null;
 
-  return (
+  const modal = (
     <Overlay>
       {flash && <FlashOverlay />}
       <CameraBox>
@@ -216,4 +225,10 @@ export const CameraModal: React.FC<CameraModalProps> = ({ open, onClose, onCaptu
       <CloseButton onClick={onClose} title="Fechar">×</CloseButton>
     </Overlay>
   );
+
+  if (typeof document === 'undefined') {
+    return modal;
+  }
+
+  return createPortal(modal, document.body);
 };

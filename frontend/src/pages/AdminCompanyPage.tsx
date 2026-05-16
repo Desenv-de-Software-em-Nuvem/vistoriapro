@@ -1,24 +1,18 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import styled, { css, keyframes } from 'styled-components';
+import styled from 'styled-components';
 import {
   Building2, Edit3, ImagePlus, Plus, RefreshCw, Save,
-  Search, Trash2, Users, X, ChevronRight, Globe, Phone,
-  MapPin, AtSign, FileText,
+  Search, Trash2, Users, X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { AppHeader } from '../components/AppHeader';
+import { AdminTabs } from '../components/AdminTabs';
 import { Snackbar } from '../components/Snackbar';
+import { useFeedback } from '../components/FeedbackProvider';
 import api from '../services/api';
 
-// ─── Animations ──────────────────────────────────────────────────────────────
-
-const fadeUp = keyframes`
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-`;
-
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Empresa {
   id: number;
@@ -37,26 +31,34 @@ interface Empresa {
 }
 
 type EmpresaForm = Omit<Empresa, 'id' | 'created_at'>;
-type ActiveTab = 'listar' | 'cadastrar';
 
 const EMPTY_FORM: EmpresaForm = {
-  nome: '', cnpj: '', email: '', telefone: '', whatsapp: '',
-  endereco: '', site: '', instagram: '', responsavel_nome: '', creci: '', logo_url: '',
+  nome: '',
+  cnpj: '',
+  email: '',
+  telefone: '',
+  whatsapp: '',
+  endereco: '',
+  site: '',
+  instagram: '',
+  responsavel_nome: '',
+  creci: '',
+  logo_url: '',
 };
 
-const MAX_LOGO_SIZE = 1.5 * 1024 * 1024;
+const MAX_LOGO_SIZE_BYTES = 1.5 * 1024 * 1024;
 const ALLOWED_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/jpg'];
 
-// ─── Page shell ───────────────────────────────────────────────────────────────
+// ─── Layout ──────────────────────────────────────────────────────────────────
 
 const Container = styled.div`
   width: 100%;
   max-width: 100%;
-  min-height: var(--vistoriapro-app-height, 100dvh);
-  padding: 88px clamp(1rem, 4vw, 2.5rem) 3rem;
+  height: var(--vistoriapro-app-height, 100dvh);
+  min-height: 0;
+  padding: 88px clamp(1rem, 4vw, 2.5rem) calc(96px + env(safe-area-inset-bottom, 0px));
   background:
-    radial-gradient(ellipse 60% 40% at 10% -5%, rgba(255,69,0,0.18) 0%, transparent 55%),
-    radial-gradient(ellipse 40% 30% at 90% 110%, rgba(255,107,53,0.1) 0%, transparent 50%),
+    radial-gradient(circle at top left, rgba(255, 69, 0, 0.14), transparent 30rem),
     ${({ theme }) => theme.colors.background};
   overflow-x: hidden;
   overflow-y: auto;
@@ -64,254 +66,279 @@ const Container = styled.div`
   -webkit-overflow-scrolling: touch;
 
   @media (max-width: 600px) {
-    padding: 80px 1rem 2rem;
+    padding: 80px 1rem calc(96px + env(safe-area-inset-bottom, 0px));
   }
 `;
 
 const Content = styled.main`
-  max-width: 1200px;
+  max-width: 1440px;
   width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  animation: ${fadeUp} 0.35s ease both;
+  gap: 1.25rem;
 `;
 
-// ─── Stats ────────────────────────────────────────────────────────────────────
+// ─── Panel ───────────────────────────────────────────────────────────────────
 
-const StatGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-
-  @media (max-width: 480px) {
-    grid-template-columns: 1fr 1fr;
-    & > :last-child { grid-column: 1 / -1; }
-  }
-`;
-
-const StatCard = styled.div<{ $accent: string }>`
-  position: relative;
+const Panel = styled.section`
+  width: 100%;
   background: ${({ theme }) => theme.colors.backgroundCard};
   border: 1px solid ${({ theme }) => theme.colors.borderLight};
   border-radius: ${({ theme }) => theme.borderRadius['2xl']};
-  padding: 1.25rem 1.25rem 1rem;
-  overflow: hidden;
-  transition: transform 0.2s, box-shadow 0.2s;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: ${({ $accent }) => $accent};
-    border-radius: 1rem 1rem 0 0;
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0; right: 0;
-    width: 80px; height: 80px;
-    background: ${({ $accent }) => $accent};
-    opacity: 0.06;
-    border-radius: 50%;
-    transform: translate(25%, -25%);
-  }
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.35);
-  }
+  box-shadow: 0 14px 40px ${({ theme }) => theme.colors.shadow};
+  padding: clamp(1rem, 3vw, 1.5rem);
 `;
 
-const StatIconWrap = styled.div<{ $accent: string }>`
-  width: 36px;
-  height: 36px;
-  border-radius: ${({ theme }) => theme.borderRadius.xl};
-  background: ${({ $accent }) => $accent}22;
-  border: 1px solid ${({ $accent }) => $accent}44;
-  display: grid;
-  place-items: center;
-  color: ${({ $accent }) => $accent};
-  margin-bottom: 0.75rem;
-`;
-
-const StatValue = styled.strong`
-  display: block;
+const PanelTitle = styled.h2`
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.4rem;
   color: ${({ theme }) => theme.colors.text};
-  font-size: 2rem;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: -0.03em;
+  font-size: ${({ theme }) => theme.fontSizes.lg};
 `;
 
-const StatLabel = styled.span`
-  display: block;
-  margin-top: 0.3rem;
-  color: ${({ theme }) => theme.colors.textLight};
-  font-size: ${({ theme }) => theme.fontSizes.xs};
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+// ─── Form ────────────────────────────────────────────────────────────────────
+
+const Form = styled.form`
+  display: grid;
+  gap: 0.85rem;
 `;
 
-// ─── Tabs ─────────────────────────────────────────────────────────────────────
+const FieldRow = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
 
-const TabBar = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: ${({ theme }) => theme.colors.backgroundCard};
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
-  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
-  padding: 0.4rem;
-`;
-
-const Tab = styled.button<{ $active?: boolean }>`
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  padding: 0.7rem 1rem;
-  border-radius: ${({ theme }) => theme.borderRadius.xl};
-  border: none;
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-
-  ${({ $active, theme }) => $active ? css`
-    background: ${theme.colors.gradient.primary};
-    color: #fff;
-    box-shadow: 0 4px 14px rgba(255,69,0,0.4);
-  ` : css`
-    background: transparent;
-    color: ${theme.colors.textSecondary};
-    &:hover { background: ${theme.colors.backgroundGlass}; color: ${theme.colors.text}; }
-  `}
-
-  @media (max-width: 480px) {
-    padding: 0.65rem 0.6rem;
-    font-size: 0.75rem;
-    gap: 0.3rem;
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
   }
 `;
 
-const NavChip = styled.button`
-  display: flex;
-  align-items: center;
+const FieldGroup = styled.label`
+  display: grid;
   gap: 0.35rem;
-  padding: 0.65rem 1rem;
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
-  border-radius: ${({ theme }) => theme.borderRadius.xl};
-  background: transparent;
+`;
+
+const FieldLabel = styled.span`
   color: ${({ theme }) => theme.colors.textSecondary};
   font-size: ${({ theme }) => theme.fontSizes.sm};
   font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s;
+`;
 
-  &:hover {
-    border-color: ${({ theme }) => theme.colors.border};
-    color: ${({ theme }) => theme.colors.text};
-    background: ${({ theme }) => theme.colors.backgroundGlass};
+const Input = styled.input`
+  width: 100%;
+  min-height: 44px;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  background: ${({ theme }) => theme.colors.backgroundSecondary};
+  color: ${({ theme }) => theme.colors.text};
+  font-size: ${({ theme }) => theme.fontSizes.base};
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+
+  &:focus {
+    border-color: ${({ theme }) => theme.colors.primaryLight};
+    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.backgroundGlass};
   }
+
+  &::placeholder {
+    color: ${({ theme }) => theme.colors.textLight};
+  }
+`;
+
+const TextArea = styled.textarea`
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  background: ${({ theme }) => theme.colors.backgroundSecondary};
+  color: ${({ theme }) => theme.colors.text};
+  font-family: inherit;
+  font-size: ${({ theme }) => theme.fontSizes.base};
+  line-height: 1.45;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:focus {
+    border-color: ${({ theme }) => theme.colors.primaryLight};
+    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.backgroundGlass};
+  }
+`;
+
+// ─── Logo upload ─────────────────────────────────────────────────────────────
+
+const LogoUpload = styled.div`
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.85rem;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  background: ${({ theme }) => theme.colors.backgroundSecondary};
+
+  @media (max-width: 520px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const LogoPreview = styled.div`
+  width: 112px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  background: ${({ theme }) => theme.colors.backgroundCard};
+  overflow: hidden;
+
+  @media (max-width: 520px) {
+    width: 100%;
+  }
+`;
+
+const LogoImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 0.35rem;
+`;
+
+const LogoPlaceholder = styled.div`
+  display: grid;
+  place-items: center;
+  gap: 0.25rem;
+  color: ${({ theme }) => theme.colors.textLight};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 800;
+  text-align: center;
+`;
+
+const LogoActions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+`;
+
+const HiddenFileInput = styled.input`
+  display: none;
+`;
+
+// ─── Buttons ─────────────────────────────────────────────────────────────────
+
+const Btn = styled.button<{ $variant?: 'primary' | 'ghost' | 'danger' }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 38px;
+  padding: 0.55rem 0.9rem;
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  white-space: nowrap;
+
+  border: 1px solid ${({ $variant, theme }) => {
+    if ($variant === 'primary') return theme.colors.primary;
+    if ($variant === 'danger')  return 'rgba(239,68,68,0.4)';
+    return theme.colors.borderLight;
+  }};
+  background: ${({ $variant, theme }) => {
+    if ($variant === 'primary') return theme.colors.primary;
+    if ($variant === 'danger')  return 'rgba(239,68,68,0.1)';
+    return theme.colors.backgroundGlass;
+  }};
+  color: ${({ $variant, theme }) => {
+    if ($variant === 'primary') return theme.colors.textWhite;
+    if ($variant === 'danger')  return '#f87171';
+    return theme.colors.textSecondary;
+  }};
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+  }
+  &:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+`;
+
+const FormActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
 
   @media (max-width: 480px) {
-    padding: 0.65rem 0.7rem;
-    font-size: 0.75rem;
+    flex-direction: column;
+    button { width: 100%; }
   }
 `;
 
-// ─── Panel ────────────────────────────────────────────────────────────────────
+// ─── Toolbar ─────────────────────────────────────────────────────────────────
 
-const Panel = styled.section`
-  background: ${({ theme }) => theme.colors.backgroundCard};
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
-  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
-  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
-  overflow: hidden;
-`;
-
-const PanelHead = styled.div`
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid ${({ theme }) => theme.colors.borderLight};
+const Toolbar = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  flex-wrap: wrap;
-  background: linear-gradient(180deg, rgba(255,69,0,0.04) 0%, transparent 100%);
+  margin-bottom: 1rem;
 
-  @media (max-width: 600px) {
+  @media (max-width: 640px) {
     flex-direction: column;
     align-items: stretch;
-    padding: 1rem;
   }
 `;
 
-const PanelHeadLeft = styled.div`
+const ToolbarLeft = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.55rem;
   color: ${({ theme }) => theme.colors.text};
-  font-weight: 800;
+  font-weight: 700;
   font-size: ${({ theme }) => theme.fontSizes.base};
 `;
 
-// ─── Search ───────────────────────────────────────────────────────────────────
-
-const SearchWrap = styled.label`
+const SearchBox = styled.label`
   position: relative;
-  display: flex;
-  align-items: center;
+  width: min(360px, 100%);
   color: ${({ theme }) => theme.colors.textLight};
 
   svg {
     position: absolute;
     left: 0.9rem;
+    top: 50%;
+    transform: translateY(-50%);
     pointer-events: none;
   }
+
+  @media (max-width: 640px) { width: 100%; }
 `;
 
-const SearchField = styled.input`
-  width: min(360px, 100%);
-  padding: 0.7rem 1rem 0.7rem 2.6rem;
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
-  border-radius: ${({ theme }) => theme.borderRadius.xl};
-  background: ${({ theme }) => theme.colors.backgroundSecondary};
-  color: ${({ theme }) => theme.colors.text};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-
-  &:focus {
-    border-color: ${({ theme }) => theme.colors.primary};
-    box-shadow: 0 0 0 3px rgba(255,69,0,0.15);
-  }
-
-  &::placeholder { color: ${({ theme }) => theme.colors.textLight}; }
-
-  @media (max-width: 600px) { width: 100%; }
+const SearchInput = styled(Input)`
+  padding-left: 2.6rem;
+  min-height: 40px;
 `;
 
-// ─── Table ────────────────────────────────────────────────────────────────────
+// ─── Table ───────────────────────────────────────────────────────────────────
 
-const TableScroll = styled.div`
+const TableWrap = styled.div`
   width: 100%;
   overflow-x: auto;
+
   @media (max-width: 760px) { overflow: visible; }
 `;
 
 const Table = styled.table`
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 0.5rem;
+  border-spacing: 0 0.6rem;
 
   @media (max-width: 760px) {
     display: block;
@@ -320,65 +347,57 @@ const Table = styled.table`
 `;
 
 const THead = styled.thead`
+  color: ${({ theme }) => theme.colors.textLight};
   @media (max-width: 760px) { display: none; }
 `;
 
 const TH = styled.th`
-  padding: 0 1rem 0.5rem;
+  padding: 0 1rem 0.2rem;
   text-align: left;
-  font-size: 0.7rem;
+  font-size: ${({ theme }) => theme.fontSizes.xs};
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: ${({ theme }) => theme.colors.textLight};
+  letter-spacing: 0.06em;
 `;
 
 const TR = styled.tr`
-  background: rgba(21,21,32,0.9);
-  transition: box-shadow 0.2s, transform 0.2s;
-
-  &:hover {
-    box-shadow: 0 0 0 1px rgba(255,69,0,0.25), 0 8px 32px rgba(0,0,0,0.3);
-    transform: translateY(-1px);
-  }
+  background: ${({ theme }) => theme.colors.backgroundSecondary};
+  box-shadow: 0 8px 24px ${({ theme }) => theme.colors.shadow};
 
   @media (max-width: 760px) {
     display: grid;
-    gap: 0.75rem;
+    gap: 0.65rem;
+    border: 1px solid ${({ theme }) => theme.colors.borderLight};
+    border-radius: ${({ theme }) => theme.borderRadius['2xl']};
     padding: 1rem;
     margin-bottom: 0.75rem;
-    border: 1px solid ${({ theme }) => theme.colors.borderLight};
-    border-left: 3px solid rgba(255,69,0,0.4);
-    border-radius: ${({ theme }) => theme.borderRadius['2xl']};
-    transform: none;
-    &:hover { transform: none; }
   }
 `;
 
 const TD = styled.td`
   padding: 0.85rem 1rem;
-  border-top: 1px solid rgba(255,69,0,0.06);
-  border-bottom: 1px solid rgba(255,69,0,0.06);
+  border-top: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.borderLight};
   font-size: ${({ theme }) => theme.fontSizes.sm};
   vertical-align: middle;
   color: ${({ theme }) => theme.colors.text};
 
   &:first-child {
-    border-left: 1px solid rgba(255,69,0,0.06);
+    border-left: 1px solid ${({ theme }) => theme.colors.borderLight};
     border-top-left-radius: ${({ theme }) => theme.borderRadius.xl};
     border-bottom-left-radius: ${({ theme }) => theme.borderRadius.xl};
   }
 
   &:last-child {
-    border-right: 1px solid rgba(255,69,0,0.06);
+    border-right: 1px solid ${({ theme }) => theme.colors.borderLight};
     border-top-right-radius: ${({ theme }) => theme.borderRadius.xl};
     border-bottom-right-radius: ${({ theme }) => theme.borderRadius.xl};
   }
 
   @media (max-width: 760px) {
     display: grid;
-    grid-template-columns: 80px minmax(0, 1fr);
-    gap: 0.5rem;
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 0.55rem;
     padding: 0;
     border: 0;
     align-items: center;
@@ -389,380 +408,142 @@ const TD = styled.td`
     &::before {
       content: attr(data-label);
       color: ${({ theme }) => theme.colors.textLight};
-      font-size: 0.68rem;
+      font-size: ${({ theme }) => theme.fontSizes.xs};
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      align-self: center;
+      letter-spacing: 0.04em;
     }
   }
 `;
 
 // ─── Company identity ─────────────────────────────────────────────────────────
 
-const CompanyCell = styled.div`
+const CompanyIdentity = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.65rem;
 `;
 
 const CompanyAvatar = styled.div`
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: ${({ theme }) => theme.borderRadius.xl};
-  background: linear-gradient(135deg, #ff4500, #ff8c42);
-  border: 1px solid rgba(255,69,0,0.3);
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
-  color: #fff;
-  font-size: 0.75rem;
-  font-weight: 900;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  background: ${({ theme }) => theme.colors.backgroundCard};
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(255,69,0,0.3);
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-weight: 900;
+  font-size: ${({ theme }) => theme.fontSizes.xs};
 `;
 
-const LogoThumb = styled.img`
+const CompanyLogoThumb = styled.img`
   width: 100%;
   height: 100%;
   object-fit: contain;
-  padding: 0.25rem;
+  padding: 0.2rem;
 `;
 
-const CompanyName = styled.div`
+const CompanyName = styled.span`
+  display: block;
   font-weight: 700;
   color: ${({ theme }) => theme.colors.text};
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 200px;
+  max-width: 220px;
 
-  @media (max-width: 760px) { max-width: none; white-space: normal; }
+  @media (max-width: 760px) {
+    max-width: none;
+    white-space: normal;
+  }
 `;
 
-const CompanyMeta = styled.div`
+const CompanyMeta = styled.span`
+  display: block;
+  margin-top: 0.18rem;
+  overflow: hidden;
   color: ${({ theme }) => theme.colors.textLight};
   font-size: ${({ theme }) => theme.fontSizes.xs};
-  margin-top: 0.15rem;
-  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-`;
-
-const TDSub = styled.div`
-  color: ${({ theme }) => theme.colors.textLight};
-  font-size: ${({ theme }) => theme.fontSizes.xs};
-  margin-top: 0.15rem;
 `;
 
 const ActionGroup = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-`;
-
-// ─── Buttons ─────────────────────────────────────────────────────────────────
-
-const Btn = styled.button<{ $variant?: 'primary' | 'ghost' | 'danger'; $size?: 'sm' }>`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   gap: 0.4rem;
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.18s;
-  white-space: nowrap;
-
-  ${({ $size }) => $size === 'sm' ? css`
-    min-height: 32px;
-    padding: 0.35rem 0.75rem;
-    font-size: 0.75rem;
-  ` : css`
-    min-height: 40px;
-    padding: 0.55rem 1rem;
-    font-size: ${({ theme }: any) => theme.fontSizes.sm};
-  `}
-
-  ${({ $variant, theme }) => {
-    switch ($variant) {
-      case 'primary': return css`
-        background: ${theme.colors.gradient.primary};
-        border: none;
-        color: #fff;
-        box-shadow: 0 4px 14px rgba(255,69,0,0.35);
-        &:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,69,0,0.45); }
-      `;
-      case 'danger': return css`
-        background: rgba(239,68,68,0.1);
-        border: 1px solid rgba(239,68,68,0.3);
-        color: #f87171;
-        &:hover:not(:disabled) { background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.5); transform: translateY(-1px); }
-      `;
-      default: return css`
-        background: ${theme.colors.backgroundSecondary};
-        border: 1px solid ${theme.colors.borderLight};
-        color: ${theme.colors.textSecondary};
-        &:hover:not(:disabled) { background: ${theme.colors.backgroundGlass}; border-color: ${theme.colors.border}; color: ${theme.colors.text}; transform: translateY(-1px); }
-      `;
-    }
-  }}
-
-  &:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; }
-`;
-
-// ─── Form panel ───────────────────────────────────────────────────────────────
-
-const FormPanelHead = styled.div`
-  padding: 1.5rem 1.5rem 0;
-  @media (max-width: 600px) { padding: 1.25rem 1rem 0; }
-`;
-
-const FormPanelTitle = styled.h2`
-  margin: 0 0 0.3rem;
-  font-size: ${({ theme }) => theme.fontSizes.xl};
-  font-weight: 800;
-  color: ${({ theme }) => theme.colors.text};
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-`;
-
-const FormPanelHint = styled.p`
-  margin: 0 0 1.5rem;
-  color: ${({ theme }) => theme.colors.textLight};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-`;
-
-const FormBody = styled.div`
-  padding: 0 1.5rem 1.5rem;
-  display: grid;
-  gap: 1rem;
-
-  @media (max-width: 600px) { padding: 0 1rem 1.25rem; }
-`;
-
-const FieldRow = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.85rem;
-
-  @media (max-width: 560px) { grid-template-columns: 1fr; }
-`;
-
-const FieldGroup = styled.label`
-  display: grid;
-  gap: 0.35rem;
-`;
-
-const FieldLabel = styled.span`
-  color: ${({ theme }) => theme.colors.textSecondary};
-  font-size: ${({ theme }) => theme.fontSizes.xs};
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-`;
-
-const inputStyles = css`
-  width: 100%;
-  min-height: 42px;
-  padding: 0.65rem 0.9rem;
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  background: rgba(10,10,15,0.7);
-  color: ${({ theme }) => theme.colors.text};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  box-sizing: border-box;
-
-  &:focus {
-    border-color: ${({ theme }) => theme.colors.primary};
-    box-shadow: 0 0 0 3px rgba(255,69,0,0.15);
-  }
-
-  &::placeholder { color: ${({ theme }) => theme.colors.textLight}; }
-`;
-
-const Input = styled.input`${inputStyles}`;
-const TextArea = styled.textarea`
-  ${inputStyles}
-  min-height: 76px;
-  resize: vertical;
-  font-family: inherit;
-  line-height: 1.45;
-`;
-
-// ─── Logo upload ─────────────────────────────────────────────────────────────
-
-const LogoSection = styled.div`
-  display: grid;
-  grid-template-columns: 100px minmax(0, 1fr);
-  gap: 1rem;
-  align-items: center;
-  padding: 1rem;
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
-  border-radius: ${({ theme }) => theme.borderRadius.xl};
-  background: rgba(10,10,15,0.5);
-
-  @media (max-width: 480px) { grid-template-columns: 1fr; }
-`;
-
-const LogoPreview = styled.div`
-  width: 100px;
-  height: 64px;
-  display: grid;
-  place-items: center;
-  border: 1px dashed ${({ theme }) => theme.colors.border};
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  background: ${({ theme }) => theme.colors.backgroundCard};
-  overflow: hidden;
-  color: ${({ theme }) => theme.colors.textLight};
-
-  @media (max-width: 480px) { width: 100%; height: 60px; }
-`;
-
-const LogoPreviewImg = styled.img`
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  padding: 0.3rem;
-`;
-
-const LogoPlaceholder = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.2rem;
-  font-size: 0.65rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.6;
-`;
-
-const LogoControls = styled.div`
-  display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
 `;
 
-const HiddenInput = styled.input`display: none;`;
-
-// ─── Section divider ─────────────────────────────────────────────────────────
-
-const SectionDivider = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: ${({ theme }) => theme.colors.textLight};
-  font-size: ${({ theme }) => theme.fontSizes.xs};
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-
-  &::before, &::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: ${({ theme }) => theme.colors.borderLight};
-  }
-`;
-
-// ─── Form actions ─────────────────────────────────────────────────────────────
-
-const FormActions = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-
-  @media (max-width: 480px) {
-    flex-direction: column;
-    button { width: 100%; }
-  }
-`;
-
-// ─── Empty state ──────────────────────────────────────────────────────────────
+// ─── Empty ────────────────────────────────────────────────────────────────────
 
 const EmptyState = styled.div`
-  padding: 3.5rem 1rem;
+  padding: 3rem 1rem;
+  text-align: center;
+  color: ${({ theme }) => theme.colors.textSecondary};
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
-  color: ${({ theme }) => theme.colors.textSecondary};
-  text-align: center;
 `;
 
-const EmptyIcon = styled.div`
-  width: 64px;
-  height: 64px;
-  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
-  background: ${({ theme }) => theme.colors.backgroundGlass};
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
-  display: grid;
-  place-items: center;
-  color: ${({ theme }) => theme.colors.textLight};
-`;
-
-const EmptyText = styled.p`
-  margin: 0;
-  font-weight: 700;
-  font-size: ${({ theme }) => theme.fontSizes.base};
-`;
-
-const EmptySub = styled.p`
-  margin: 0;
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  color: ${({ theme }) => theme.colors.textLight};
-`;
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getErrorMessage(error: unknown) {
   if (typeof error === 'object' && error !== null && 'response' in error) {
-    const r = (error as { response?: { data?: { error?: string; message?: string } } }).response;
-    return r?.data?.error || r?.data?.message || 'Erro ao processar a solicitação.';
+    const response = (error as { response?: { data?: { error?: string; message?: string } } }).response;
+    return response?.data?.error || response?.data?.message || 'Erro ao processar a solicitação.';
   }
   return 'Erro ao processar a solicitação.';
 }
 
 function formatDate(value?: string) {
   if (!value) return '—';
-  const d = new Date(value);
-  return isNaN(d.getTime()) ? '—' : new Intl.DateTimeFormat('pt-BR').format(d);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('pt-BR').format(date);
 }
 
-function toForm(e: Empresa): EmpresaForm {
+function toForm(empresa: Empresa): EmpresaForm {
   return {
-    nome: e.nome || '', cnpj: e.cnpj || '', email: e.email || '',
-    telefone: e.telefone || '', whatsapp: e.whatsapp || '', endereco: e.endereco || '',
-    site: e.site || '', instagram: e.instagram || '', responsavel_nome: e.responsavel_nome || '',
-    creci: e.creci || '', logo_url: e.logo_url || '',
+    nome: empresa.nome || '',
+    cnpj: empresa.cnpj || '',
+    email: empresa.email || '',
+    telefone: empresa.telefone || '',
+    whatsapp: empresa.whatsapp || '',
+    endereco: empresa.endereco || '',
+    site: empresa.site || '',
+    instagram: empresa.instagram || '',
+    responsavel_nome: empresa.responsavel_nome || '',
+    creci: empresa.creci || '',
+    logo_url: empresa.logo_url || '',
   };
 }
 
 function buildPayload(form: EmpresaForm) {
-  return Object.entries(form).reduce<Record<string, string>>((acc, [k, v]) => {
-    acc[k] = String(v || '').trim();
-    return acc;
+  return Object.entries(form).reduce<Record<string, string>>((payload, [key, value]) => {
+    payload[key] = String(value || '').trim();
+    return payload;
   }, {});
 }
 
 function getInitials(nome: string) {
-  return nome.split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join('') || 'E';
+  return nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || 'E';
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+type ActiveTab = 'listar' | 'cadastrar';
+
 const AdminCompanyPage: React.FC = () => {
   const navigate = useNavigate();
-
+  const { confirm } = useFeedback();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [form, setForm] = useState<EmpresaForm>(EMPTY_FORM);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingEmpresaId, setEditingEmpresaId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>(() =>
     (localStorage.getItem('vistoriapro_company_tab') as ActiveTab) || 'listar',
   );
@@ -776,71 +557,82 @@ const AdminCompanyPage: React.FC = () => {
   const toast = (message: string, type: 'success' | 'error' | 'info' = 'info') =>
     setSnackbar({ open: true, message, type });
 
-  const isEditing = editingId !== null;
+  const isEditing = editingEmpresaId !== null;
 
-  const loadEmpresas = async () => {
+  const fetchEmpresas = async () => {
     setLoading(true);
     try {
       const { data } = await api.get<Empresa[]>('/empresas');
       setEmpresas(data);
-    } catch (err) {
-      toast(getErrorMessage(err), 'error');
+    } catch (error) {
+      toast(getErrorMessage(error), 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadEmpresas(); }, []);
+  useEffect(() => {
+    fetchEmpresas();
+  }, []);
 
-  const filtered = useMemo(() => {
+  const filteredEmpresas = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return empresas;
-    return empresas.filter(e =>
-      [e.nome, e.cnpj, e.email, e.telefone, e.site, e.instagram, e.creci]
-        .some(v => String(v || '').toLowerCase().includes(term)),
+    return empresas.filter((e) =>
+      [e.nome, e.cnpj, e.email, e.telefone, e.whatsapp, e.site, e.instagram, e.creci]
+        .some((v) => String(v || '').toLowerCase().includes(term)),
     );
   }, [empresas, searchTerm]);
 
-  const withLogo = empresas.filter(e => e.logo_url).length;
-  const withContact = empresas.filter(e => e.telefone || e.whatsapp || e.site).length;
+  const resetForm = () => {
+    setForm(EMPTY_FORM);
+    setEditingEmpresaId(null);
+  };
 
-  const resetForm = () => { setForm(EMPTY_FORM); setEditingId(null); };
-
-  const changeTab = (tab: ActiveTab) => {
+  const handleTabChange = (tab: ActiveTab) => {
     setActiveTab(tab);
     localStorage.setItem('vistoriapro_company_tab', tab);
     if (tab !== 'cadastrar') resetForm();
   };
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
+  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
     if (!file) return;
-    if (!ALLOWED_LOGO_TYPES.includes(file.type)) { toast('Selecione PNG ou JPG.', 'error'); return; }
-    if (file.size > MAX_LOGO_SIZE) { toast('Logomarca deve ter até 1,5 MB.', 'error'); return; }
+
+    if (!ALLOWED_LOGO_TYPES.includes(file.type)) {
+      toast('Selecione uma logomarca em PNG ou JPG.', 'error');
+      return;
+    }
+
+    if (file.size > MAX_LOGO_SIZE_BYTES) {
+      toast('A logomarca deve ter até 1,5 MB.', 'error');
+      return;
+    }
+
     const reader = new FileReader();
-    reader.onload = () => setForm(f => ({ ...f, logo_url: String(reader.result || '') }));
+    reader.onload = () => setForm((f) => ({ ...f, logo_url: String(reader.result || '') }));
     reader.onerror = () => toast('Não foi possível ler a imagem.', 'error');
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setSaving(true);
     try {
       const payload = buildPayload(form);
       if (isEditing) {
-        await api.put(`/empresas/${editingId}`, payload);
+        await api.put(`/empresas/${editingEmpresaId}`, payload);
         toast('Empresa atualizada com sucesso.', 'success');
       } else {
         await api.post('/empresas', payload);
-        toast('Empresa cadastrada. Vincule usuários a ela.', 'success');
+        toast('Empresa cadastrada. Agora você pode vincular usuários a ela.', 'success');
       }
       resetForm();
-      changeTab('listar');
-      await loadEmpresas();
-    } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      handleTabChange('listar');
+      await fetchEmpresas();
+    } catch (error) {
+      toast(getErrorMessage(error), 'error');
     } finally {
       setSaving(false);
     }
@@ -848,18 +640,30 @@ const AdminCompanyPage: React.FC = () => {
 
   const handleEdit = (empresa: Empresa) => {
     setForm(toForm(empresa));
-    setEditingId(empresa.id);
-    changeTab('cadastrar');
+    setEditingEmpresaId(empresa.id);
+    handleTabChange('cadastrar');
+  };
+
+  const handleNewEmpresa = () => {
+    resetForm();
+    handleTabChange('cadastrar');
   };
 
   const handleDelete = async (empresa: Empresa) => {
-    if (!window.confirm(`Excluir "${empresa.nome}"? Esta ação não pode ser desfeita.`)) return;
+    const confirmed = await confirm({
+      title: 'Excluir empresa',
+      message: `Tem certeza que deseja excluir "${empresa.nome}"? Esta ação não pode ser desfeita.`,
+      confirmButtonText: 'Excluir',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+
     try {
       await api.delete(`/empresas/${empresa.id}`);
-      setEmpresas(prev => prev.filter(e => e.id !== empresa.id));
-      toast(`"${empresa.nome}" removida.`, 'success');
-    } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      setEmpresas((prev) => prev.filter((e) => e.id !== empresa.id));
+      toast(`Empresa "${empresa.nome}" removida.`, 'success');
+    } catch (error) {
+      toast(getErrorMessage(error), 'error');
     }
   };
 
@@ -868,222 +672,250 @@ const AdminCompanyPage: React.FC = () => {
       <AppHeader title="Gerenciar Empresas" showBackButton />
       <Container>
         <Content>
+          <AdminTabs
+            items={[
+              {
+                id: 'users',
+                label: 'Usuários',
+                icon: <Users size={17} />,
+                onClick: () => navigate('/admin/users'),
+              },
+              {
+                id: 'companies-list',
+                label: 'Empresas',
+                icon: <Building2 size={17} />,
+                active: true,
+                onClick: () => handleTabChange('listar'),
+              },
+            ]}
+            action={{
+              label: 'Nova empresa',
+              icon: <Plus size={17} />,
+              onClick: handleNewEmpresa,
+            }}
+          />
 
-          {/* ── Stats ── */}
-          <StatGrid>
-            <StatCard $accent="#ff4500">
-              <StatIconWrap $accent="#ff4500"><Building2 size={18} /></StatIconWrap>
-              <StatValue>{empresas.length}</StatValue>
-              <StatLabel>Total de empresas</StatLabel>
-            </StatCard>
-            <StatCard $accent="#60a5fa">
-              <StatIconWrap $accent="#60a5fa"><ImagePlus size={18} /></StatIconWrap>
-              <StatValue>{withLogo}</StatValue>
-              <StatLabel>Com logomarca</StatLabel>
-            </StatCard>
-            <StatCard $accent="#10b981">
-              <StatIconWrap $accent="#10b981"><Phone size={18} /></StatIconWrap>
-              <StatValue>{withContact}</StatValue>
-              <StatLabel>Com contato</StatLabel>
-            </StatCard>
-          </StatGrid>
-
-          {/* ── Tabs ── */}
-          <TabBar>
-            <Tab $active={activeTab === 'listar'} onClick={() => changeTab('listar')}>
-              <Building2 size={16} />
-              Empresas
-            </Tab>
-            <Tab $active={activeTab === 'cadastrar'} onClick={() => changeTab('cadastrar')}>
-              {isEditing ? <Edit3 size={16} /> : <Plus size={16} />}
-              {isEditing ? 'Editar empresa' : 'Nova empresa'}
-            </Tab>
-            <NavChip onClick={() => navigate('/admin/users')}>
-              <Users size={14} />
-              Usuários
-              <ChevronRight size={13} />
-            </NavChip>
-          </TabBar>
-
-          {/* ── LIST ── */}
+          {/* ── LIST TAB ── */}
           {activeTab === 'listar' && (
             <Panel>
-              <PanelHead>
-                <PanelHeadLeft>
-                  <Building2 size={18} />
-                  {filtered.length} empresa{filtered.length !== 1 ? 's' : ''}
-                  {searchTerm.trim() && ` encontrada${filtered.length !== 1 ? 's' : ''}`}
-                </PanelHeadLeft>
-                <SearchWrap>
-                  <Search size={16} />
-                  <SearchField
+              <Toolbar>
+                <ToolbarLeft>
+                  <Building2 size={20} />
+                  {filteredEmpresas.length} empresa{filteredEmpresas.length !== 1 ? 's' : ''}
+                </ToolbarLeft>
+                <SearchBox>
+                  <Search size={18} />
+                  <SearchInput
+                    as="input"
                     type="search"
                     placeholder="Buscar por nome, CNPJ, email..."
                     value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                   />
-                </SearchWrap>
-              </PanelHead>
+                </SearchBox>
+              </Toolbar>
 
-              <div style={{ padding: '1rem 1rem 1.25rem' }}>
-                {loading ? (
-                  <EmptyState>
-                    <EmptyIcon><RefreshCw size={26} strokeWidth={1.5} /></EmptyIcon>
-                    <EmptyText>Carregando empresas...</EmptyText>
-                  </EmptyState>
-                ) : filtered.length === 0 ? (
-                  <EmptyState>
-                    <EmptyIcon><Building2 size={28} strokeWidth={1.5} /></EmptyIcon>
-                    <EmptyText>{searchTerm ? 'Nenhuma empresa encontrada.' : 'Nenhuma empresa cadastrada ainda.'}</EmptyText>
-                    {!searchTerm && <EmptySub>Cadastre a primeira na aba "Nova empresa".</EmptySub>}
-                  </EmptyState>
-                ) : (
-                  <TableScroll>
-                    <Table>
-                      <THead>
-                        <tr>
-                          <TH>Empresa</TH>
-                          <TH>Contato</TH>
-                          <TH>Laudo</TH>
-                          <TH>Cadastro</TH>
-                          <TH>Ações</TH>
-                        </tr>
-                      </THead>
-                      <tbody>
-                        {filtered.map(empresa => (
-                          <TR key={empresa.id}>
-                            <TD data-label="Empresa">
-                              <CompanyCell>
-                                <CompanyAvatar>
-                                  {empresa.logo_url
-                                    ? <LogoThumb src={empresa.logo_url} alt="" />
-                                    : getInitials(empresa.nome)
-                                  }
-                                </CompanyAvatar>
-                                <div>
-                                  <CompanyName>{empresa.nome}</CompanyName>
-                                  <CompanyMeta>{empresa.cnpj || 'Sem CNPJ'}{empresa.creci ? ` · ${empresa.creci}` : ''}</CompanyMeta>
-                                </div>
-                              </CompanyCell>
-                            </TD>
-                            <TD data-label="Contato">
-                              {empresa.email || '—'}
-                              <TDSub>{empresa.telefone || empresa.whatsapp || 'Sem telefone'}</TDSub>
-                            </TD>
-                            <TD data-label="Laudo">
-                              {empresa.endereco || empresa.site || empresa.instagram || 'Dados pendentes'}
-                              <TDSub>{empresa.logo_url ? 'Logomarca ok' : 'Sem logomarca'}</TDSub>
-                            </TD>
-                            <TD data-label="Cadastro">{formatDate(empresa.created_at)}</TD>
-                            <TD data-label="Ações">
-                              <ActionGroup>
-                                <Btn $size="sm" $variant="ghost" onClick={() => handleEdit(empresa)}>
-                                  <Edit3 size={13} /> Editar
-                                </Btn>
-                                <Btn $size="sm" $variant="danger" onClick={() => handleDelete(empresa)}>
-                                  <Trash2 size={13} /> Excluir
-                                </Btn>
-                              </ActionGroup>
-                            </TD>
-                          </TR>
-                        ))}
-                      </tbody>
-                    </Table>
-                  </TableScroll>
-                )}
-              </div>
+              {loading ? (
+                <EmptyState>
+                  <RefreshCw size={28} strokeWidth={1.5} />
+                  Carregando empresas...
+                </EmptyState>
+              ) : filteredEmpresas.length === 0 ? (
+                <EmptyState>
+                  <Building2 size={36} strokeWidth={1.5} />
+                  {searchTerm ? 'Nenhuma empresa encontrada.' : 'Nenhuma empresa cadastrada ainda.'}
+                </EmptyState>
+              ) : (
+                <TableWrap>
+                  <Table>
+                    <THead>
+                      <tr>
+                        <TH>Empresa</TH>
+                        <TH>Contato</TH>
+                        <TH>Responsável</TH>
+                        <TH>Cadastro</TH>
+                        <TH>Ações</TH>
+                      </tr>
+                    </THead>
+                    <tbody>
+                      {filteredEmpresas.map((empresa) => (
+                        <TR key={empresa.id}>
+                          <TD data-label="Empresa">
+                            <CompanyIdentity>
+                              <CompanyAvatar>
+                                {empresa.logo_url
+                                  ? <CompanyLogoThumb src={empresa.logo_url} alt="" />
+                                  : getInitials(empresa.nome)
+                                }
+                              </CompanyAvatar>
+                              <div>
+                                <CompanyName>{empresa.nome}</CompanyName>
+                                <CompanyMeta>{empresa.cnpj || 'Sem CNPJ'}</CompanyMeta>
+                              </div>
+                            </CompanyIdentity>
+                          </TD>
+                          <TD data-label="Contato">
+                            {empresa.email || '—'}
+                            <CompanyMeta>{empresa.telefone || empresa.whatsapp || 'Sem telefone'}</CompanyMeta>
+                          </TD>
+                          <TD data-label="Responsável">
+                            {empresa.responsavel_nome || '—'}
+                            <CompanyMeta>{empresa.creci || 'Sem CRECI'}</CompanyMeta>
+                          </TD>
+                          <TD data-label="Cadastro">{formatDate(empresa.created_at)}</TD>
+                          <TD data-label="Ações">
+                            <ActionGroup>
+                              <Btn $variant="ghost" onClick={() => handleEdit(empresa)}>
+                                <Edit3 size={15} />
+                                Editar
+                              </Btn>
+                              <Btn $variant="danger" onClick={() => handleDelete(empresa)}>
+                                <Trash2 size={15} />
+                                Excluir
+                              </Btn>
+                            </ActionGroup>
+                          </TD>
+                        </TR>
+                      ))}
+                    </tbody>
+                  </Table>
+                </TableWrap>
+              )}
             </Panel>
           )}
 
-          {/* ── FORM ── */}
+          {/* ── FORM TAB ── */}
           {activeTab === 'cadastrar' && (
             <Panel>
-              <FormPanelHead>
-                <FormPanelTitle>
-                  {isEditing ? <Edit3 size={20} /> : <Plus size={20} />}
-                  {isEditing ? 'Editar empresa' : 'Nova empresa'}
-                </FormPanelTitle>
-                <FormPanelHint>
-                  Logomarca e contatos salvos aqui aparecem automaticamente no cabeçalho e rodapé dos laudos.
-                </FormPanelHint>
-              </FormPanelHead>
+              <PanelTitle>
+                {isEditing ? <Edit3 size={20} /> : <Plus size={20} />}
+                {isEditing ? 'Editar empresa' : 'Nova empresa'}
+              </PanelTitle>
 
-              <FormBody as="form" onSubmit={handleSubmit}>
-
+              <Form onSubmit={handleSubmit}>
                 {/* Logo */}
                 <FieldGroup>
-                  <FieldLabel>Logomarca</FieldLabel>
-                  <LogoSection>
+                  <FieldLabel>Logomarca para o laudo</FieldLabel>
+                  <LogoUpload>
                     <LogoPreview>
-                      {form.logo_url
-                        ? <LogoPreviewImg src={form.logo_url} alt="Logomarca" />
-                        : <LogoPlaceholder><ImagePlus size={20} />PNG / JPG</LogoPlaceholder>
-                      }
+                      {form.logo_url ? (
+                        <LogoImage src={form.logo_url} alt="Logomarca da empresa" />
+                      ) : (
+                        <LogoPlaceholder>
+                          <ImagePlus size={22} />
+                          PNG ou JPG
+                        </LogoPlaceholder>
+                      )}
                     </LogoPreview>
-                    <LogoControls>
-                      <Btn as="label" htmlFor="logo-upload" type="button" $variant="ghost">
-                        <ImagePlus size={15} /> Escolher imagem
+                    <LogoActions>
+                      <Btn as="label" htmlFor="company-logo-input" type="button" $variant="ghost">
+                        <ImagePlus size={16} />
+                        Escolher imagem
                       </Btn>
-                      <HiddenInput id="logo-upload" type="file" accept="image/png,image/jpeg" onChange={handleLogoChange} />
+                      <HiddenFileInput
+                        id="company-logo-input"
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg"
+                        onChange={handleLogoChange}
+                      />
                       {form.logo_url && (
-                        <Btn type="button" $variant="danger" $size="sm" onClick={() => setForm(f => ({ ...f, logo_url: '' }))}>
-                          <X size={13} /> Remover
+                        <Btn
+                          type="button"
+                          $variant="ghost"
+                          onClick={() => setForm((f) => ({ ...f, logo_url: '' }))}
+                        >
+                          <X size={16} />
+                          Remover
                         </Btn>
                       )}
-                    </LogoControls>
-                  </LogoSection>
+                    </LogoActions>
+                  </LogoUpload>
                 </FieldGroup>
-
-                <SectionDivider>Dados da empresa</SectionDivider>
 
                 {/* Nome */}
                 <FieldGroup>
                   <FieldLabel>Razão social ou nome fantasia</FieldLabel>
-                  <Input name="nome" autoComplete="organization" placeholder="Ex.: Imobiliária Central" value={form.nome} required
-                    onChange={e => setForm(f => ({ ...f, nome: e.target.value }))} />
+                  <Input
+                    name="nome"
+                    autoComplete="organization"
+                    placeholder="Ex.: Imobiliária Central"
+                    value={form.nome}
+                    onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+                    required
+                  />
                 </FieldGroup>
 
                 {/* CNPJ + CRECI */}
                 <FieldRow>
                   <FieldGroup>
                     <FieldLabel>CNPJ</FieldLabel>
-                    <Input name="cnpj" inputMode="numeric" placeholder="00.000.000/0000-00" value={form.cnpj} required
-                      onChange={e => setForm(f => ({ ...f, cnpj: e.target.value }))} />
+                    <Input
+                      name="cnpj"
+                      inputMode="numeric"
+                      placeholder="00.000.000/0000-00"
+                      value={form.cnpj}
+                      onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))}
+                      required
+                    />
                   </FieldGroup>
                   <FieldGroup>
                     <FieldLabel>CRECI / registro</FieldLabel>
-                    <Input name="creci" placeholder="CRECI 00000-J" value={form.creci || ''}
-                      onChange={e => setForm(f => ({ ...f, creci: e.target.value }))} />
+                    <Input
+                      name="creci"
+                      placeholder="Ex.: CRECI 00000-J"
+                      value={form.creci || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, creci: e.target.value }))}
+                    />
                   </FieldGroup>
                 </FieldRow>
 
                 {/* Responsável */}
                 <FieldGroup>
                   <FieldLabel>Responsável</FieldLabel>
-                  <Input name="responsavel_nome" autoComplete="name" placeholder="Nome do responsável" value={form.responsavel_nome || ''}
-                    onChange={e => setForm(f => ({ ...f, responsavel_nome: e.target.value }))} />
+                  <Input
+                    name="responsavel_nome"
+                    autoComplete="name"
+                    placeholder="Nome do responsável pela empresa"
+                    value={form.responsavel_nome || ''}
+                    onChange={(e) => setForm((f) => ({ ...f, responsavel_nome: e.target.value }))}
+                  />
                 </FieldGroup>
-
-                <SectionDivider>Contato</SectionDivider>
 
                 {/* Email */}
                 <FieldGroup>
                   <FieldLabel>Email administrativo</FieldLabel>
-                  <Input type="email" name="email" autoComplete="email" placeholder="administrativo@empresa.com" value={form.email} required
-                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+                  <Input
+                    type="email"
+                    name="email"
+                    autoComplete="email"
+                    placeholder="administrativo@empresa.com"
+                    value={form.email}
+                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                    required
+                  />
                 </FieldGroup>
 
                 {/* Telefone + WhatsApp */}
                 <FieldRow>
                   <FieldGroup>
                     <FieldLabel>Telefone</FieldLabel>
-                    <Input name="telefone" inputMode="tel" placeholder="(11) 3333-3333" value={form.telefone || ''}
-                      onChange={e => setForm(f => ({ ...f, telefone: e.target.value }))} />
+                    <Input
+                      name="telefone"
+                      inputMode="tel"
+                      placeholder="(11) 3333-3333"
+                      value={form.telefone || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))}
+                    />
                   </FieldGroup>
                   <FieldGroup>
                     <FieldLabel>WhatsApp</FieldLabel>
-                    <Input name="whatsapp" inputMode="tel" placeholder="(11) 99999-9999" value={form.whatsapp || ''}
-                      onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))} />
+                    <Input
+                      name="whatsapp"
+                      inputMode="tel"
+                      placeholder="(11) 99999-9999"
+                      value={form.whatsapp || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))}
+                    />
                   </FieldGroup>
                 </FieldRow>
 
@@ -1091,43 +923,58 @@ const AdminCompanyPage: React.FC = () => {
                 <FieldRow>
                   <FieldGroup>
                     <FieldLabel>Site</FieldLabel>
-                    <Input name="site" inputMode="url" placeholder="www.empresa.com.br" value={form.site || ''}
-                      onChange={e => setForm(f => ({ ...f, site: e.target.value }))} />
+                    <Input
+                      name="site"
+                      inputMode="url"
+                      placeholder="www.empresa.com.br"
+                      value={form.site || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, site: e.target.value }))}
+                    />
                   </FieldGroup>
                   <FieldGroup>
                     <FieldLabel>Instagram</FieldLabel>
-                    <Input name="instagram" placeholder="@empresa" value={form.instagram || ''}
-                      onChange={e => setForm(f => ({ ...f, instagram: e.target.value }))} />
+                    <Input
+                      name="instagram"
+                      placeholder="@empresa"
+                      value={form.instagram || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, instagram: e.target.value }))}
+                    />
                   </FieldGroup>
                 </FieldRow>
-
-                <SectionDivider>Laudo</SectionDivider>
 
                 {/* Endereço */}
                 <FieldGroup>
                   <FieldLabel>Endereço para rodapé</FieldLabel>
-                  <TextArea name="endereco" placeholder="Rua, número, bairro, cidade/UF — aparece no rodapé do PDF" value={form.endereco || ''}
-                    onChange={e => setForm(f => ({ ...f, endereco: e.target.value }))} />
+                  <TextArea
+                    name="endereco"
+                    placeholder="Rua, número, bairro, cidade/UF"
+                    value={form.endereco || ''}
+                    onChange={(e) => setForm((f) => ({ ...f, endereco: e.target.value }))}
+                  />
                 </FieldGroup>
 
                 <FormActions>
-                  <Btn type="button" $variant="ghost" onClick={() => changeTab('listar')} disabled={saving}>
-                    <X size={15} /> Cancelar
+                  <Btn type="button" $variant="ghost" onClick={() => handleTabChange('listar')} disabled={saving}>
+                    <X size={16} />
+                    Cancelar
                   </Btn>
                   <Btn type="submit" $variant="primary" disabled={saving}>
-                    {isEditing ? <Save size={15} /> : <Plus size={15} />}
+                    {isEditing ? <Save size={16} /> : <Plus size={16} />}
                     {saving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Cadastrar empresa'}
                   </Btn>
                 </FormActions>
-              </FormBody>
+              </Form>
             </Panel>
           )}
-
         </Content>
       </Container>
 
-      <Snackbar open={snackbar.open} message={snackbar.message} type={snackbar.type}
-        onClose={() => setSnackbar(s => ({ ...s, open: false }))} />
+      <Snackbar
+        open={snackbar.open}
+        message={snackbar.message}
+        type={snackbar.type}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+      />
     </>
   );
 };

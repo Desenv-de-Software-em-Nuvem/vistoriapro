@@ -3,6 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { SpeechRecognition } from '@capacitor-community/speech-recognition';
 import styled from 'styled-components';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
+import { useFeedback } from '../FeedbackProvider';
 
 const MicIconButton = styled.button<{ $active: boolean }>`
   background: none;
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export const TranscriptionButton: React.FC<Props> = ({ onTranscription }) => {
+  const { notify } = useFeedback();
   const [recording, setRecording] = useState(false);
   const [loading, setLoading] = useState(false);
   const recognitionRef = useRef<any>(null);
@@ -38,7 +40,7 @@ export const TranscriptionButton: React.FC<Props> = ({ onTranscription }) => {
       try {
         const available = await SpeechRecognition.available();
         if (!available) {
-          alert('Reconhecimento de voz não disponível no dispositivo.');
+          notify({ message: 'Reconhecimento de voz não disponível no dispositivo.', type: 'error' });
           setLoading(false);
           return;
         }
@@ -60,11 +62,11 @@ export const TranscriptionButton: React.FC<Props> = ({ onTranscription }) => {
       } catch {
         setRecording(false);
         setLoading(false);
-        alert('Não foi possível transcrever o áudio no app.');
+        notify({ message: 'Não foi possível transcrever o áudio no app.', type: 'error' });
       }
     } else {
       if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        alert('Seu navegador não suporta reconhecimento de voz. Use o Chrome ou Edge.');
+        notify({ message: 'Seu navegador não suporta reconhecimento de voz. Use o Chrome ou Edge.', type: 'error', duration: 6000 });
         return;
       }
       setLoading(true);
@@ -85,7 +87,7 @@ export const TranscriptionButton: React.FC<Props> = ({ onTranscription }) => {
       recognition.onerror = () => {
         setRecording(false);
         setLoading(false);
-        alert('Não foi possível transcrever o áudio.');
+        notify({ message: 'Não foi possível transcrever o áudio.', type: 'error' });
       };
       recognition.onend = () => {
         setRecording(false);

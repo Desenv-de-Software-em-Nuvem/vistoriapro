@@ -4,7 +4,6 @@ import { ArrowRight, Building, Home, Building2, Store, Briefcase, Warehouse } fr
 import { useNavigate, useParams } from 'react-router-dom'
 import { PROPERTY_TYPES } from '../constants/propertyTypes'
 import { AppHeader } from '../components/AppHeader'
-import { MobileTabBar } from '../components/MobileTabBar'
 
 interface PropertyCategory {
   id: string
@@ -44,7 +43,7 @@ const Container = styled.div`
   max-width: 100%;
   overflow-x: hidden;
   box-sizing: border-box;
-  padding: 82px clamp(1rem, 4vw, 2.5rem) 2.5rem;
+  padding: 82px clamp(1rem, 4vw, 2.5rem) calc(96px + env(safe-area-inset-bottom, 0px));
 
   @media (max-width: 768px) {
     height: var(--vistoriapro-app-height, 100dvh);
@@ -387,9 +386,6 @@ export const PropertyCategoryPage: React.FC = () => {
           </ContinueButton>
         </ActionPanel>
       </Main>
-
-      <MobileTabBar />
     </Container>
   )
 }
-

@@ -1,13 +1,23 @@
 
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
+import styled from 'styled-components';
+import { ChevronDown, ChevronUp, Camera, Image, CheckCircle2, Sparkles } from 'lucide-react';
+import { CameraModal } from './CameraModal';
+import { TranscriptionButton } from './TranscriptionButton';
+
 const PhotoModalOverlay = styled.div`
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
+  inset: 0;
   background: rgba(0,0,0,0.85);
-  z-index: 9999;
+  z-index: 15000;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 100dvh;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 `;
 
 const PhotoModalBox = styled.div`
@@ -19,7 +29,8 @@ const PhotoModalBox = styled.div`
   flex-direction: column;
   align-items: center;
   max-width: 95vw;
-  max-height: 90vh;
+  max-height: calc(100dvh - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
   position: relative;
 `;
 
@@ -52,10 +63,6 @@ const PhotoModalButton = styled.button`
     background: ${({ theme }) => theme.colors.primaryDark};
   }
 `;
-import { CameraModal } from './CameraModal';
-import { TranscriptionButton } from './TranscriptionButton';
-import styled from 'styled-components';
-import { ChevronDown, ChevronUp, Camera, Image, CheckCircle2, Sparkles } from 'lucide-react';
 const CompleteButton = styled.button`
   display: flex;
   align-items: center;
@@ -361,6 +368,14 @@ const AiModalButton = styled.button<{ $primary?: boolean }>`
   cursor: pointer;
 `;
 
+const renderInBody = (node: React.ReactNode) => {
+  if (typeof document === 'undefined') {
+    return node;
+  }
+
+  return createPortal(node, document.body);
+};
+
 
 
 export const RoomAccordion: React.FC<RoomAccordionProps> = ({
@@ -454,7 +469,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
           </PhotosGrid>
         )}
         {/* Modal de visualização de foto */}
-        {photoModal?.open && (
+        {photoModal?.open && renderInBody(
           <PhotoModalOverlay>
             <PhotoModalBox>
               <PhotoModalImg src={photoModal.src} alt="Foto ampliada" />
@@ -484,7 +499,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
             IA analisando todas as fotos do cômodo e sugerindo descrição...
           </AiStatus>
         )}
-        {aiModalOpen && (
+        {aiModalOpen && renderInBody(
           <PhotoModalOverlay>
             <AiModalBox>
               <AiModalTitle>Orientar IA para este cômodo</AiModalTitle>

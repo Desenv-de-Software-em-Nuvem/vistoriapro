@@ -10,6 +10,7 @@ interface ModalProps {
   message: string
   confirmButtonText?: string
   cancelButtonText?: string
+  variant?: 'danger' | 'primary'
 }
 
 const ModalOverlay = styled.div`
@@ -18,22 +19,25 @@ const ModalOverlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 12000;
   padding: ${({ theme }) => theme.spacing.lg};
 `
 
 const ModalContent = styled.div`
   background: ${({ theme }) => theme.colors.backgroundCard};
+  border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.borderRadius.xl};
   width: 100%;
   max-width: min(450px, 96vw);
-  box-shadow: 0 20px 32px -5px rgba(0, 0, 0, 0.13), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 24px 60px ${({ theme }) => theme.colors.shadowDark};
   overflow: auto;
-  max-height: 100dvh;
+  max-height: calc(100dvh - 2rem);
   box-sizing: border-box;
 `;
 
@@ -42,6 +46,7 @@ const ModalHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing.md};
   border-bottom: 1px solid ${({ theme }) => theme.colors.border};
 `;
 
@@ -53,6 +58,7 @@ const ModalTitle = styled.h3`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
+  min-width: 0;
 `
 
 const CloseButton = styled.button`
@@ -90,13 +96,18 @@ const ModalFooter = styled.div`
   justify-content: flex-end;
   gap: ${({ theme }) => theme.spacing.md};
   border-top: 1px solid ${({ theme }) => theme.colors.border};
+
+  @media (max-width: 520px) {
+    flex-direction: column-reverse;
+  }
 `
 
 const Button = styled.button<{ variant?: 'primary' | 'danger' | 'secondary' }>`
+  min-height: 44px;
   padding: ${({ theme }) => theme.spacing.md} ${({ theme }) => theme.spacing.lg};
   border-radius: ${({ theme }) => theme.borderRadius.lg};
-  font-weight: 600;
-  border: none;
+  font-weight: 800;
+  border: 1px solid transparent;
   cursor: pointer;
   transition: all 0.2s ease;
 
@@ -104,26 +115,30 @@ const Button = styled.button<{ variant?: 'primary' | 'danger' | 'secondary' }>`
     switch (variant) {
       case 'danger':
         return `
-          background: #ef4444;
-          color: white;
+          background: rgba(239, 68, 68, 0.14);
+          border-color: rgba(239, 68, 68, 0.45);
+          color: #f87171;
           &:hover {
-            background: #b91c1c;
+            background: rgba(239, 68, 68, 0.22);
           }
         `;
       case 'primary':
         return `
-          background: ${theme.colors.primary};
+          background: ${theme.colors.gradient.primary};
+          border-color: ${theme.colors.primary};
           color: white;
           &:hover {
-            background: ${theme.colors.primaryDark};
+            filter: brightness(1.08);
           }
         `;
       default:
         return `
-          background: ${theme.colors.backgroundTertiary};
-          color: ${theme.colors.text};
+          background: ${theme.colors.backgroundGlass};
+          border-color: ${theme.colors.borderLight};
+          color: ${theme.colors.textSecondary};
           &:hover {
-            background: ${theme.colors.border};
+            background: ${theme.colors.backgroundTertiary};
+            color: ${theme.colors.text};
           }
         `;
     }
@@ -137,7 +152,8 @@ export const ConfirmationModal: React.FC<ModalProps> = ({
   title, 
   message,
   confirmButtonText = 'Confirmar',
-  cancelButtonText = 'Cancelar'
+  cancelButtonText = 'Cancelar',
+  variant = 'danger'
 }) => {
   if (!isOpen) return null
   
@@ -158,7 +174,7 @@ export const ConfirmationModal: React.FC<ModalProps> = ({
         </ModalBody>
         <ModalFooter>
           <Button onClick={onClose}>{cancelButtonText}</Button>
-          <Button variant="danger" onClick={onConfirm}>{confirmButtonText}</Button>
+          <Button variant={variant} onClick={onConfirm}>{confirmButtonText}</Button>
         </ModalFooter>
       </ModalContent>
     </ModalOverlay>

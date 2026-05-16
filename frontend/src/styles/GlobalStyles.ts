@@ -5,6 +5,7 @@ export const GlobalStyles = createGlobalStyle`
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    scrollbar-gutter: stable;
   }
 
   html {
@@ -20,6 +21,7 @@ export const GlobalStyles = createGlobalStyle`
     min-height: 100%;
     overflow-x: hidden;
     max-width: 100%;
+    scrollbar-gutter: stable;
     scrollbar-width: thin;
     scrollbar-color: ${({ theme }) => theme.colors.primary} transparent;
   }
@@ -38,6 +40,7 @@ export const GlobalStyles = createGlobalStyle`
     min-height: var(--vistoriapro-app-height, 100dvh);
     width: 100%;
     max-width: 100%;
+    scrollbar-gutter: stable;
     font-size: 1rem;
   }
 
@@ -52,6 +55,7 @@ export const GlobalStyles = createGlobalStyle`
     margin: 0 auto;
     padding: 0;
     overflow-x: hidden;
+    scrollbar-gutter: stable;
   }
 
   button {

@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { ConfirmationModal } from '../components/ConfirmationModal'
 import { AppHeader } from '../components/AppHeader'
-import { MobileTabBar } from '../components/MobileTabBar'
+import { useFeedback } from '../components/FeedbackProvider'
 import { PROPERTY_TYPES, getCanonicalPropertyType, getTipoDisplay } from '../constants/propertyTypes'
 
 const Container = styled.div`
@@ -535,6 +535,7 @@ interface Imovel {
 
 export const PropertyListPage: React.FC = () => {
   const navigate = useNavigate()
+  const { notify } = useFeedback()
   const [imoveis, setImoveis] = useState<Imovel[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
@@ -590,7 +591,7 @@ export const PropertyListPage: React.FC = () => {
       await loadImoveis()
     } catch (error) {
       console.error('Erro ao excluir imóvel:', error)
-      alert('Erro ao excluir imóvel')
+      notify({ message: 'Erro ao excluir imóvel.', type: 'error' })
       setIsModalOpen(false)
     }
   }
@@ -783,8 +784,6 @@ export const PropertyListPage: React.FC = () => {
           cancelButtonText="Cancelar"
         />
       )}
-
-      <MobileTabBar />
     </Container>
   )
 }

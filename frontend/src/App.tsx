@@ -6,6 +6,7 @@ import { GlobalStyles } from './styles/GlobalStyles'
 import { theme } from './styles/theme'
 import { AuthProvider } from './hooks/useAuth'
 import InstallPWAButton from './components/InstallPWAButton'
+import { FeedbackProvider } from './components/FeedbackProvider'
 
 function App() {
   useEffect(() => {
@@ -46,9 +47,11 @@ function App() {
     <ThemeProvider theme={theme}>
       <GlobalStyles />
       <AuthProvider>
-        <Router>
-          <AppRoutes />
-        </Router>
+        <FeedbackProvider>
+          <Router>
+            <AppRoutes />
+          </Router>
+        </FeedbackProvider>
         <InstallPWAButton />
       </AuthProvider>
     </ThemeProvider>

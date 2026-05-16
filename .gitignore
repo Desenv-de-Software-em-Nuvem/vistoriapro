@@ -79,6 +79,8 @@ temp/
 # ===========================
 backend/uploads/fotos/*
 !backend/uploads/fotos/.gitkeep
+backend/uploads/relatorios/*
+!backend/uploads/relatorios/.gitkeep
 
 # ===========================
 # Testes

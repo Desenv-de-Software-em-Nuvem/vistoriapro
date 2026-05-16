@@ -1,7 +1,8 @@
 import React, { lazy, Suspense } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { MobileTabBar } from '../components/MobileTabBar'
 
 // Importação direta para páginas críticas
 import { LoginPage } from '../pages/LoginPage'
@@ -18,10 +19,13 @@ const AdminCompanyPage = lazy(() => import('../pages/AdminCompanyPage'))
 
 export const AppRoutes: React.FC = () => {
   const { isAuthenticated, loading, user } = useAuth()
+  const { pathname } = useLocation()
 
   if (loading) {
     return <LoadingSpinner />
   }
+
+  const showTabBar = isAuthenticated && pathname !== '/' && !pathname.startsWith('/dashboard') && !pathname.startsWith('/login')
 
   const renderProtected = (element: React.ReactNode) => (
     isAuthenticated ? (
@@ -135,6 +139,7 @@ export const AppRoutes: React.FC = () => {
         } 
       />
     </Routes>
+    {showTabBar && <MobileTabBar />}
     </>
   )
 }

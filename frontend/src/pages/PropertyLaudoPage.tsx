@@ -7,7 +7,7 @@ import { InspectionDetailsForm } from '../components/InspectionDetailsForm'
 import { listarVistoriasPorImovel, deletarVistoria, type Vistoria as VistoriaType } from '../services/vistoriaService'
 import { getTipoDisplay } from '../constants/propertyTypes'
 import { AppHeader } from '../components/AppHeader'
-import { MobileTabBar } from '../components/MobileTabBar'
+import { useFeedback } from '../components/FeedbackProvider'
 
 type ReportFormat = 'pdf' | 'word'
 
@@ -403,6 +403,7 @@ interface Imovel {
 export const PropertyLaudoPage: React.FC = () => {
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
+  const { confirm, notify } = useFeedback()
   const [imovel, setImovel] = useState<Imovel | null>(null)
   const [vistorias, setVistorias] = useState<VistoriaType[]>([])
   const [loading, setLoading] = useState(true)
@@ -425,17 +426,22 @@ export const PropertyLaudoPage: React.FC = () => {
   }
 
   const handleExcluirVistoria = async (vistoriaId: number) => {
-    if (!window.confirm('Tem certeza que deseja excluir esta vistoria? Esta ação não pode ser desfeita.')) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'Excluir vistoria',
+      message: 'Tem certeza que deseja excluir esta vistoria? Esta ação não pode ser desfeita.',
+      confirmButtonText: 'Excluir',
+      variant: 'danger',
+    });
+    if (!confirmed) return;
+
     setDeletingId(vistoriaId);
     try {
       await deletarVistoria(vistoriaId);
       setVistorias((prev) => prev.filter((v) => v.id !== vistoriaId));
-      alert('Vistoria excluída com sucesso!');
+      notify({ message: 'Vistoria excluída com sucesso.', type: 'success' });
     } catch (err: any) {
       console.error('Erro ao excluir vistoria:', err);
-      alert('Erro ao excluir vistoria. Tente novamente.');
+      notify({ message: 'Erro ao excluir vistoria. Tente novamente.', type: 'error' });
     } finally {
       setDeletingId(null);
     }
@@ -510,12 +516,12 @@ export const PropertyLaudoPage: React.FC = () => {
 
       const fileUrl = response.data.url;
       if (!fileUrl) {
-        alert('URL do laudo não retornada pelo backend.');
+        notify({ message: 'URL do laudo não retornada pelo backend.', type: 'error' });
         return;
       }
 
       if (formato === 'word' && String(fileUrl).toLowerCase().includes('.pdf')) {
-        alert('O backend retornou um PDF ao solicitar Word. Reinicie o backend e tente gerar novamente.');
+        notify({ message: 'O backend retornou um PDF ao solicitar Word. Reinicie o backend e tente gerar novamente.', type: 'error', duration: 6000 });
         return;
       }
 
@@ -528,7 +534,7 @@ export const PropertyLaudoPage: React.FC = () => {
       const mimeType = formato === 'word' ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/pdf';
       const responseContentType = String(fileResponse.headers?.['content-type'] || '').toLowerCase();
       if (formato === 'word' && responseContentType.includes('application/pdf')) {
-        alert('O backend retornou PDF ao solicitar Word. Reinicie o backend e tente gerar novamente.');
+        notify({ message: 'O backend retornou PDF ao solicitar Word. Reinicie o backend e tente gerar novamente.', type: 'error', duration: 6000 });
         return;
       }
 
@@ -549,11 +555,13 @@ export const PropertyLaudoPage: React.FC = () => {
         (typeof err?.message === 'string' && err.message !== 'Request failed with status code 500'
           ? err.message
           : null);
-      alert(
-        apiMsg
+      notify({
+        message: apiMsg
           ? `Erro ao gerar laudo: ${apiMsg}`
           : 'Erro ao gerar laudo. Verifique o console ou tente outro formato (PDF/Word).',
-      );
+        type: 'error',
+        duration: 7000,
+      });
     } finally {
       setGeneratingReport(null);
     }
@@ -756,7 +764,6 @@ export const PropertyLaudoPage: React.FC = () => {
           )}
         </VistoriaSection>
       </ContentWrapper>
-      <MobileTabBar />
     </Container>
   )
 }
