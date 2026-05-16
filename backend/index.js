@@ -88,10 +88,26 @@ app.use((req, res, next) => {
 app.locals.pool = pool;
 
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'API VistoriaPro rodando!',
     version: '1.0.0',
     environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+app.get('/health', (req, res) => {
+  let sharpVersion = null;
+  let sharpOk = false;
+  try {
+    const s = require('sharp');
+    sharpVersion = s.versions?.sharp || 'ok';
+    sharpOk = true;
+  } catch {}
+  res.json({
+    status: 'ok',
+    platform: process.platform,
+    nodeVersion: process.version,
+    sharp: { available: sharpOk, version: sharpVersion },
   });
 });
 
