@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import styled from 'styled-components';
+import styled, { css, keyframes } from 'styled-components';
 import {
   UserPlus, List, UserX, ShieldCheck, ShieldOff, Search, Users,
-  Edit3, X, Save, Key, Building2, ChevronRight,
+  Edit3, X, Save, Key, Building2, ChevronRight, Lock, Unlock,
+  Crown, Wrench, User as UserIcon,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../hooks/useAuth';
@@ -11,16 +12,28 @@ import { AppHeader } from '../components/AppHeader';
 import { Snackbar } from '../components/Snackbar';
 import { useNavigate } from 'react-router-dom';
 
-// ─── Layout ──────────────────────────────────────────────────────────────────
+// ─── Animations ──────────────────────────────────────────────────────────────
+
+const fadeUp = keyframes`
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+`;
+
+const shimmer = keyframes`
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+`;
+
+// ─── Page shell ───────────────────────────────────────────────────────────────
 
 const Container = styled.div`
   width: 100%;
   max-width: 100%;
-  height: var(--vistoriapro-app-height, 100dvh);
-  min-height: 0;
-  padding: 88px clamp(1rem, 4vw, 2.5rem) 2rem;
+  min-height: var(--vistoriapro-app-height, 100dvh);
+  padding: 88px clamp(1rem, 4vw, 2.5rem) 3rem;
   background:
-    radial-gradient(circle at top left, rgba(255, 69, 0, 0.14), transparent 30rem),
+    radial-gradient(ellipse 60% 40% at 10% -5%, rgba(255,69,0,0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 30% at 90% 110%, rgba(255,107,53,0.1) 0%, transparent 50%),
     ${({ theme }) => theme.colors.background};
   overflow-x: hidden;
   overflow-y: auto;
@@ -28,160 +41,257 @@ const Container = styled.div`
   -webkit-overflow-scrolling: touch;
 
   @media (max-width: 600px) {
-    padding: 80px 1rem 1.5rem;
+    padding: 80px 1rem 2rem;
   }
 `;
 
 const Content = styled.main`
-  max-width: 1180px;
+  max-width: 1200px;
   width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
+  animation: ${fadeUp} 0.35s ease both;
 `;
 
-// ─── Stats ───────────────────────────────────────────────────────────────────
+// ─── Stat cards ───────────────────────────────────────────────────────────────
 
 const StatGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, minmax(100px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
 
-  @media (max-width: 430px) {
+  @media (max-width: 480px) {
     grid-template-columns: 1fr 1fr;
     & > :last-child { grid-column: 1 / -1; }
   }
 `;
 
-const StatCard = styled.div`
+const StatCard = styled.div<{ $accent: string }>`
+  position: relative;
   background: ${({ theme }) => theme.colors.backgroundCard};
   border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
+  padding: 1.25rem 1.25rem 1rem;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: ${({ $accent }) => $accent};
+    border-radius: 1rem 1rem 0 0;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 80px; height: 80px;
+    background: ${({ $accent }) => $accent};
+    opacity: 0.06;
+    border-radius: 50%;
+    transform: translate(25%, -25%);
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+  }
+`;
+
+const StatIconWrap = styled.div<{ $accent: string }>`
+  width: 36px;
+  height: 36px;
   border-radius: ${({ theme }) => theme.borderRadius.xl};
-  padding: 0.9rem 1rem;
-  min-width: 0;
+  background: ${({ $accent }) => $accent}22;
+  border: 1px solid ${({ $accent }) => $accent}44;
+  display: grid;
+  place-items: center;
+  color: ${({ $accent }) => $accent};
+  margin-bottom: 0.75rem;
 `;
 
 const StatValue = styled.strong`
   display: block;
   color: ${({ theme }) => theme.colors.text};
-  font-size: ${({ theme }) => theme.fontSizes['2xl']};
+  font-size: 2rem;
+  font-weight: 900;
   line-height: 1;
+  letter-spacing: -0.03em;
 `;
 
 const StatLabel = styled.span`
+  display: block;
+  margin-top: 0.3rem;
   color: ${({ theme }) => theme.colors.textLight};
   font-size: ${({ theme }) => theme.fontSizes.xs};
-  font-weight: 600;
-`;
-
-// ─── Tabs ────────────────────────────────────────────────────────────────────
-
-const Tabs = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  background: ${({ theme }) => theme.colors.backgroundCard};
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
-  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
-  padding: 0.35rem;
-`;
-
-const TabBtn = styled.button<{ $active?: boolean }>`
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  border-radius: ${({ theme }) => theme.borderRadius.xl};
-  border: 1px solid ${({ $active, theme }) => $active ? 'transparent' : theme.colors.borderLight};
-  background: ${({ $active, theme }) => $active ? theme.colors.gradient.primary : theme.colors.backgroundGlass};
-  color: ${({ $active, theme }) => $active ? theme.colors.textWhite : theme.colors.textSecondary};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
   font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, transform 0.15s;
-  white-space: nowrap;
-
-  &:hover:not(:disabled) {
-    background: ${({ $active, theme }) => $active ? theme.colors.gradient.primary : theme.colors.backgroundSecondary};
-    color: ${({ theme }) => theme.colors.text};
-    transform: translateY(-1px);
-  }
-
-  &:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
-
-  @media (max-width: 480px) {
-    padding: 0.7rem 0.5rem;
-    font-size: ${({ theme }) => theme.fontSizes.xs};
-    gap: 0.35rem;
-    svg { width: 15px; height: 15px; }
-  }
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 `;
 
-// ─── Panel ───────────────────────────────────────────────────────────────────
+// ─── Section header ───────────────────────────────────────────────────────────
 
-const Panel = styled.section`
-  width: 100%;
-  background: ${({ theme }) => theme.colors.backgroundCard};
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
-  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
-  box-shadow: 0 14px 40px ${({ theme }) => theme.colors.shadow};
-  padding: clamp(1rem, 3vw, 1.5rem);
-`;
-
-const PanelTitle = styled.h2`
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  margin: 0 0 1.25rem;
-  color: ${({ theme }) => theme.colors.text};
-  font-size: ${({ theme }) => theme.fontSizes.lg};
-`;
-
-// ─── Toolbar ─────────────────────────────────────────────────────────────────
-
-const Toolbar = styled.div`
+const SectionHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1rem;
-
-  @media (max-width: 640px) {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  flex-wrap: wrap;
 `;
 
-const ToolbarLeft = styled.div`
+const SectionTitle = styled.h2`
+  margin: 0;
+  color: ${({ theme }) => theme.colors.text};
+  font-size: ${({ theme }) => theme.fontSizes.xl};
+  font-weight: 800;
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  color: ${({ theme }) => theme.colors.text};
+`;
+
+const SectionActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+`;
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+
+const TabBar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: ${({ theme }) => theme.colors.backgroundCard};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
+  padding: 0.4rem;
+`;
+
+const Tab = styled.button<{ $active?: boolean }>`
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.7rem 1rem;
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  border: none;
+  font-size: ${({ theme }) => theme.fontSizes.sm};
   font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  ${({ $active, theme }) => $active ? css`
+    background: ${theme.colors.gradient.primary};
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(255,69,0,0.4);
+  ` : css`
+    background: transparent;
+    color: ${theme.colors.textSecondary};
+    &:hover { background: ${theme.colors.backgroundGlass}; color: ${theme.colors.text}; }
+  `}
+
+  @media (max-width: 480px) {
+    padding: 0.65rem 0.6rem;
+    font-size: 0.75rem;
+    gap: 0.3rem;
+  }
+`;
+
+const NavChip = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  background: transparent;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.border};
+    color: ${({ theme }) => theme.colors.text};
+    background: ${({ theme }) => theme.colors.backgroundGlass};
+  }
+
+  @media (max-width: 480px) {
+    padding: 0.65rem 0.7rem;
+    font-size: 0.75rem;
+  }
+`;
+
+// ─── Panel ────────────────────────────────────────────────────────────────────
+
+const Panel = styled.section`
+  background: ${({ theme }) => theme.colors.backgroundCard};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  overflow: hidden;
+`;
+
+const PanelHead = styled.div`
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid ${({ theme }) => theme.colors.borderLight};
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: linear-gradient(180deg, rgba(255,69,0,0.04) 0%, transparent 100%);
+
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem;
+  }
+`;
+
+const PanelHeadLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: ${({ theme }) => theme.colors.text};
+  font-weight: 800;
   font-size: ${({ theme }) => theme.fontSizes.base};
 `;
 
-const SearchBox = styled.label`
+const PanelBody = styled.div`
+  padding: 1.25rem 1.5rem;
+
+  @media (max-width: 600px) { padding: 1rem; }
+`;
+
+// ─── Search ───────────────────────────────────────────────────────────────────
+
+const SearchWrap = styled.label`
   position: relative;
-  width: min(360px, 100%);
+  display: flex;
+  align-items: center;
   color: ${({ theme }) => theme.colors.textLight};
 
   svg {
     position: absolute;
     left: 0.9rem;
-    top: 50%;
-    transform: translateY(-50%);
     pointer-events: none;
   }
-
-  @media (max-width: 640px) { width: 100%; }
 `;
 
-const SearchInput = styled.input`
-  width: 100%;
-  padding: 0.75rem 1rem 0.75rem 2.6rem;
+const SearchField = styled.input`
+  width: min(360px, 100%);
+  padding: 0.7rem 1rem 0.7rem 2.6rem;
   border: 1px solid ${({ theme }) => theme.colors.borderLight};
   border-radius: ${({ theme }) => theme.borderRadius.xl};
   background: ${({ theme }) => theme.colors.backgroundSecondary};
@@ -191,160 +301,89 @@ const SearchInput = styled.input`
   transition: border-color 0.2s, box-shadow 0.2s;
 
   &:focus {
-    border-color: ${({ theme }) => theme.colors.primaryLight};
-    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.backgroundGlass};
+    border-color: ${({ theme }) => theme.colors.primary};
+    box-shadow: 0 0 0 3px rgba(255,69,0,0.15);
   }
 
   &::placeholder { color: ${({ theme }) => theme.colors.textLight}; }
+
+  @media (max-width: 600px) { width: 100%; }
 `;
 
-// ─── Form ────────────────────────────────────────────────────────────────────
+// ─── Buttons ──────────────────────────────────────────────────────────────────
 
-const Form = styled.form`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.9rem;
-
-  @media (max-width: 640px) { grid-template-columns: 1fr; }
-`;
-
-const FieldGroup = styled.label`
-  display: grid;
-  gap: 0.35rem;
-`;
-
-const FieldLabel = styled.span`
-  color: ${({ theme }) => theme.colors.textSecondary};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  font-weight: 700;
-`;
-
-const FieldHint = styled.span`
-  color: ${({ theme }) => theme.colors.textLight};
-  font-size: ${({ theme }) => theme.fontSizes.xs};
-`;
-
-const Input = styled.input`
-  width: 100%;
-  min-height: 44px;
-  padding: 0.75rem 1rem;
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  background: ${({ theme }) => theme.colors.backgroundSecondary};
-  color: ${({ theme }) => theme.colors.text};
-  font-size: ${({ theme }) => theme.fontSizes.base};
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  box-sizing: border-box;
-
-  &:focus {
-    border-color: ${({ theme }) => theme.colors.primaryLight};
-    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.backgroundGlass};
-  }
-
-  &::placeholder { color: ${({ theme }) => theme.colors.textLight}; }
-`;
-
-const Select = styled.select`
-  width: 100%;
-  min-height: 44px;
-  padding: 0.75rem 1rem;
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  background: ${({ theme }) => theme.colors.backgroundSecondary};
-  color: ${({ theme }) => theme.colors.text};
-  font-size: ${({ theme }) => theme.fontSizes.base};
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-
-  &:focus {
-    border-color: ${({ theme }) => theme.colors.primaryLight};
-    box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.backgroundGlass};
-  }
-`;
-
-const FullCol = styled.div`
-  grid-column: 1 / -1;
-`;
-
-const FormActions = styled.div`
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.55rem;
-
-  @media (max-width: 480px) {
-    flex-direction: column;
-    button { width: 100%; }
-  }
-`;
-
-const Feedback = styled.div<{ $error?: boolean }>`
-  grid-column: 1 / -1;
-  padding: 0.75rem 0.9rem;
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  border: 1px solid ${({ theme, $error }) => $error ? theme.colors.error : theme.colors.success};
-  background: ${({ $error }) => $error ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)'};
-  color: ${({ theme, $error }) => $error ? theme.colors.error : theme.colors.success};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  font-weight: 700;
-`;
-
-// ─── Buttons ─────────────────────────────────────────────────────────────────
-
-const Btn = styled.button<{ $variant?: 'primary' | 'ghost' | 'danger' | 'warn' }>`
+const Btn = styled.button<{ $variant?: 'primary' | 'ghost' | 'danger' | 'warn' | 'success'; $size?: 'sm' }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  min-height: 38px;
-  padding: 0.55rem 0.9rem;
   border-radius: ${({ theme }) => theme.borderRadius.lg};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  transition: all 0.18s;
   white-space: nowrap;
 
-  border: 1px solid ${({ $variant, theme }) => {
-    if ($variant === 'primary') return theme.colors.primary;
-    if ($variant === 'danger')  return 'rgba(239,68,68,0.4)';
-    if ($variant === 'warn')    return 'rgba(245,158,11,0.4)';
-    return theme.colors.borderLight;
-  }};
-  background: ${({ $variant, theme }) => {
-    if ($variant === 'primary') return theme.colors.primary;
-    if ($variant === 'danger')  return 'rgba(239,68,68,0.1)';
-    if ($variant === 'warn')    return 'rgba(245,158,11,0.1)';
-    return theme.colors.backgroundGlass;
-  }};
-  color: ${({ $variant, theme }) => {
-    if ($variant === 'primary') return theme.colors.textWhite;
-    if ($variant === 'danger')  return '#f87171';
-    if ($variant === 'warn')    return '#fbbf24';
-    return theme.colors.textSecondary;
-  }};
+  ${({ $size }) => $size === 'sm' ? css`
+    min-height: 32px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+  ` : css`
+    min-height: 40px;
+    padding: 0.55rem 1rem;
+    font-size: ${({ theme }: any) => theme.fontSizes.sm};
+  `}
 
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    filter: brightness(1.1);
-  }
-  &:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+  ${({ $variant, theme }) => {
+    switch ($variant) {
+      case 'primary': return css`
+        background: ${theme.colors.gradient.primary};
+        border: none;
+        color: #fff;
+        box-shadow: 0 4px 14px rgba(255,69,0,0.35);
+        &:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255,69,0,0.45); }
+      `;
+      case 'danger': return css`
+        background: rgba(239,68,68,0.1);
+        border: 1px solid rgba(239,68,68,0.3);
+        color: #f87171;
+        &:hover:not(:disabled) { background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.5); transform: translateY(-1px); }
+      `;
+      case 'warn': return css`
+        background: rgba(245,158,11,0.1);
+        border: 1px solid rgba(245,158,11,0.3);
+        color: #fbbf24;
+        &:hover:not(:disabled) { background: rgba(245,158,11,0.2); border-color: rgba(245,158,11,0.5); transform: translateY(-1px); }
+      `;
+      case 'success': return css`
+        background: rgba(16,185,129,0.1);
+        border: 1px solid rgba(16,185,129,0.3);
+        color: #34d399;
+        &:hover:not(:disabled) { background: rgba(16,185,129,0.2); border-color: rgba(16,185,129,0.5); transform: translateY(-1px); }
+      `;
+      default: return css`
+        background: ${theme.colors.backgroundSecondary};
+        border: 1px solid ${theme.colors.borderLight};
+        color: ${theme.colors.textSecondary};
+        &:hover:not(:disabled) { background: ${theme.colors.backgroundGlass}; border-color: ${theme.colors.border}; color: ${theme.colors.text}; transform: translateY(-1px); }
+      `;
+    }
+  }}
+
+  &:disabled { opacity: 0.55; cursor: not-allowed; transform: none !important; }
 `;
 
-// ─── Table ───────────────────────────────────────────────────────────────────
+// ─── Table ────────────────────────────────────────────────────────────────────
 
-const TableWrap = styled.div`
+const TableScroll = styled.div`
   width: 100%;
   overflow-x: auto;
-
   @media (max-width: 760px) { overflow: visible; }
 `;
 
 const Table = styled.table`
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 0.6rem;
+  border-spacing: 0 0.5rem;
 
   @media (max-width: 760px) {
     display: block;
@@ -353,59 +392,67 @@ const Table = styled.table`
 `;
 
 const THead = styled.thead`
-  color: ${({ theme }) => theme.colors.textLight};
   @media (max-width: 760px) { display: none; }
 `;
 
 const TH = styled.th`
-  padding: 0 1rem 0.2rem;
+  padding: 0 1rem 0.5rem;
   text-align: left;
-  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-size: 0.7rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
+  color: ${({ theme }) => theme.colors.textLight};
 `;
 
-const TR = styled.tr<{ $bloqueado?: boolean }>`
-  background: ${({ $bloqueado, theme }) =>
-    $bloqueado ? 'rgba(239,68,68,0.07)' : theme.colors.backgroundSecondary};
-  box-shadow: 0 8px 24px ${({ theme }) => theme.colors.shadow};
+const TR = styled.tr<{ $blocked?: boolean }>`
+  background: ${({ $blocked }) => $blocked ? 'rgba(239,68,68,0.05)' : 'rgba(21,21,32,0.9)'};
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  transition: box-shadow 0.2s, transform 0.2s;
+  cursor: default;
+
+  &:hover {
+    box-shadow: 0 0 0 1px ${({ $blocked }) => $blocked ? 'rgba(239,68,68,0.3)' : 'rgba(255,69,0,0.25)'}, 0 8px 32px rgba(0,0,0,0.3);
+    transform: translateY(-1px);
+  }
 
   @media (max-width: 760px) {
     display: grid;
-    gap: 0.65rem;
-    border: 1px solid ${({ $bloqueado, theme }) =>
-      $bloqueado ? 'rgba(239,68,68,0.3)' : theme.colors.borderLight};
-    border-radius: ${({ theme }) => theme.borderRadius['2xl']};
+    gap: 0.75rem;
     padding: 1rem;
     margin-bottom: 0.75rem;
+    border: 1px solid ${({ $blocked, theme }) => $blocked ? 'rgba(239,68,68,0.25)' : theme.colors.borderLight};
+    border-radius: ${({ theme }) => theme.borderRadius['2xl']};
+    border-left: 3px solid ${({ $blocked }) => $blocked ? 'rgba(239,68,68,0.6)' : 'rgba(255,69,0,0.4)'};
+    transform: none;
+    &:hover { transform: none; }
   }
 `;
 
 const TD = styled.td`
   padding: 0.85rem 1rem;
-  border-top: 1px solid ${({ theme }) => theme.colors.borderLight};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-top: 1px solid rgba(255,69,0,0.06);
+  border-bottom: 1px solid rgba(255,69,0,0.06);
   font-size: ${({ theme }) => theme.fontSizes.sm};
   vertical-align: middle;
   color: ${({ theme }) => theme.colors.text};
 
   &:first-child {
-    border-left: 1px solid ${({ theme }) => theme.colors.borderLight};
+    border-left: 1px solid rgba(255,69,0,0.06);
     border-top-left-radius: ${({ theme }) => theme.borderRadius.xl};
     border-bottom-left-radius: ${({ theme }) => theme.borderRadius.xl};
   }
 
   &:last-child {
-    border-right: 1px solid ${({ theme }) => theme.colors.borderLight};
+    border-right: 1px solid rgba(255,69,0,0.06);
     border-top-right-radius: ${({ theme }) => theme.borderRadius.xl};
     border-bottom-right-radius: ${({ theme }) => theme.borderRadius.xl};
   }
 
   @media (max-width: 760px) {
     display: grid;
-    grid-template-columns: 88px minmax(0, 1fr);
-    gap: 0.55rem;
+    grid-template-columns: 80px minmax(0, 1fr);
+    gap: 0.5rem;
     padding: 0;
     border: 0;
     align-items: center;
@@ -416,144 +463,296 @@ const TD = styled.td`
     &::before {
       content: attr(data-label);
       color: ${({ theme }) => theme.colors.textLight};
-      font-size: ${({ theme }) => theme.fontSizes.xs};
+      font-size: 0.68rem;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.06em;
+      align-self: center;
     }
   }
 `;
 
-// ─── User identity ───────────────────────────────────────────────────────────
+// ─── User identity cell ───────────────────────────────────────────────────────
 
-const UserIdentity = styled.div`
+const UserCell = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.75rem;
 `;
 
-const Avatar = styled.div`
+const Avatar = styled.div<{ $blocked?: boolean }>`
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  border-radius: ${({ theme }) => theme.borderRadius.full};
-  background: ${({ theme }) => theme.colors.gradient.primary};
+  width: 40px;
+  height: 40px;
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  background: ${({ $blocked }) => $blocked
+    ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+    : 'linear-gradient(135deg, #ff4500, #ff8c42)'
+  };
   display: grid;
   place-items: center;
   color: #fff;
-  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-size: 0.8rem;
   font-weight: 900;
+  box-shadow: ${({ $blocked }) => $blocked
+    ? '0 4px 12px rgba(239,68,68,0.35)'
+    : '0 4px 12px rgba(255,69,0,0.35)'
+  };
 `;
 
-const UserName = styled.span`
+const UserMeta = styled.div`
+  min-width: 0;
+`;
+
+const UserName = styled.div`
   font-weight: 700;
   color: ${({ theme }) => theme.colors.text};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+
+  @media (max-width: 760px) { max-width: none; white-space: normal; }
 `;
 
-const UserEmail = styled.span`
-  display: block;
+const UserEmail = styled.div`
   color: ${({ theme }) => theme.colors.textLight};
   font-size: ${({ theme }) => theme.fontSizes.xs};
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+
+  @media (max-width: 760px) { max-width: none; white-space: normal; }
 `;
 
-// ─── Badges ──────────────────────────────────────────────────────────────────
+// ─── Badges ───────────────────────────────────────────────────────────────────
 
-const StatusBadge = styled.span<{ $ok?: boolean }>`
+const Badge = styled.span<{ $color: string; $bg: string; $border: string }>`
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.3rem 0.65rem;
+  padding: 0.28rem 0.65rem;
   border-radius: ${({ theme }) => theme.borderRadius.full};
-  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-size: 0.7rem;
   font-weight: 800;
-  color: ${({ $ok, theme }) => $ok ? theme.colors.success : theme.colors.error};
-  background: ${({ $ok }) => $ok ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'};
+  letter-spacing: 0.03em;
+  color: ${({ $color }) => $color};
+  background: ${({ $bg }) => $bg};
+  border: 1px solid ${({ $border }) => $border};
 `;
 
-const RoleBadge = styled.span`
-  display: inline-flex;
-  padding: 0.3rem 0.65rem;
-  border-radius: ${({ theme }) => theme.borderRadius.full};
-  background: ${({ theme }) => theme.colors.backgroundGlass};
-  color: ${({ theme }) => theme.colors.primaryLight};
-  font-size: ${({ theme }) => theme.fontSizes.xs};
-  font-weight: 800;
-  text-transform: capitalize;
-`;
+const roleMeta: Record<string, { label: string; icon: React.ReactNode; color: string; bg: string; border: string }> = {
+  admin:       { label: 'Admin',       icon: <Crown size={10} />,   color: '#fbbf24', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)' },
+  vistoriador: { label: 'Vistoriador', icon: <Wrench size={10} />,  color: '#60a5fa', bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.3)' },
+  cliente:     { label: 'Cliente',     icon: <UserIcon size={10} />, color: '#a78bfa', bg: 'rgba(167,139,250,0.12)', border: 'rgba(167,139,250,0.3)' },
+};
 
-// ─── Actions ─────────────────────────────────────────────────────────────────
+// ─── Actions cell ─────────────────────────────────────────────────────────────
 
 const ActionGroup = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   flex-wrap: wrap;
 `;
 
-// ─── Edit panel (inline below row in list view) ───────────────────────────────
+// ─── Inline edit panel ────────────────────────────────────────────────────────
+
+const EditPanelRow = styled.tr`
+  @media (max-width: 760px) { display: block; }
+`;
+
+const EditPanelCell = styled.td`
+  padding: 0 0 0.75rem;
+  border: 0;
+  @media (max-width: 760px) { display: block; }
+`;
 
 const EditPanel = styled.div`
-  grid-column: 1 / -1;
-  background: ${({ theme }) => theme.colors.backgroundCard};
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
-  border-radius: ${({ theme }) => theme.borderRadius.xl};
-  padding: 1rem;
-  display: grid;
-  gap: 0.9rem;
+  background: linear-gradient(135deg, rgba(26,26,46,0.95) 0%, rgba(21,21,32,0.95) 100%);
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
+  padding: 1.25rem;
+  animation: ${fadeUp} 0.2s ease both;
+`;
+
+const EditPanelHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
 `;
 
 const EditPanelTitle = styled.div`
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  font-weight: 800;
-  color: ${({ theme }) => theme.colors.textSecondary};
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
+  font-weight: 800;
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  color: ${({ theme }) => theme.colors.text};
+
+  span {
+    color: ${({ theme }) => theme.colors.primary};
+  }
 `;
 
-const EditForm = styled.form`
+const EditGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.85rem;
 
   @media (max-width: 600px) { grid-template-columns: 1fr; }
 `;
 
-// ─── Empty state ─────────────────────────────────────────────────────────────
+// ─── Form elements ────────────────────────────────────────────────────────────
+
+const FieldGroup = styled.label`
+  display: grid;
+  gap: 0.35rem;
+`;
+
+const FieldLabel = styled.span`
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+`;
+
+const FieldHint = styled.span`
+  color: ${({ theme }) => theme.colors.textLight};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+`;
+
+const inputStyles = css`
+  width: 100%;
+  min-height: 42px;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  background: rgba(10,10,15,0.7);
+  color: ${({ theme }) => theme.colors.text};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+
+  &:focus {
+    border-color: ${({ theme }) => theme.colors.primary};
+    box-shadow: 0 0 0 3px rgba(255,69,0,0.15);
+  }
+
+  &::placeholder { color: ${({ theme }) => theme.colors.textLight}; }
+`;
+
+const Input = styled.input`${inputStyles}`;
+const Select = styled.select`${inputStyles}`;
+
+const FullCol = styled.div`
+  grid-column: 1 / -1;
+`;
+
+const FormRow = styled.div`
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+
+  @media (max-width: 480px) {
+    flex-direction: column;
+    button { width: 100%; }
+  }
+`;
+
+const InlineFeedback = styled.div<{ $error?: boolean }>`
+  padding: 0.65rem 0.9rem;
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  border: 1px solid ${({ $error }) => $error ? 'rgba(239,68,68,0.4)' : 'rgba(16,185,129,0.4)'};
+  background: ${({ $error }) => $error ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)'};
+  color: ${({ $error }) => $error ? '#f87171' : '#34d399'};
+  font-size: ${({ theme }) => theme.fontSizes.xs};
+  font-weight: 700;
+`;
+
+// ─── Create form panel ────────────────────────────────────────────────────────
+
+const FormPanel = styled(Panel)``;
+
+const FormPanelHead = styled.div`
+  padding: 1.5rem 1.5rem 0;
+
+  @media (max-width: 600px) { padding: 1.25rem 1rem 0; }
+`;
+
+const FormPanelTitle = styled.h2`
+  margin: 0 0 0.3rem;
+  font-size: ${({ theme }) => theme.fontSizes.xl};
+  font-weight: 800;
+  color: ${({ theme }) => theme.colors.text};
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+`;
+
+const FormPanelHint = styled.p`
+  margin: 0 0 1.5rem;
+  color: ${({ theme }) => theme.colors.textLight};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+`;
+
+const CreateForm = styled.form`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  padding: 0 1.5rem 1.5rem;
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    padding: 0 1rem 1.25rem;
+  }
+`;
+
+// ─── Empty state ──────────────────────────────────────────────────────────────
 
 const EmptyState = styled.div`
-  padding: 3rem 1rem;
-  text-align: center;
-  color: ${({ theme }) => theme.colors.textSecondary};
+  padding: 3.5rem 1rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
-`;
-
-// ─── Link to company ─────────────────────────────────────────────────────────
-
-const CompanyLink = styled.button`
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.55rem 0.9rem;
-  background: transparent;
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
   color: ${({ theme }) => theme.colors.textSecondary};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-
-  &:hover {
-    background: ${({ theme }) => theme.colors.backgroundGlass};
-    color: ${({ theme }) => theme.colors.text};
-  }
+  text-align: center;
 `;
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+const EmptyIcon = styled.div`
+  width: 64px;
+  height: 64px;
+  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
+  background: ${({ theme }) => theme.colors.backgroundGlass};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  display: grid;
+  place-items: center;
+  color: ${({ theme }) => theme.colors.textLight};
+`;
+
+const EmptyText = styled.p`
+  margin: 0;
+  font-weight: 700;
+  font-size: ${({ theme }) => theme.fontSizes.base};
+`;
+
+const EmptySub = styled.p`
+  margin: 0;
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  color: ${({ theme }) => theme.colors.textLight};
+`;
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface User {
   id: string;
@@ -580,10 +779,6 @@ const EMPTY_EDIT: EditForm = { nome: '', email: '', cpf: '', papel: '', empresa_
 
 function getInitials(nome: string) {
   return nome.split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join('') || '?';
-}
-
-function getPapelLabel(papel: string) {
-  return ({ admin: 'Administrador', vistoriador: 'Vistoriador', cliente: 'Cliente' })[papel] || papel;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -634,8 +829,6 @@ const AdminUsersPage: React.FC = () => {
   const getEmpresaNome = (id: string) =>
     empresas.find(e => String(e.id) === String(id))?.nome || `Empresa #${id}`;
 
-  // ── Create ──────────────────────────────────────────────────────────────────
-
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -660,8 +853,6 @@ const AdminUsersPage: React.FC = () => {
     }
   };
 
-  // ── Edit ────────────────────────────────────────────────────────────────────
-
   const openEdit = (user: User) => {
     setEditingUserId(user.id);
     setEditForm({ nome: user.nome, email: user.email, cpf: user.cpf || '', papel: user.papel, empresa_id: user.empresa_id, senha: '' });
@@ -683,9 +874,9 @@ const AdminUsersPage: React.FC = () => {
       const payload: Record<string, string> = { nome: editForm.nome, email: editForm.email, cpf: editForm.cpf, papel: editForm.papel, empresa_id: editForm.empresa_id };
       if (editForm.senha.trim()) payload.senha = editForm.senha;
       await api.put(`/usuarios/${editingUserId}`, payload);
-      setEditFeedback({ type: 'success', msg: 'Usuário atualizado.' });
+      setEditFeedback({ type: 'success', msg: 'Alterações salvas.' });
       await fetchUsers();
-      setTimeout(closeEdit, 900);
+      setTimeout(closeEdit, 800);
     } catch (err: any) {
       setEditFeedback({
         type: 'error',
@@ -695,8 +886,6 @@ const AdminUsersPage: React.FC = () => {
       setSaving(false);
     }
   };
-
-  // ── Delete ──────────────────────────────────────────────────────────────────
 
   const handleDelete = async (user: User) => {
     if (!window.confirm(`Excluir o usuário "${user.nome}"? Esta ação não pode ser desfeita.`)) return;
@@ -709,28 +898,22 @@ const AdminUsersPage: React.FC = () => {
     }
   };
 
-  // ── Toggle block ────────────────────────────────────────────────────────────
-
   const handleToggleBlock = async (user: User) => {
-    const novoEstado = !user.permitidoVistoria;
+    const next = !user.permitidoVistoria;
     try {
-      await api.put(`/usuarios/${user.id}`, { permitidoVistoria: novoEstado });
-      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, permitidoVistoria: novoEstado } : u));
-      toast(novoEstado ? `${user.nome} desbloqueado.` : `${user.nome} bloqueado.`, 'info');
+      await api.put(`/usuarios/${user.id}`, { permitidoVistoria: next });
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, permitidoVistoria: next } : u));
+      toast(next ? `${user.nome} desbloqueado.` : `${user.nome} bloqueado.`, 'info');
     } catch {
       toast('Erro ao alterar permissão.', 'error');
     }
   };
-
-  // ── Tab change ──────────────────────────────────────────────────────────────
 
   const handleTabChange = (tab: 'listar' | 'criar') => {
     setActiveTab(tab);
     localStorage.setItem('vistoriapro_admin_tab', tab);
     if (tab === 'listar') closeEdit();
   };
-
-  // ── Filter ──────────────────────────────────────────────────────────────────
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const filteredUsers = users.filter(u =>
@@ -740,256 +923,250 @@ const AdminUsersPage: React.FC = () => {
 
   const allowedCount = users.filter(u => u.permitidoVistoria).length;
 
-  // ─────────────────────────────────────────────────────────────────────────────
-
   return (
     <>
       <AppHeader title="Gerenciar Usuários" showBackButton />
       <Container>
         <Content>
-          {/* Stats */}
+
+          {/* ── Stats ── */}
           <StatGrid>
-            <StatCard>
+            <StatCard $accent="#ff4500">
+              <StatIconWrap $accent="#ff4500"><Users size={18} /></StatIconWrap>
               <StatValue>{users.length}</StatValue>
               <StatLabel>Total de usuários</StatLabel>
             </StatCard>
-            <StatCard>
+            <StatCard $accent="#10b981">
+              <StatIconWrap $accent="#10b981"><ShieldCheck size={18} /></StatIconWrap>
               <StatValue>{allowedCount}</StatValue>
               <StatLabel>Permitidos</StatLabel>
             </StatCard>
-            <StatCard>
+            <StatCard $accent="#ef4444">
+              <StatIconWrap $accent="#ef4444"><ShieldOff size={18} /></StatIconWrap>
               <StatValue>{users.length - allowedCount}</StatValue>
               <StatLabel>Bloqueados</StatLabel>
             </StatCard>
           </StatGrid>
 
-          {/* Tabs */}
-          <Tabs>
-            <TabBtn $active={activeTab === 'listar'} onClick={() => handleTabChange('listar')}>
-              <List size={17} />
+          {/* ── Tab bar ── */}
+          <TabBar>
+            <Tab $active={activeTab === 'listar'} onClick={() => handleTabChange('listar')}>
+              <List size={16} />
               Usuários
-            </TabBtn>
-            <TabBtn $active={activeTab === 'criar'} onClick={() => handleTabChange('criar')}>
-              <UserPlus size={17} />
+            </Tab>
+            <Tab $active={activeTab === 'criar'} onClick={() => handleTabChange('criar')}>
+              <UserPlus size={16} />
               Novo usuário
-            </TabBtn>
-            <CompanyLink onClick={() => navigate('/admin/company')}>
-              <Building2 size={15} />
+            </Tab>
+            <NavChip onClick={() => navigate('/admin/company')}>
+              <Building2 size={14} />
               Empresas
-              <ChevronRight size={14} />
-            </CompanyLink>
-          </Tabs>
+              <ChevronRight size={13} />
+            </NavChip>
+          </TabBar>
 
-          {/* ── LIST TAB ── */}
+          {/* ── LIST ── */}
           {activeTab === 'listar' && (
             <Panel>
-              <Toolbar>
-                <ToolbarLeft>
-                  <Users size={20} />
+              <PanelHead>
+                <PanelHeadLeft>
+                  <Users size={18} />
                   {filteredUsers.length} usuário{filteredUsers.length !== 1 ? 's' : ''}
-                </ToolbarLeft>
-                <SearchBox>
-                  <Search size={18} />
-                  <SearchInput
+                  {normalizedSearch && ` encontrado${filteredUsers.length !== 1 ? 's' : ''}`}
+                </PanelHeadLeft>
+                <SearchWrap>
+                  <Search size={16} />
+                  <SearchField
                     type="search"
-                    placeholder="Nome, email, CPF, empresa ou papel"
+                    placeholder="Buscar por nome, email, CPF..."
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                   />
-                </SearchBox>
-              </Toolbar>
+                </SearchWrap>
+              </PanelHead>
 
-              {filteredUsers.length > 0 ? (
-                <TableWrap>
-                  <Table>
-                    <THead>
-                      <tr>
-                        <TH>Usuário</TH>
-                        <TH>CPF</TH>
-                        <TH>Empresa</TH>
-                        <TH>Papel</TH>
-                        <TH>Acesso</TH>
-                        <TH>Ações</TH>
-                      </tr>
-                    </THead>
-                    <tbody>
-                      {filteredUsers.map(user => (
-                        <React.Fragment key={user.id}>
-                          <TR $bloqueado={!user.permitidoVistoria}>
-                            <TD data-label="Usuário">
-                              <UserIdentity>
-                                <Avatar>{getInitials(user.nome)}</Avatar>
-                                <div>
-                                  <UserName>{user.nome}</UserName>
-                                  <UserEmail>{user.email}</UserEmail>
-                                </div>
-                              </UserIdentity>
-                            </TD>
-                            <TD data-label="CPF">{user.cpf || '—'}</TD>
-                            <TD data-label="Empresa">{getEmpresaNome(user.empresa_id)}</TD>
-                            <TD data-label="Papel">
-                              <RoleBadge>{getPapelLabel(user.papel)}</RoleBadge>
-                            </TD>
-                            <TD data-label="Acesso">
-                              <StatusBadge $ok={user.permitidoVistoria}>
-                                {user.permitidoVistoria ? <ShieldCheck size={13} /> : <ShieldOff size={13} />}
-                                {user.permitidoVistoria ? 'Permitido' : 'Bloqueado'}
-                              </StatusBadge>
-                            </TD>
-                            <TD data-label="Ações">
-                              <ActionGroup>
-                                <Btn
-                                  $variant="ghost"
-                                  onClick={() => editingUserId === user.id ? closeEdit() : openEdit(user)}
-                                  title="Editar usuário"
-                                >
-                                  {editingUserId === user.id ? <X size={15} /> : <Edit3 size={15} />}
-                                  {editingUserId === user.id ? 'Fechar' : 'Editar'}
-                                </Btn>
-                                <Btn
-                                  $variant={user.permitidoVistoria ? 'warn' : 'ghost'}
-                                  onClick={() => handleToggleBlock(user)}
-                                  title={user.permitidoVistoria ? 'Bloquear acesso' : 'Permitir acesso'}
-                                >
-                                  {user.permitidoVistoria ? <ShieldOff size={15} /> : <ShieldCheck size={15} />}
-                                  {user.permitidoVistoria ? 'Bloquear' : 'Permitir'}
-                                </Btn>
-                                {user.id !== loggedUser?.id && (
-                                  <Btn $variant="danger" onClick={() => handleDelete(user)} title="Excluir usuário">
-                                    <UserX size={15} />
-                                    Excluir
-                                  </Btn>
-                                )}
-                              </ActionGroup>
-                            </TD>
-                          </TR>
-
-                          {/* Inline edit panel */}
-                          {editingUserId === user.id && (
-                            <tr>
-                              <td colSpan={6} style={{ padding: '0 0 0.75rem', border: 0 }}>
-                                <EditPanel>
-                                  <EditPanelTitle>
-                                    <Edit3 size={15} />
-                                    Editar — {user.nome}
-                                  </EditPanelTitle>
-                                  <EditForm onSubmit={handleEdit}>
-                                    <FieldGroup>
-                                      <FieldLabel>Nome completo</FieldLabel>
-                                      <Input value={editForm.nome} required onChange={e => setEditForm(f => ({ ...f, nome: e.target.value }))} />
-                                    </FieldGroup>
-                                    <FieldGroup>
-                                      <FieldLabel>Email</FieldLabel>
-                                      <Input type="email" value={editForm.email} required onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
-                                    </FieldGroup>
-                                    <FieldGroup>
-                                      <FieldLabel>CPF</FieldLabel>
-                                      <Input inputMode="numeric" placeholder="000.000.000-00" value={editForm.cpf} onChange={e => setEditForm(f => ({ ...f, cpf: e.target.value }))} />
-                                    </FieldGroup>
-                                    <FieldGroup>
-                                      <FieldLabel>Nova senha <FieldHint>(deixe vazio para não alterar)</FieldHint></FieldLabel>
-                                      <Input type="password" autoComplete="new-password" placeholder="••••••••" value={editForm.senha} onChange={e => setEditForm(f => ({ ...f, senha: e.target.value }))} />
-                                    </FieldGroup>
-                                    <FieldGroup>
-                                      <FieldLabel>Empresa</FieldLabel>
-                                      <Select value={editForm.empresa_id} required onChange={e => setEditForm(f => ({ ...f, empresa_id: e.target.value }))}>
-                                        <option value="">Selecione</option>
-                                        {empresas.map(em => <option key={em.id} value={em.id}>{em.nome}</option>)}
-                                      </Select>
-                                    </FieldGroup>
-                                    <FieldGroup>
-                                      <FieldLabel>Papel</FieldLabel>
-                                      <Select value={editForm.papel} required onChange={e => setEditForm(f => ({ ...f, papel: e.target.value }))}>
-                                        <option value="">Selecione</option>
-                                        <option value="admin">Administrador</option>
-                                        <option value="vistoriador">Vistoriador</option>
-                                        <option value="cliente">Cliente</option>
-                                      </Select>
-                                    </FieldGroup>
-                                    {editFeedback && (
-                                      <FullCol>
-                                        <Feedback $error={editFeedback.type === 'error'}>{editFeedback.msg}</Feedback>
-                                      </FullCol>
+              <PanelBody style={{ padding: '1rem 1rem 1.25rem' }}>
+                {filteredUsers.length > 0 ? (
+                  <TableScroll>
+                    <Table>
+                      <THead>
+                        <tr>
+                          <TH>Usuário</TH>
+                          <TH>Empresa</TH>
+                          <TH>Papel</TH>
+                          <TH>Acesso</TH>
+                          <TH>Ações</TH>
+                        </tr>
+                      </THead>
+                      <tbody>
+                        {filteredUsers.map(user => {
+                          const role = roleMeta[user.papel] || { label: user.papel, icon: <UserIcon size={10} />, color: '#b0b0c3', bg: 'rgba(176,176,195,0.12)', border: 'rgba(176,176,195,0.3)' };
+                          return (
+                            <React.Fragment key={user.id}>
+                              <TR $blocked={!user.permitidoVistoria}>
+                                <TD data-label="Usuário">
+                                  <UserCell>
+                                    <Avatar $blocked={!user.permitidoVistoria}>{getInitials(user.nome)}</Avatar>
+                                    <UserMeta>
+                                      <UserName>{user.nome}</UserName>
+                                      <UserEmail>{user.email}</UserEmail>
+                                    </UserMeta>
+                                  </UserCell>
+                                </TD>
+                                <TD data-label="Empresa" style={{ color: 'var(--c-text-secondary, #b0b0c3)', fontSize: '0.8rem' }}>
+                                  {getEmpresaNome(user.empresa_id)}
+                                </TD>
+                                <TD data-label="Papel">
+                                  <Badge $color={role.color} $bg={role.bg} $border={role.border}>
+                                    {role.icon}{role.label}
+                                  </Badge>
+                                </TD>
+                                <TD data-label="Acesso">
+                                  {user.permitidoVistoria ? (
+                                    <Badge $color="#34d399" $bg="rgba(16,185,129,0.1)" $border="rgba(16,185,129,0.3)">
+                                      <ShieldCheck size={10} />Permitido
+                                    </Badge>
+                                  ) : (
+                                    <Badge $color="#f87171" $bg="rgba(239,68,68,0.1)" $border="rgba(239,68,68,0.3)">
+                                      <ShieldOff size={10} />Bloqueado
+                                    </Badge>
+                                  )}
+                                </TD>
+                                <TD data-label="Ações">
+                                  <ActionGroup>
+                                    <Btn $size="sm" $variant="ghost"
+                                      onClick={() => editingUserId === user.id ? closeEdit() : openEdit(user)}>
+                                      {editingUserId === user.id ? <X size={13} /> : <Edit3 size={13} />}
+                                      {editingUserId === user.id ? 'Fechar' : 'Editar'}
+                                    </Btn>
+                                    <Btn $size="sm" $variant={user.permitidoVistoria ? 'warn' : 'success'}
+                                      onClick={() => handleToggleBlock(user)}>
+                                      {user.permitidoVistoria ? <Lock size={13} /> : <Unlock size={13} />}
+                                      {user.permitidoVistoria ? 'Bloquear' : 'Permitir'}
+                                    </Btn>
+                                    {user.id !== loggedUser?.id && (
+                                      <Btn $size="sm" $variant="danger" onClick={() => handleDelete(user)}>
+                                        <UserX size={13} />
+                                        Excluir
+                                      </Btn>
                                     )}
-                                    <FormActions>
-                                      <Btn type="button" $variant="ghost" onClick={closeEdit}>
-                                        <X size={15} /> Cancelar
-                                      </Btn>
-                                      <Btn type="submit" $variant="primary" disabled={saving}>
-                                        <Save size={15} />
-                                        {saving ? 'Salvando...' : 'Salvar alterações'}
-                                      </Btn>
-                                    </FormActions>
-                                  </EditForm>
-                                </EditPanel>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </Table>
-                </TableWrap>
-              ) : (
-                <EmptyState>
-                  <Users size={36} strokeWidth={1.5} />
-                  {loading ? 'Carregando usuários...' : 'Nenhum usuário encontrado.'}
-                </EmptyState>
-              )}
+                                  </ActionGroup>
+                                </TD>
+                              </TR>
+
+                              {editingUserId === user.id && (
+                                <EditPanelRow>
+                                  <EditPanelCell colSpan={5}>
+                                    <EditPanel>
+                                      <EditPanelHeader>
+                                        <EditPanelTitle>
+                                          <Edit3 size={15} />
+                                          Editar — <span>{user.nome}</span>
+                                        </EditPanelTitle>
+                                        <Btn $size="sm" $variant="ghost" onClick={closeEdit}>
+                                          <X size={13} /> Fechar
+                                        </Btn>
+                                      </EditPanelHeader>
+                                      <EditGrid as="form" onSubmit={handleEdit}>
+                                        <FieldGroup>
+                                          <FieldLabel>Nome completo</FieldLabel>
+                                          <Input value={editForm.nome} required onChange={e => setEditForm(f => ({ ...f, nome: e.target.value }))} />
+                                        </FieldGroup>
+                                        <FieldGroup>
+                                          <FieldLabel>Email</FieldLabel>
+                                          <Input type="email" value={editForm.email} required onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} />
+                                        </FieldGroup>
+                                        <FieldGroup>
+                                          <FieldLabel>CPF</FieldLabel>
+                                          <Input inputMode="numeric" placeholder="000.000.000-00" value={editForm.cpf} onChange={e => setEditForm(f => ({ ...f, cpf: e.target.value }))} />
+                                        </FieldGroup>
+                                        <FieldGroup>
+                                          <FieldLabel>Nova senha <FieldHint>(vazio = não altera)</FieldHint></FieldLabel>
+                                          <Input type="password" autoComplete="new-password" placeholder="••••••••" value={editForm.senha} onChange={e => setEditForm(f => ({ ...f, senha: e.target.value }))} />
+                                        </FieldGroup>
+                                        <FieldGroup>
+                                          <FieldLabel>Empresa</FieldLabel>
+                                          <Select value={editForm.empresa_id} required onChange={e => setEditForm(f => ({ ...f, empresa_id: e.target.value }))}>
+                                            <option value="">Selecione</option>
+                                            {empresas.map(em => <option key={em.id} value={em.id}>{em.nome}</option>)}
+                                          </Select>
+                                        </FieldGroup>
+                                        <FieldGroup>
+                                          <FieldLabel>Papel</FieldLabel>
+                                          <Select value={editForm.papel} required onChange={e => setEditForm(f => ({ ...f, papel: e.target.value }))}>
+                                            <option value="">Selecione</option>
+                                            <option value="admin">Administrador</option>
+                                            <option value="vistoriador">Vistoriador</option>
+                                            <option value="cliente">Cliente</option>
+                                          </Select>
+                                        </FieldGroup>
+                                        {editFeedback && (
+                                          <FullCol>
+                                            <InlineFeedback $error={editFeedback.type === 'error'}>{editFeedback.msg}</InlineFeedback>
+                                          </FullCol>
+                                        )}
+                                        <FormRow>
+                                          <Btn type="submit" $variant="primary" disabled={saving}>
+                                            <Save size={15} />
+                                            {saving ? 'Salvando...' : 'Salvar alterações'}
+                                          </Btn>
+                                        </FormRow>
+                                      </EditGrid>
+                                    </EditPanel>
+                                  </EditPanelCell>
+                                </EditPanelRow>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </Table>
+                  </TableScroll>
+                ) : (
+                  <EmptyState>
+                    <EmptyIcon>
+                      <Users size={28} strokeWidth={1.5} />
+                    </EmptyIcon>
+                    <EmptyText>
+                      {loading ? 'Carregando usuários...' : normalizedSearch ? 'Nenhum resultado' : 'Nenhum usuário cadastrado'}
+                    </EmptyText>
+                    {!loading && !normalizedSearch && (
+                      <EmptySub>Crie o primeiro usuário na aba "Novo usuário".</EmptySub>
+                    )}
+                  </EmptyState>
+                )}
+              </PanelBody>
             </Panel>
           )}
 
-          {/* ── CREATE TAB ── */}
+          {/* ── CREATE ── */}
           {activeTab === 'criar' && (
-            <Panel>
-              <PanelTitle>
-                <UserPlus size={20} />
-                Novo usuário
-              </PanelTitle>
-              <Form onSubmit={handleCreate}>
+            <FormPanel>
+              <FormPanelHead>
+                <FormPanelTitle>
+                  <UserPlus size={22} />
+                  Novo usuário
+                </FormPanelTitle>
+                <FormPanelHint>
+                  Preencha os dados para criar o acesso. O usuário receberá as credenciais no email.
+                </FormPanelHint>
+              </FormPanelHead>
+              <CreateForm onSubmit={handleCreate}>
                 <FieldGroup>
                   <FieldLabel>Nome completo</FieldLabel>
-                  <Input
-                    type="text"
-                    autoComplete="name"
-                    placeholder="Ex.: João da Silva"
-                    value={createForm.nome}
-                    required
-                    onChange={e => setCreateForm(f => ({ ...f, nome: e.target.value }))}
-                  />
+                  <Input type="text" autoComplete="name" placeholder="Ex.: João da Silva" value={createForm.nome} required onChange={e => setCreateForm(f => ({ ...f, nome: e.target.value }))} />
                 </FieldGroup>
                 <FieldGroup>
                   <FieldLabel>Email</FieldLabel>
-                  <Input
-                    type="email"
-                    autoComplete="username"
-                    placeholder="joao@empresa.com"
-                    value={createForm.email}
-                    required
-                    onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))}
-                  />
+                  <Input type="email" autoComplete="username" placeholder="joao@empresa.com" value={createForm.email} required onChange={e => setCreateForm(f => ({ ...f, email: e.target.value }))} />
                 </FieldGroup>
                 <FieldGroup>
-                  <FieldLabel>CPF <FieldHint>(opcional)</FieldHint></FieldLabel>
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="000.000.000-00"
-                    value={createForm.cpf}
-                    onChange={e => setCreateForm(f => ({ ...f, cpf: e.target.value }))}
-                  />
+                  <FieldLabel>CPF <FieldHint style={{ textTransform: 'none', letterSpacing: 0 }}>(opcional)</FieldHint></FieldLabel>
+                  <Input type="text" inputMode="numeric" placeholder="000.000.000-00" value={createForm.cpf} onChange={e => setCreateForm(f => ({ ...f, cpf: e.target.value }))} />
                 </FieldGroup>
                 <FieldGroup>
                   <FieldLabel>Senha inicial</FieldLabel>
-                  <Input
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder="Mínimo 6 caracteres"
-                    value={createForm.senha}
-                    required
-                    minLength={6}
-                    onChange={e => setCreateForm(f => ({ ...f, senha: e.target.value }))}
-                  />
+                  <Input type="password" autoComplete="new-password" placeholder="Mínimo 6 caracteres" value={createForm.senha} required minLength={6} onChange={e => setCreateForm(f => ({ ...f, senha: e.target.value }))} />
                 </FieldGroup>
                 <FieldGroup>
                   <FieldLabel>Empresa</FieldLabel>
@@ -1009,10 +1186,10 @@ const AdminUsersPage: React.FC = () => {
                 </FieldGroup>
                 {createFeedback && (
                   <FullCol>
-                    <Feedback $error={createFeedback.type === 'error'}>{createFeedback.msg}</Feedback>
+                    <InlineFeedback $error={createFeedback.type === 'error'}>{createFeedback.msg}</InlineFeedback>
                   </FullCol>
                 )}
-                <FormActions>
+                <FormRow>
                   <Btn type="button" $variant="ghost" onClick={() => handleTabChange('listar')}>
                     Cancelar
                   </Btn>
@@ -1020,19 +1197,16 @@ const AdminUsersPage: React.FC = () => {
                     <UserPlus size={16} />
                     {saving ? 'Criando...' : 'Criar usuário'}
                   </Btn>
-                </FormActions>
-              </Form>
-            </Panel>
+                </FormRow>
+              </CreateForm>
+            </FormPanel>
           )}
+
         </Content>
       </Container>
 
-      <Snackbar
-        open={snackbar.open}
-        message={snackbar.message}
-        type={snackbar.type}
-        onClose={() => setSnackbar(s => ({ ...s, open: false }))}
-      />
+      <Snackbar open={snackbar.open} message={snackbar.message} type={snackbar.type}
+        onClose={() => setSnackbar(s => ({ ...s, open: false }))} />
     </>
   );
 };
