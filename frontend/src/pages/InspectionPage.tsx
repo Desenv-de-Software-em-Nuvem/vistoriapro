@@ -615,31 +615,35 @@ export const InspectionPage: React.FC = () => {
         });
       }
 
-      // 3. Faz upload das fotos de todos os cômodos
+      // 3. Faz upload das fotos de todos os cômodos (paralelo, máx 3 simultâneos)
+      const todasFotos: { photo: string; roomId: string; roomName: string }[] = [];
       for (const room of inspection.rooms) {
         for (const photo of room.photos) {
-          if (isStoredPhotoUrl(photo)) continue;
-          const optimizedPhoto = await resizeImageForUpload(photo);
-          const file = base64ToFile(optimizedPhoto, `comodo_${room.id}_${Date.now()}.jpg`);
-          const comodoIdNum = Number(room.id);
-          const uploadParams: {
-            vistoria_id: string;
-            file: File;
-            descricao: string;
-            comodo_nome: string;
-            comodo_id?: number;
-          } = {
+          if (!isStoredPhotoUrl(photo)) {
+            todasFotos.push({ photo, roomId: room.id, roomName: room.name });
+          }
+        }
+      }
+
+      const CONCORRENCIA = 3;
+      let idx = 0;
+      async function uploadWorker() {
+        while (idx < todasFotos.length) {
+          const { photo, roomId, roomName } = todasFotos[idx++];
+          const resized = await resizeImageForUpload(photo);
+          const file = base64ToFile(resized, `comodo_${roomId}_${Date.now()}.jpg`);
+          const comodoIdNum = Number(roomId);
+          const params: { vistoria_id: string; file: File; descricao: string; comodo_nome: string; comodo_id?: number } = {
             vistoria_id: vistoriaId!,
             file,
             descricao: '',
-            comodo_nome: room.name,
+            comodo_nome: roomName,
           };
-          if (!isNaN(comodoIdNum)) {
-            uploadParams.comodo_id = comodoIdNum;
-          }
-          await uploadFoto(uploadParams);
+          if (!isNaN(comodoIdNum)) params.comodo_id = comodoIdNum;
+          await uploadFoto(params);
         }
       }
+      await Promise.all(Array.from({ length: Math.min(CONCORRENCIA, todasFotos.length) }, uploadWorker));
 
       // 4. Atualiza o status da vistoria para "finalizada"
       const vistoriaAtual = await buscarVistoriaPorId(vistoriaId);
@@ -672,21 +676,27 @@ export const InspectionPage: React.FC = () => {
     return new File([u8arr], filename, { type: mime });
   }
 
-  function resizeImageForUpload(dataUrl: string, maxSize = 1600, quality = 0.78) {
+  function resizeImageForUpload(dataUrl: string, maxSize = 2000) {
     return new Promise<string>((resolve) => {
       const image = new Image();
       image.onload = () => {
-        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+        const maxDim = Math.max(image.width, image.height);
+        if (maxDim <= maxSize) {
+          resolve(dataUrl);
+          return;
+        }
+        const scale = maxSize / maxDim;
         const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(image.width * scale));
-        canvas.height = Math.max(1, Math.round(image.height * scale));
+        canvas.width = Math.round(image.width * scale);
+        canvas.height = Math.round(image.height * scale);
         const context = canvas.getContext('2d');
         if (!context) {
           resolve(dataUrl);
           return;
         }
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
+        // Qualidade alta: só redimensiona, compressão real fica pro Sharp no backend
+        resolve(canvas.toDataURL('image/jpeg', 0.95));
       };
       image.onerror = () => resolve(dataUrl);
       image.src = dataUrl;
