@@ -326,7 +326,10 @@ export const InspectionPage: React.FC = () => {
       const files = Array.from(target.files || []);
       if (!files.length) return;
       try {
-        const results = await Promise.all(files.map(fileToDataUrl));
+        const rawUrls = await Promise.all(files.map(fileToDataUrl));
+        // Redimensiona imediatamente para evitar data URLs gigantes (5-8MB por foto de celular)
+        // que travam o browser ao renderizar thumbnails e animações
+        const results = await Promise.all(rawUrls.map(url => resizeImageForUpload(url, 1400)));
         const roomName = inspection?.rooms.find((r: RoomAccordionType) => r.id === roomId)?.name || roomId;
         setInspection((prev: InspectionData | null) => prev ? {
           ...prev,
