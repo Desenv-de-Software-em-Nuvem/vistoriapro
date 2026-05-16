@@ -196,6 +196,106 @@
       margin-top: 18px;
     }
 
+    .conclusion-page,
+    .signature-page {
+      break-before: page;
+      page-break-before: always;
+      min-height: 630px;
+    }
+
+    .conclusion-page .section-title {
+      margin-top: 20px;
+      margin-bottom: 24px;
+    }
+
+    .conclusion-texts {
+      width: min(100%, 620px);
+      margin: 0 auto;
+      font-size: 10.1pt;
+      line-height: 1.18;
+    }
+
+    .conclusion-texts p,
+    .signature-intro p {
+      margin: 0 0 15px;
+      text-align: justify;
+    }
+
+    .legal-block {
+      width: min(100%, 405px);
+      margin: 74px auto 0;
+      font-size: 9.8pt;
+      line-height: 1.17;
+      font-style: italic;
+      text-align: justify;
+    }
+
+    .legal-line {
+      margin: 0 0 10px;
+    }
+
+    .legal-line strong {
+      font-weight: 800;
+    }
+
+    .signature-intro {
+      width: min(100%, 620px);
+      margin: 8px auto 0;
+      font-size: 10pt;
+      line-height: 1.18;
+    }
+
+    .signature-top {
+      width: min(100%, 620px);
+      margin: 86px auto 0;
+      display: grid;
+      grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+      gap: 70px;
+      align-items: start;
+      font-size: 8.9pt;
+    }
+
+    .signature-line {
+      border-top: 1px solid #111;
+      height: 1px;
+      margin-bottom: 5px;
+    }
+
+    .signature-person {
+      font-weight: 700;
+      line-height: 1.55;
+    }
+
+    .signature-date {
+      padding-top: 54px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .signature-party {
+      width: min(100%, 360px);
+      margin: 78px auto 0;
+      text-align: center;
+      font-size: 10.2pt;
+      font-weight: 800;
+      line-height: 1.15;
+      text-transform: uppercase;
+    }
+
+    .signature-party .signature-line {
+      margin-bottom: 4px;
+    }
+
+    .signature-witnesses {
+      width: min(100%, 620px);
+      margin: 112px auto 0;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 180px;
+      font-size: 8.8pt;
+      line-height: 1.55;
+    }
+
     @media print {
       .section-title,
       .room-heading {
@@ -286,6 +386,67 @@
       {{/fotos_sem_comodo}}
     </section>
     {{/tem_fotos_sem_comodo}}
+
+    <section class="conclusion-page">
+      <h2 class="section-title">Conclus&atilde;o</h2>
+      <div class="conclusion-texts">
+        {{#conclusao_textos}}
+        <p>{{.}}</p>
+        {{/conclusao_textos}}
+      </div>
+
+      <div class="legal-block">
+        {{#dispositivo_lei}}
+        <p class="legal-line">
+          <strong>{{prefixo}}</strong>{{#texto}} {{texto}}{{/texto}}
+        </p>
+        {{/dispositivo_lei}}
+      </div>
+    </section>
+
+    <section class="signature-page">
+      <div class="signature-intro">
+        {{#declaracao_assinatura_textos}}
+        <p>{{.}}</p>
+        {{/declaracao_assinatura_textos}}
+      </div>
+
+      <div class="signature-top">
+        <div class="signature-person">
+          <div class="signature-line"></div>
+          <div>VISTORIADOR: {{vistoriador_nome}}</div>
+          <div>CPF: {{vistoriador_cpf}}</div>
+        </div>
+        <div class="signature-date">{{local_data_extenso}}</div>
+      </div>
+
+      <div class="signature-party">
+        <div class="signature-line"></div>
+        <div>LOCADOR(A):</div>
+        <div>{{locador_assinatura_nome}}</div>
+        {{#locador_assinatura_documento}}<div>{{locador_assinatura_documento}}</div>{{/locador_assinatura_documento}}
+      </div>
+
+      <div class="signature-party">
+        <div class="signature-line"></div>
+        <div>LOCAT&Aacute;RIO(A):</div>
+        <div>{{locatario_assinatura_nome}}</div>
+        {{#locatario_assinatura_documento}}<div>{{locatario_assinatura_documento}}</div>{{/locatario_assinatura_documento}}
+      </div>
+
+      <div class="signature-witnesses">
+        <div>
+          <div>Testemunha 1</div>
+          <div>CPF:</div>
+          <div>Nome:</div>
+        </div>
+        <div>
+          <div>Testemunha 2</div>
+          <div>CPF:</div>
+          <div>Nome:</div>
+        </div>
+      </div>
+    </section>
   </main>
 </body>
 </html>

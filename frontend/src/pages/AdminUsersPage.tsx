@@ -431,6 +431,7 @@ interface User {
   id: string;
   nome: string;
   email: string;
+  cpf?: string;
   papel: string;
   empresa_id: string;
   created_at: string;
@@ -444,7 +445,7 @@ const AdminUsersPage: React.FC = () => {
     return (localStorage.getItem('vistoriapro_admin_tab') as 'listar' | 'criar') || 'listar';
   });
   const [searchTerm, setSearchTerm] = useState('');
-  const [form, setForm] = useState({ nome: '', email: '', senha: '', empresa_id: '', papel: '' });
+  const [form, setForm] = useState({ nome: '', email: '', cpf: '', senha: '', empresa_id: '', papel: '' });
   const [empresas, setEmpresas] = useState<{ id: string, nome: string }[]>([]);
   const { user: loggedUser } = useAuth();
 
@@ -494,7 +495,7 @@ const AdminUsersPage: React.FC = () => {
     setLoading(true);
     try {
       await api.post('/usuarios', form);
-      setForm({ nome: '', email: '', senha: '', empresa_id: '', papel: '' });
+      setForm({ nome: '', email: '', cpf: '', senha: '', empresa_id: '', papel: '' });
       fetchUsers();
       setActiveTab('listar');
     } catch (err) {
@@ -528,6 +529,7 @@ const AdminUsersPage: React.FC = () => {
     return [
       user.nome,
       user.email,
+      user.cpf || '',
       user.papel,
       getEmpresaNome(user.empresa_id),
     ].some(value => value.toLowerCase().includes(normalizedSearch));
@@ -572,7 +574,7 @@ const AdminUsersPage: React.FC = () => {
                 <Search size={18} />
                 <SearchInput
                   type="search"
-                  placeholder="Buscar por nome, email, empresa ou papel"
+                  placeholder="Buscar por nome, CPF, email, empresa ou papel"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                 />
@@ -585,6 +587,7 @@ const AdminUsersPage: React.FC = () => {
                     <tr>
                       <UserTableHeadCell>Nome</UserTableHeadCell>
                       <UserTableHeadCell>Email</UserTableHeadCell>
+                      <UserTableHeadCell>CPF</UserTableHeadCell>
                       <UserTableHeadCell>Empresa</UserTableHeadCell>
                       <UserTableHeadCell>Papel</UserTableHeadCell>
                       <UserTableHeadCell>Permissão</UserTableHeadCell>
@@ -596,6 +599,7 @@ const AdminUsersPage: React.FC = () => {
                       <UserTableRow key={user.id} $bloqueado={!user.permitidoVistoria}>
                         <UserTableCell data-label="Nome">{user.nome}</UserTableCell>
                         <UserTableCell data-label="Email">{user.email}</UserTableCell>
+                        <UserTableCell data-label="CPF">{user.cpf || '-'}</UserTableCell>
                         <UserTableCell data-label="Empresa">{getEmpresaNome(user.empresa_id)}</UserTableCell>
                         <UserTableCell data-label="Papel">
                           <RoleBadge>{getPapelLabel(user.papel)}</RoleBadge>
@@ -656,6 +660,14 @@ const AdminUsersPage: React.FC = () => {
                 value={form.email}
                 onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                 required
+              />
+              <Input
+                type="text"
+                name="cpf"
+                inputMode="numeric"
+                placeholder="CPF do vistoriador"
+                value={form.cpf}
+                onChange={e => setForm(f => ({ ...f, cpf: e.target.value }))}
               />
               <Input
                 type="password"

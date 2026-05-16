@@ -9,13 +9,13 @@ const JWT_SECRET = getJwtSecret();
 module.exports = {
   async criarUsuario(req, res) {
     try {
-      const { empresa_id, nome, email, senha, papel } = req.body;
+      const { empresa_id, nome, email, cpf, senha, papel } = req.body;
       if (!empresa_id || !nome || !email || !senha || !papel) {
         return res.status(400).json({ error: 'Dados obrigatórios não informados.' });
       }
       // Apenas admin pode criar usuário (validação extra pode ser feita no middleware)
       const senha_hash = await bcrypt.hash(senha, 10);
-      const usuario = await usuarioModel.criar({ empresa_id, nome, email, senha_hash, papel });
+      const usuario = await usuarioModel.criar({ empresa_id, nome, email, cpf, senha_hash, papel });
       res.status(201).json({ message: 'Usuário criado', usuario });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -55,6 +55,7 @@ module.exports = {
           id: usuario.id,
           nome: usuario.nome,
           email: usuario.email,
+          cpf: usuario.cpf,
           papel: usuario.papel,
           empresa_id: usuario.empresa_id,
           permitidoVistoria: !usuario.bloqueado

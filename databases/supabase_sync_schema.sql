@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   empresa_id INTEGER NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
   nome VARCHAR(200) NOT NULL,
   email VARCHAR(200) NOT NULL UNIQUE,
+  cpf VARCHAR(20),
   senha_hash VARCHAR(200) NOT NULL,
   papel papel_usuario NOT NULL DEFAULT 'vistoriador',
   bloqueado BOOLEAN DEFAULT FALSE,
@@ -163,6 +164,7 @@ ALTER TABLE empresas
   ADD COLUMN IF NOT EXISTS logo_url TEXT;
 
 ALTER TABLE usuarios
+  ADD COLUMN IF NOT EXISTS cpf VARCHAR(20),
   ADD COLUMN IF NOT EXISTS bloqueado BOOLEAN DEFAULT FALSE;
 
 -- Se usuarios.papel ainda for TEXT/VARCHAR no seu projeto legado, converta manualmente para papel_usuario antes de usar este script em produção.

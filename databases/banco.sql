@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   empresa_id INTEGER NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
   nome VARCHAR(200) NOT NULL,
   email VARCHAR(200) NOT NULL UNIQUE,
+  cpf VARCHAR(20),
   senha_hash VARCHAR(200) NOT NULL,
   papel papel_usuario NOT NULL DEFAULT 'vistoriador',
   bloqueado BOOLEAN DEFAULT FALSE,
