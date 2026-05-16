@@ -9,8 +9,18 @@ if (!process.env.PUPPETEER_CACHE_DIR && fs.existsSync(puppeteerChromeCache)) {
 }
 
 const app = require('./index');
+const pool = require('./src/config/database');
 
 const PORT = process.env.PORT || 3000;
+
+// Migration segura: adiciona unique constraint em comodos_vistoria se ainda nao existir
+pool.query(`
+  DO $$ BEGIN
+    ALTER TABLE comodos_vistoria
+      ADD CONSTRAINT comodos_vistoria_vistoria_id_nome_unique UNIQUE (vistoria_id, nome);
+  EXCEPTION WHEN duplicate_table THEN NULL;
+  END $$;
+`).catch(err => console.warn('[migration] comodos_vistoria unique constraint:', err.message));
 
 // Adicionando logs para capturar requisições
 app.use((req, res, next) => {

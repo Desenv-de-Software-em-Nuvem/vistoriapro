@@ -3,7 +3,11 @@ const pool = require('../config/database');
 module.exports = {
   async criar({ vistoria_id, nome, descricao }) {
     const result = await pool.query(
-      'INSERT INTO comodos_vistoria (vistoria_id, nome, descricao) VALUES ($1, $2, $3) RETURNING *',
+      `INSERT INTO comodos_vistoria (vistoria_id, nome, descricao)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (vistoria_id, nome)
+       DO UPDATE SET descricao = EXCLUDED.descricao
+       RETURNING *`,
       [vistoria_id, nome, descricao]
     );
     return result.rows[0];

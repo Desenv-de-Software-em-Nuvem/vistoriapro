@@ -111,7 +111,8 @@ CREATE TABLE IF NOT EXISTS comodos_vistoria (
   vistoria_id INTEGER NOT NULL REFERENCES vistorias(id) ON DELETE CASCADE,
   nome VARCHAR(100) NOT NULL,
   descricao TEXT,
-  estado_geral estado_geral_comodo NOT NULL DEFAULT 'Bom'
+  estado_geral estado_geral_comodo NOT NULL DEFAULT 'Bom',
+  CONSTRAINT comodos_vistoria_vistoria_id_nome_unique UNIQUE (vistoria_id, nome)
 );
 
 -- =========================
