@@ -95,6 +95,7 @@ interface RoomAccordionProps {
   onToggleComplete?: (roomId: string, completed: boolean) => void;
   onDeletePhoto: (roomId: string, photoIdx: number) => void;
   isAiGenerating?: boolean;
+  photoUploadStatus?: Record<string, 'uploading' | 'done' | 'error'>;
 }
 
 const AccordionContainer = styled.div`
@@ -200,6 +201,53 @@ const PhotoThumb = styled.img`
   object-fit: cover;
   border-radius: 8px;
   border: 1px solid #ccc;
+  display: block;
+`;
+
+const PhotoWrapper = styled.div`
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+`;
+
+const ShimmerOverlay = styled.div`
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.18);
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.55) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+  }
+`;
+
+const ErrorDot = styled.div`
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e74c3c;
+  border: 1.5px solid #fff;
 `;
 
 const DescriptionArea = styled.textarea`
@@ -318,7 +366,9 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
   onToggleComplete,
   onDeletePhoto,
   isAiGenerating = false,
+  photoUploadStatus = {},
 }) => {
+  const photoKey = (src: string) => src.startsWith('data:') ? src.slice(0, 150) : src;
   const [expanded, setExpanded] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [photoModal, setPhotoModal] = useState<{ open: boolean; src: string; idx: number } | null>(null);
@@ -378,15 +428,21 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
         </Menu>
         {room.photos.length > 0 && (
           <PhotosGrid>
-            {room.photos.map((src, idx) => (
-              <PhotoThumb
-                key={idx}
-                src={src}
-                alt="Foto do cômodo"
-                onClick={() => handlePhotoClick(src, idx)}
-                style={{ cursor: 'pointer' }}
-              />
-            ))}
+            {room.photos.map((src, idx) => {
+              const status = photoUploadStatus[photoKey(src)];
+              return (
+                <PhotoWrapper key={idx}>
+                  <PhotoThumb
+                    src={src}
+                    alt="Foto do cômodo"
+                    onClick={() => status !== 'uploading' && handlePhotoClick(src, idx)}
+                    style={{ cursor: status === 'uploading' ? 'default' : 'pointer' }}
+                  />
+                  {status === 'uploading' && <ShimmerOverlay />}
+                  {status === 'error' && <ErrorDot title="Falha no upload" />}
+                </PhotoWrapper>
+              );
+            })}
           </PhotosGrid>
         )}
         {/* Modal de visualização de foto */}

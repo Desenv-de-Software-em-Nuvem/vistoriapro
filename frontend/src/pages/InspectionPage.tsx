@@ -136,6 +136,12 @@ export const InspectionPage: React.FC = () => {
   // Snackbar state
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; type: 'success' | 'error' | 'info'; duration?: number }>({ open: false, message: '', type: 'info' });
   const [saving, setSaving] = useState(false);
+  const [photoUploadStatus, setPhotoUploadStatus] = useState<Record<string, 'uploading' | 'done' | 'error'>>({});
+  const vistoriaIdRef = useRef<string>('');
+  const vistoriaCreatingRef = useRef<Promise<string> | null>(null);
+  const pendingUploadsRef = useRef<Set<Promise<void>>>(new Set());
+
+  const photoKey = (src: string) => src.startsWith('data:') ? src.slice(0, 150) : src;
   // Recupera o tipo de imóvel selecionado na página anterior via state do React Router
   const location = useLocation();
   // O tipo selecionado vem como enum (ex: 'CASA_RESIDENCIAL'), precisa converter para o label do banco (ex: 'Casa Residencial')
@@ -216,9 +222,52 @@ export const InspectionPage: React.FC = () => {
   }, [selectedImovel, progress, idUsuario]);
 
 
-  // Novo: recebe roomId e dataUrl, adiciona a foto ao cômodo
+  const ensureVistoriaExists = (): Promise<string> => {
+    if (vistoriaIdRef.current) return Promise.resolve(vistoriaIdRef.current);
+    if (!vistoriaCreatingRef.current) {
+      vistoriaCreatingRef.current = criarVistoria({
+        imovel_id: selectedImovel!.id,
+        descricao: `Vistoria do imóvel ${selectedImovel!.nome}`,
+        data: new Date().toISOString().slice(0, 10),
+        status: 'em_andamento',
+      }).then(created => {
+        const id = String(created.id ?? '');
+        if (!id) throw new Error('API não retornou ID da vistoria');
+        vistoriaIdRef.current = id;
+        setInspection(prev => prev ? { ...prev, id } : prev);
+        return id;
+      });
+    }
+    return vistoriaCreatingRef.current;
+  };
 
+  const uploadPhotoBackground = (dataUrl: string, roomId: string, roomName: string) => {
+    const key = photoKey(dataUrl);
+    setPhotoUploadStatus(prev => ({ ...prev, [key]: 'uploading' }));
+    const promise: Promise<void> = (async () => {
+      try {
+        const vId = await ensureVistoriaExists();
+        const resized = await resizeImageForUpload(dataUrl);
+        const file = base64ToFile(resized, `comodo_${roomId}_${Date.now()}.jpg`);
+        const uploaded = await uploadFoto({ vistoria_id: vId, file, descricao: '', comodo_nome: roomName });
+        setInspection(prev => prev ? {
+          ...prev,
+          rooms: prev.rooms.map((r: RoomAccordionType) => r.id === roomId ? {
+            ...r, photos: r.photos.map((p: string) => p === dataUrl ? uploaded.url : p)
+          } : r)
+        } : prev);
+        setPhotoUploadStatus(prev => ({ ...prev, [key]: 'done' }));
+      } catch {
+        setPhotoUploadStatus(prev => ({ ...prev, [key]: 'error' }));
+      }
+    })();
+    pendingUploadsRef.current.add(promise);
+    promise.finally(() => pendingUploadsRef.current.delete(promise));
+  };
+
+  // Adiciona foto ao cômodo e inicia upload imediato em background
   const handleCapturePhoto = (roomId: string, dataUrl: string) => {
+    const roomName = inspection?.rooms.find((r: RoomAccordionType) => r.id === roomId)?.name || roomId;
     setInspection((prev: InspectionData | null) => prev ? {
       ...prev,
       rooms: prev.rooms.map((room: RoomAccordionType) =>
@@ -227,6 +276,7 @@ export const InspectionPage: React.FC = () => {
           : room
       )
     } : prev);
+    uploadPhotoBackground(dataUrl, roomId, roomName);
   };
 
   // Novo: handler para deletar foto de um cômodo
@@ -270,6 +320,7 @@ export const InspectionPage: React.FC = () => {
       if (!files.length) return;
       try {
         const results = await Promise.all(files.map(fileToDataUrl));
+        const roomName = inspection?.rooms.find((r: RoomAccordionType) => r.id === roomId)?.name || roomId;
         setInspection((prev: InspectionData | null) => prev ? {
           ...prev,
           rooms: prev.rooms.map((room: RoomAccordionType) =>
@@ -278,6 +329,9 @@ export const InspectionPage: React.FC = () => {
               : room
           )
         } : prev);
+        for (const dataUrl of results) {
+          uploadPhotoBackground(dataUrl, roomId, roomName);
+        }
         setSnackbar({
           open: true,
           message: results.length > 1 ? `${results.length} fotos adicionadas ao cômodo.` : 'Foto adicionada ao cômodo.',
@@ -590,8 +644,14 @@ export const InspectionPage: React.FC = () => {
     setSaving(true);
 
     try {
-      // 1. Garante que existe uma vistoria (cria se necessário)
-      let vistoriaId = inspection.id;
+      // 1. Aguarda uploads em background ainda pendentes
+      if (pendingUploadsRef.current.size > 0) {
+        setSnackbar({ open: true, message: 'Aguardando upload das fotos em andamento...', type: 'info' });
+        await Promise.allSettled([...pendingUploadsRef.current]);
+      }
+
+      // 2. Garante que existe uma vistoria (pode já ter sido criada pelo upload em background)
+      let vistoriaId = vistoriaIdRef.current || inspection.id;
       if (!vistoriaId) {
         const created = await criarVistoria({
           imovel_id: selectedImovel.id,
@@ -600,13 +660,12 @@ export const InspectionPage: React.FC = () => {
           status: 'em_andamento',
         });
         vistoriaId = String(created.id ?? '');
-        if (!vistoriaId) {
-          throw new Error('API não retornou o ID da vistoria criada.');
-        }
-        setInspection((prev: InspectionData | null) => prev ? { ...prev, id: String(vistoriaId) } : prev);
+        if (!vistoriaId) throw new Error('API não retornou o ID da vistoria criada.');
+        vistoriaIdRef.current = vistoriaId;
+        setInspection((prev: InspectionData | null) => prev ? { ...prev, id: vistoriaId } : prev);
       }
 
-      // 2. Salva/atualiza cada cômodo no backend
+      // 3. Salva/atualiza cada cômodo no backend
       for (const room of inspection.rooms) {
         await criarOuAtualizarComodoVistoria({
           vistoria_id: vistoriaId!,
@@ -615,7 +674,7 @@ export const InspectionPage: React.FC = () => {
         });
       }
 
-      // 3. Faz upload das fotos de todos os cômodos (paralelo, máx 3 simultâneos)
+      // 4. Faz upload apenas das fotos que ainda não foram para o servidor (falhas ou novas)
       const todasFotos: { photo: string; roomId: string; roomName: string }[] = [];
       for (const room of inspection.rooms) {
         for (const photo of room.photos) {
@@ -625,25 +684,19 @@ export const InspectionPage: React.FC = () => {
         }
       }
 
-      const CONCORRENCIA = 3;
-      let idx = 0;
-      async function uploadWorker() {
-        while (idx < todasFotos.length) {
-          const { photo, roomId, roomName } = todasFotos[idx++];
-          const resized = await resizeImageForUpload(photo);
-          const file = base64ToFile(resized, `comodo_${roomId}_${Date.now()}.jpg`);
-          const comodoIdNum = Number(roomId);
-          const params: { vistoria_id: string; file: File; descricao: string; comodo_nome: string; comodo_id?: number } = {
-            vistoria_id: vistoriaId!,
-            file,
-            descricao: '',
-            comodo_nome: roomName,
-          };
-          if (!isNaN(comodoIdNum)) params.comodo_id = comodoIdNum;
-          await uploadFoto(params);
+      if (todasFotos.length > 0) {
+        const CONCORRENCIA = 3;
+        let idx = 0;
+        async function uploadWorker() {
+          while (idx < todasFotos.length) {
+            const { photo, roomId, roomName } = todasFotos[idx++];
+            const resized = await resizeImageForUpload(photo);
+            const file = base64ToFile(resized, `comodo_${roomId}_${Date.now()}.jpg`);
+            await uploadFoto({ vistoria_id: vistoriaId!, file, descricao: '', comodo_nome: roomName });
+          }
         }
+        await Promise.all(Array.from({ length: Math.min(CONCORRENCIA, todasFotos.length) }, uploadWorker));
       }
-      await Promise.all(Array.from({ length: Math.min(CONCORRENCIA, todasFotos.length) }, uploadWorker));
 
       // 4. Atualiza o status da vistoria para "finalizada"
       const vistoriaAtual = await buscarVistoriaPorId(vistoriaId);
@@ -732,6 +785,7 @@ export const InspectionPage: React.FC = () => {
           <RoomChecklist
             rooms={inspection?.rooms || []}
             aiLoadingRooms={aiLoadingRooms}
+            photoUploadStatus={photoUploadStatus}
             onCapturePhoto={handleCapturePhoto}
             onSelectFromGallery={handleSelectFromGallery}
             onGenerateAiDescription={gerarDescricaoFotoComIa}
