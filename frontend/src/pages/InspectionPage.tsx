@@ -379,20 +379,6 @@ export const InspectionPage: React.FC = () => {
     input.click();
   };
 
-  const fileToDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (ev: ProgressEvent<FileReader>) => {
-      const result = ev.target?.result;
-      if (typeof result === 'string') {
-        resolve(result);
-        return;
-      }
-      reject(new Error('Não foi possível ler a imagem selecionada.'));
-    };
-    reader.onerror = () => reject(new Error('Erro ao carregar imagem da galeria.'));
-    reader.readAsDataURL(file);
-  });
-
   const handleChangeDescription = (roomId: string, desc: string) => {
     setInspection((prev: InspectionData | null) => prev ? {
       ...prev,
