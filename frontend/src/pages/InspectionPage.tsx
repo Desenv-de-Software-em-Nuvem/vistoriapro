@@ -705,12 +705,15 @@ export const InspectionPage: React.FC = () => {
         await atualizarVistoria(vistoriaId, { status: 'finalizada' });
       }
       
-      const totalFotos = inspection.rooms.reduce((acc: number, r: RoomAccordionType) => acc + r.photos.length, 0);
+      const comodosPreenchidos = inspection.rooms.filter(
+        (r: RoomAccordionType) => r.photos.length > 0 || (r.description && r.description.trim().length > 0)
+      );
+      const totalFotos = comodosPreenchidos.reduce((acc: number, r: RoomAccordionType) => acc + r.photos.length, 0);
       await removeProgress();
       setSuccessData({
         vistoriaId,
         imovelNome: selectedImovel.nome,
-        totalComodos: inspection.rooms.length,
+        totalComodos: comodosPreenchidos.length,
         totalFotos,
       });
     } catch (e) {
