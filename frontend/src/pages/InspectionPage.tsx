@@ -136,7 +136,7 @@ export const InspectionPage: React.FC = () => {
   // Snackbar state
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; type: 'success' | 'error' | 'info'; duration?: number }>({ open: false, message: '', type: 'info' });
   const [saving, setSaving] = useState(false);
-  const [successData, setSuccessData] = useState<{ vistoriaId: string; imovelNome: string; totalComodos: number; totalFotos: number } | null>(null);
+  const [successData, setSuccessData] = useState<{ vistoriaId: string; imovelId: string; imovelNome: string; totalComodos: number; totalFotos: number } | null>(null);
   const [photoUploadStatus, setPhotoUploadStatus] = useState<Record<string, 'uploading' | 'done' | 'error'>>({});
   const vistoriaIdRef = useRef<string>('');
   const vistoriaCreatingRef = useRef<Promise<string> | null>(null);
@@ -254,12 +254,15 @@ export const InspectionPage: React.FC = () => {
         const resized = await resizeImageForUpload(dataUrl);
         const file = base64ToFile(resized, `comodo_${roomId}_${Date.now()}.jpg`);
         const uploaded = await uploadFoto({ vistoria_id: vId, file, descricao: '', comodo_nome: roomName });
-        setInspection(prev => prev ? {
-          ...prev,
-          rooms: prev.rooms.map((r: RoomAccordionType) => r.id === roomId ? {
-            ...r, photos: r.photos.map((p: string) => p === dataUrl ? uploaded.url : p)
-          } : r)
-        } : prev);
+        const storedUrl = uploaded?.url;
+        if (storedUrl) {
+          setInspection(prev => prev ? {
+            ...prev,
+            rooms: prev.rooms.map((r: RoomAccordionType) => r.id === roomId ? {
+              ...r, photos: r.photos.map((p: string) => p === dataUrl ? storedUrl : p)
+            } : r)
+          } : prev);
+        }
         setPhotoUploadStatus(prev => ({ ...prev, [key]: 'done' }));
       } catch {
         setPhotoUploadStatus(prev => ({ ...prev, [key]: 'error' }));
@@ -717,6 +720,7 @@ export const InspectionPage: React.FC = () => {
       await removeProgress();
       setSuccessData({
         vistoriaId,
+        imovelId: String(selectedImovel.id),
         imovelNome: selectedImovel.nome,
         totalComodos: comodosPreenchidos.length,
         totalFotos,
@@ -834,7 +838,7 @@ export const InspectionPage: React.FC = () => {
               onClick={handleFinalizarVistoria}
               disabled={saving}
             >
-              Finalizar Vistoria e Salvar
+              Salvar Checklist
             </button>
           )
         )}
@@ -914,7 +918,7 @@ export const InspectionPage: React.FC = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <button
-                onClick={() => { setSuccessData(null); navigate(`/property-laudo/${successData.vistoriaId}`); }}
+                onClick={() => { setSuccessData(null); navigate(`/property-laudo/${successData.imovelId}`); }}
                 style={{
                   padding: '14px', borderRadius: 12, border: 'none', cursor: 'pointer',
                   background: '#2ecc40', color: '#fff', fontWeight: 700, fontSize: '1rem',
