@@ -141,6 +141,7 @@ export const InspectionPage: React.FC = () => {
   const vistoriaIdRef = useRef<string>('');
   const vistoriaCreatingRef = useRef<Promise<string> | null>(null);
   const pendingUploadsRef = useRef<Set<Promise<void>>>(new Set());
+  const inspectionRef = useRef<InspectionData | null>(null);
 
   const photoKey = (src: string) => src.startsWith('data:') ? src.slice(0, 150) : src;
   // Recupera o tipo de imóvel selecionado na página anterior via state do React Router
@@ -179,6 +180,8 @@ export const InspectionPage: React.FC = () => {
 
   // Só inicializa inspection e category depois do imóvel ser selecionado
   const [inspection, setInspection] = useState<InspectionData | null>(null);
+  // Ref sempre atualizado: evita closure stale em funções async (ex: handleFinalizarVistoria)
+  useEffect(() => { inspectionRef.current = inspection; }, [inspection]);
 
   // Integração com persistência local
   const userJson = window.localStorage.getItem('vistoriapro_user');
@@ -676,8 +679,10 @@ export const InspectionPage: React.FC = () => {
       }
 
       // 4. Faz upload apenas das fotos que ainda não foram para o servidor (falhas ou novas)
+      // Usa inspectionRef para pegar o estado mais recente (evita closure stale)
+      const inspectionAtual = inspectionRef.current || inspection;
       const todasFotos: { photo: string; roomId: string; roomName: string }[] = [];
-      for (const room of inspection.rooms) {
+      for (const room of inspectionAtual.rooms) {
         for (const photo of room.photos) {
           if (!isStoredPhotoUrl(photo)) {
             todasFotos.push({ photo, roomId: room.id, roomName: room.name });
@@ -885,11 +890,14 @@ export const InspectionPage: React.FC = () => {
               </svg>
             </div>
 
-            <h2 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 800, margin: '0 0 8px' }}>
-              Vistoria Finalizada!
+            <h2 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 800, margin: '0 0 6px' }}>
+              Checklist Salvo!
             </h2>
-            <p style={{ color: '#aaa', fontSize: '0.95rem', margin: '0 0 20px' }}>
+            <p style={{ color: '#fff', fontSize: '1rem', fontWeight: 600, margin: '0 0 4px' }}>
               {successData.imovelNome}
+            </p>
+            <p style={{ color: '#888', fontSize: '0.82rem', margin: '0 0 20px' }}>
+              Agora preencha os dados para finalizar a vistoria.
             </p>
 
             <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginBottom: 28 }}>

@@ -217,25 +217,27 @@ const ShimmerOverlay = styled.div`
   border-radius: 8px;
   overflow: hidden;
   pointer-events: none;
-  background: rgba(0, 0, 0, 0.18);
 
   &::after {
     content: '';
     position: absolute;
-    inset: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background: linear-gradient(
       90deg,
       transparent 0%,
-      rgba(255, 255, 255, 0.55) 50%,
+      rgba(255, 255, 255, 0.5) 50%,
       transparent 100%
     );
-    background-size: 200% 100%;
-    animation: shimmer 1.4s ease-in-out infinite;
+    transform: translateX(-100%);
+    animation: shimmerSlide 1.4s ease-in-out infinite;
   }
 
-  @keyframes shimmer {
-    0%   { background-position: -200% 0; }
-    100% { background-position:  200% 0; }
+  @keyframes shimmerSlide {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
   }
 `;
 
