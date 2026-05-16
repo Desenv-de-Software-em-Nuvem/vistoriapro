@@ -943,7 +943,7 @@ async function compactarImagemParaRelatorio(req, url) {
       const compactedBuffer = await sharp(imageData.buffer)
         .rotate()
         .resize(FOTO_MAX_WIDTH, FOTO_MAX_HEIGHT, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: FOTO_JPEG_QUALITY })
+        .jpeg({ quality: FOTO_JPEG_QUALITY, mozjpeg: true })
         .toBuffer();
       const finalMeta = await sharp(compactedBuffer).metadata();
       return {
