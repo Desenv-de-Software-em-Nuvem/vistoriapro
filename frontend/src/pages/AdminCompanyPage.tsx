@@ -1,10 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import styled from 'styled-components';
-import { Building2, Edit3, ExternalLink, ImagePlus, Plus, RefreshCw, Save, Search, X } from 'lucide-react';
+import {
+  Building2, Edit3, ImagePlus, Plus, RefreshCw, Save,
+  Search, Trash2, Users, X, ChevronRight,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { AppHeader } from '../components/AppHeader';
+import { Snackbar } from '../components/Snackbar';
 import api from '../services/api';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Empresa {
   id: number;
@@ -41,112 +47,167 @@ const EMPTY_FORM: EmpresaForm = {
 const MAX_LOGO_SIZE_BYTES = 1.5 * 1024 * 1024;
 const ALLOWED_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/jpg'];
 
+// ─── Layout ──────────────────────────────────────────────────────────────────
+
 const Container = styled.div`
   width: 100%;
   max-width: 100%;
   height: var(--vistoriapro-app-height, 100dvh);
   min-height: 0;
   padding: 88px clamp(1rem, 4vw, 2.5rem) 2rem;
-  background: ${({ theme }) => theme.colors.background};
+  background:
+    radial-gradient(circle at top left, rgba(255, 69, 0, 0.14), transparent 30rem),
+    ${({ theme }) => theme.colors.background};
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
-`;
 
-const Content = styled.main`
-  width: 100%;
-  max-width: 1180px;
-  margin: 0 auto;
-  display: grid;
-  gap: 1rem;
-`;
-
-const MetricsRow = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-
-  @media (max-width: 760px) {
-    grid-template-columns: 1fr;
+  @media (max-width: 600px) {
+    padding: 80px 1rem 1.5rem;
   }
 `;
 
-const Metric = styled.div`
-  padding: 0.9rem 1rem;
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
-  border-radius: ${({ theme }) => theme.borderRadius.xl};
-  background: ${({ theme }) => theme.colors.backgroundCard};
+const Content = styled.main`
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 `;
 
-const MetricValue = styled.strong`
+// ─── Stats ───────────────────────────────────────────────────────────────────
+
+const StatGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(100px, 1fr));
+  gap: 0.75rem;
+
+  @media (max-width: 430px) {
+    grid-template-columns: 1fr 1fr;
+    & > :last-child { grid-column: 1 / -1; }
+  }
+`;
+
+const StatCard = styled.div`
+  background: ${({ theme }) => theme.colors.backgroundCard};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  padding: 0.9rem 1rem;
+  min-width: 0;
+`;
+
+const StatValue = styled.strong`
   display: block;
   color: ${({ theme }) => theme.colors.text};
   font-size: ${({ theme }) => theme.fontSizes['2xl']};
   line-height: 1;
 `;
 
-const MetricLabel = styled.span`
+const StatLabel = styled.span`
   color: ${({ theme }) => theme.colors.textLight};
   font-size: ${({ theme }) => theme.fontSizes.xs};
-  font-weight: 700;
+  font-weight: 600;
 `;
 
-const WorkArea = styled.div`
-  display: grid;
-  grid-template-columns: minmax(330px, 460px) minmax(0, 1fr);
-  gap: 1rem;
-  align-items: start;
+// ─── Tabs ────────────────────────────────────────────────────────────────────
 
-  @media (max-width: 1020px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const Panel = styled.section`
-  min-width: 0;
+const Tabs = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  background: ${({ theme }) => theme.colors.backgroundCard};
   border: 1px solid ${({ theme }) => theme.colors.borderLight};
   border-radius: ${({ theme }) => theme.borderRadius['2xl']};
-  background: ${({ theme }) => theme.colors.backgroundCard};
-  box-shadow: 0 12px 32px ${({ theme }) => theme.colors.shadow};
+  padding: 0.35rem;
 `;
 
-const PanelHeader = styled.div`
+const TabBtn = styled.button<{ $active?: boolean }>`
+  flex: 1;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1rem 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: ${({ theme }) => theme.borderRadius.xl};
+  border: 1px solid ${({ $active, theme }) => $active ? 'transparent' : theme.colors.borderLight};
+  background: ${({ $active, theme }) => $active ? theme.colors.gradient.primary : theme.colors.backgroundGlass};
+  color: ${({ $active, theme }) => $active ? theme.colors.textWhite : theme.colors.textSecondary};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+  white-space: nowrap;
 
-  @media (max-width: 640px) {
-    flex-direction: column;
+  &:hover:not(:disabled) {
+    background: ${({ $active, theme }) => $active ? theme.colors.gradient.primary : theme.colors.backgroundSecondary};
+    color: ${({ theme }) => theme.colors.text};
+    transform: translateY(-1px);
+  }
+
+  &:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+
+  @media (max-width: 480px) {
+    padding: 0.7rem 0.5rem;
+    font-size: ${({ theme }) => theme.fontSizes.xs};
+    gap: 0.35rem;
+    svg { width: 15px; height: 15px; }
   }
 `;
 
-const PanelTitleGroup = styled.div`
-  min-width: 0;
+const NavLink = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.9rem;
+  background: transparent;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.backgroundGlass};
+    color: ${({ theme }) => theme.colors.text};
+  }
+`;
+
+// ─── Panel ───────────────────────────────────────────────────────────────────
+
+const Panel = styled.section`
+  width: 100%;
+  background: ${({ theme }) => theme.colors.backgroundCard};
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius['2xl']};
+  box-shadow: 0 14px 40px ${({ theme }) => theme.colors.shadow};
+  padding: clamp(1rem, 3vw, 1.5rem);
 `;
 
 const PanelTitle = styled.h2`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin: 0;
+  gap: 0.55rem;
+  margin: 0 0 0.4rem;
   color: ${({ theme }) => theme.colors.text};
   font-size: ${({ theme }) => theme.fontSizes.lg};
 `;
 
 const PanelHint = styled.p`
-  margin: 0.35rem 0 0;
+  margin: 0 0 1.25rem;
   color: ${({ theme }) => theme.colors.textLight};
   font-size: ${({ theme }) => theme.fontSizes.sm};
   line-height: 1.55;
 `;
 
+// ─── Form ────────────────────────────────────────────────────────────────────
+
 const Form = styled.form`
   display: grid;
   gap: 0.85rem;
-  padding: 1rem;
 `;
 
 const FieldRow = styled.div`
@@ -164,7 +225,7 @@ const FieldGroup = styled.label`
   gap: 0.35rem;
 `;
 
-const LabelText = styled.span`
+const FieldLabel = styled.span`
   color: ${({ theme }) => theme.colors.textSecondary};
   font-size: ${({ theme }) => theme.fontSizes.sm};
   font-weight: 700;
@@ -181,6 +242,7 @@ const Input = styled.input`
   font-size: ${({ theme }) => theme.fontSizes.base};
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
 
   &:focus {
     border-color: ${({ theme }) => theme.colors.primaryLight};
@@ -212,6 +274,8 @@ const TextArea = styled.textarea`
     box-shadow: 0 0 0 3px ${({ theme }) => theme.colors.backgroundGlass};
   }
 `;
+
+// ─── Logo upload ─────────────────────────────────────────────────────────────
 
 const LogoUpload = styled.div`
   display: grid;
@@ -271,126 +335,128 @@ const HiddenFileInput = styled.input`
   display: none;
 `;
 
+// ─── Buttons ─────────────────────────────────────────────────────────────────
+
+const Btn = styled.button<{ $variant?: 'primary' | 'ghost' | 'danger' }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 38px;
+  padding: 0.55rem 0.9rem;
+  border-radius: ${({ theme }) => theme.borderRadius.lg};
+  font-size: ${({ theme }) => theme.fontSizes.sm};
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  white-space: nowrap;
+
+  border: 1px solid ${({ $variant, theme }) => {
+    if ($variant === 'primary') return theme.colors.primary;
+    if ($variant === 'danger')  return 'rgba(239,68,68,0.4)';
+    return theme.colors.borderLight;
+  }};
+  background: ${({ $variant, theme }) => {
+    if ($variant === 'primary') return theme.colors.primary;
+    if ($variant === 'danger')  return 'rgba(239,68,68,0.1)';
+    return theme.colors.backgroundGlass;
+  }};
+  color: ${({ $variant, theme }) => {
+    if ($variant === 'primary') return theme.colors.textWhite;
+    if ($variant === 'danger')  return '#f87171';
+    return theme.colors.textSecondary;
+  }};
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+  }
+  &:disabled { opacity: 0.65; cursor: not-allowed; transform: none; }
+`;
+
 const FormActions = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: 0.55rem;
 
-  @media (max-width: 520px) {
+  @media (max-width: 480px) {
     flex-direction: column;
+    button { width: 100%; }
   }
 `;
 
-const Button = styled.button<{ $variant?: 'primary' | 'secondary' | 'ghost' }>`
-  min-height: 40px;
-  display: inline-flex;
+// ─── Toolbar ─────────────────────────────────────────────────────────────────
+
+const Toolbar = styled.div`
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  padding: 0.65rem 0.9rem;
-  border: 1px solid ${({ theme, $variant }) => $variant === 'primary' ? theme.colors.primary : theme.colors.borderLight};
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  background: ${({ theme, $variant }) => {
-    if ($variant === 'primary') return theme.colors.primary;
-    if ($variant === 'ghost') return theme.colors.backgroundSecondary;
-    return 'transparent';
-  }};
-  color: ${({ theme, $variant }) => $variant === 'primary' ? theme.colors.textWhite : theme.colors.textSecondary};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  font-weight: 800;
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
 
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    border-color: ${({ theme }) => theme.colors.borderGlow};
-    background: ${({ theme, $variant }) => $variant === 'primary' ? theme.colors.primaryDark : theme.colors.backgroundGlass};
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.65;
-    transform: none;
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
   }
 `;
 
-const NoteBox = styled.div`
-  margin: 0 1rem 1rem;
-  padding: 0.85rem;
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
-  background: ${({ theme }) => theme.colors.backgroundGlass};
-  color: ${({ theme }) => theme.colors.textSecondary};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  line-height: 1.55;
-`;
-
-const Feedback = styled.div<{ $error?: boolean }>`
-  padding: 0.75rem 0.85rem;
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  border: 1px solid ${({ theme, $error }) => $error ? theme.colors.error : theme.colors.success};
-  background: ${({ $error }) => $error ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'};
-  color: ${({ theme, $error }) => $error ? theme.colors.error : theme.colors.success};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
+const ToolbarLeft = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: ${({ theme }) => theme.colors.text};
   font-weight: 700;
+  font-size: ${({ theme }) => theme.fontSizes.base};
 `;
 
 const SearchBox = styled.label`
   position: relative;
-  width: min(340px, 100%);
+  width: min(360px, 100%);
   color: ${({ theme }) => theme.colors.textLight};
 
   svg {
     position: absolute;
-    left: 0.85rem;
+    left: 0.9rem;
     top: 50%;
     transform: translateY(-50%);
     pointer-events: none;
   }
 
-  @media (max-width: 640px) {
-    width: 100%;
-  }
+  @media (max-width: 640px) { width: 100%; }
 `;
 
 const SearchInput = styled(Input)`
-  padding-left: 2.55rem;
+  padding-left: 2.6rem;
+  min-height: 40px;
 `;
 
-const TableScroll = styled.div`
+// ─── Table ───────────────────────────────────────────────────────────────────
+
+const TableWrap = styled.div`
   width: 100%;
   overflow-x: auto;
-  padding: 0.25rem 1rem 1rem;
 
-  @media (max-width: 760px) {
-    overflow: visible;
-  }
+  @media (max-width: 760px) { overflow: visible; }
 `;
 
-const CompanyTable = styled.table`
+const Table = styled.table`
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 0.65rem;
+  border-spacing: 0 0.6rem;
 
   @media (max-width: 760px) {
     display: block;
-
-    tbody {
-      display: block;
-    }
+    tbody { display: block; }
   }
 `;
 
-const CompanyTableHeader = styled.thead`
+const THead = styled.thead`
   color: ${({ theme }) => theme.colors.textLight};
-
-  @media (max-width: 760px) {
-    display: none;
-  }
+  @media (max-width: 760px) { display: none; }
 `;
 
-const CompanyTableHeadCell = styled.th`
-  padding: 0 0.85rem 0.2rem;
+const TH = styled.th`
+  padding: 0 1rem 0.2rem;
   text-align: left;
   font-size: ${({ theme }) => theme.fontSizes.xs};
   font-weight: 800;
@@ -398,54 +464,50 @@ const CompanyTableHeadCell = styled.th`
   letter-spacing: 0.06em;
 `;
 
-const CompanyTableRow = styled.tr`
+const TR = styled.tr`
   background: ${({ theme }) => theme.colors.backgroundSecondary};
   box-shadow: 0 8px 24px ${({ theme }) => theme.colors.shadow};
 
   @media (max-width: 760px) {
     display: grid;
     gap: 0.65rem;
-    padding: 0.9rem;
-    margin-bottom: 0.75rem;
     border: 1px solid ${({ theme }) => theme.colors.borderLight};
-    border-radius: ${({ theme }) => theme.borderRadius.xl};
+    border-radius: ${({ theme }) => theme.borderRadius['2xl']};
+    padding: 1rem;
+    margin-bottom: 0.75rem;
   }
 `;
 
-const CompanyTableCell = styled.td`
-  padding: 0.9rem 0.85rem;
+const TD = styled.td`
+  padding: 0.85rem 1rem;
   border-top: 1px solid ${({ theme }) => theme.colors.borderLight};
   border-bottom: 1px solid ${({ theme }) => theme.colors.borderLight};
-  color: ${({ theme }) => theme.colors.text};
   font-size: ${({ theme }) => theme.fontSizes.sm};
   vertical-align: middle;
+  color: ${({ theme }) => theme.colors.text};
 
   &:first-child {
     border-left: 1px solid ${({ theme }) => theme.colors.borderLight};
-    border-top-left-radius: ${({ theme }) => theme.borderRadius.lg};
-    border-bottom-left-radius: ${({ theme }) => theme.borderRadius.lg};
-    font-weight: 800;
+    border-top-left-radius: ${({ theme }) => theme.borderRadius.xl};
+    border-bottom-left-radius: ${({ theme }) => theme.borderRadius.xl};
   }
 
   &:last-child {
     border-right: 1px solid ${({ theme }) => theme.colors.borderLight};
-    border-top-right-radius: ${({ theme }) => theme.borderRadius.lg};
-    border-bottom-right-radius: ${({ theme }) => theme.borderRadius.lg};
+    border-top-right-radius: ${({ theme }) => theme.borderRadius.xl};
+    border-bottom-right-radius: ${({ theme }) => theme.borderRadius.xl};
   }
 
   @media (max-width: 760px) {
     display: grid;
-    grid-template-columns: 86px minmax(0, 1fr);
-    gap: 0.75rem;
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 0.55rem;
     padding: 0;
     border: 0;
+    align-items: center;
     word-break: break-word;
 
-    &:first-child,
-    &:last-child {
-      border: 0;
-      border-radius: 0;
-    }
+    &:first-child, &:last-child { border: 0; border-radius: 0; }
 
     &::before {
       content: attr(data-label);
@@ -458,16 +520,18 @@ const CompanyTableCell = styled.td`
   }
 `;
 
+// ─── Company identity ─────────────────────────────────────────────────────────
+
 const CompanyIdentity = styled.div`
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  gap: 0.7rem;
+  display: flex;
   align-items: center;
+  gap: 0.65rem;
 `;
 
 const CompanyAvatar = styled.div`
-  width: 42px;
-  height: 42px;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
   border: 1px solid ${({ theme }) => theme.colors.borderLight};
@@ -476,6 +540,7 @@ const CompanyAvatar = styled.div`
   overflow: hidden;
   color: ${({ theme }) => theme.colors.textSecondary};
   font-weight: 900;
+  font-size: ${({ theme }) => theme.fontSizes.xs};
 `;
 
 const CompanyLogoThumb = styled.img`
@@ -487,11 +552,12 @@ const CompanyLogoThumb = styled.img`
 
 const CompanyName = styled.span`
   display: block;
-  max-width: 260px;
-  overflow: hidden;
+  font-weight: 700;
   color: ${({ theme }) => theme.colors.text};
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 220px;
 
   @media (max-width: 760px) {
     max-width: none;
@@ -509,40 +575,39 @@ const CompanyMeta = styled.span`
   white-space: nowrap;
 `;
 
-const ActionCell = styled.div`
+const ActionGroup = styled.div`
   display: flex;
-  justify-content: flex-end;
-
-  @media (max-width: 760px) {
-    justify-content: flex-start;
-  }
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
 `;
+
+// ─── Empty ────────────────────────────────────────────────────────────────────
 
 const EmptyState = styled.div`
-  margin: 0.25rem 1rem 1rem;
-  padding: 2rem 1rem;
+  padding: 3rem 1rem;
   text-align: center;
-  border: 1px dashed ${({ theme }) => theme.colors.borderLight};
-  border-radius: ${({ theme }) => theme.borderRadius.xl};
-  background: ${({ theme }) => theme.colors.backgroundGlass};
   color: ${({ theme }) => theme.colors.textSecondary};
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
 `;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getErrorMessage(error: unknown) {
   if (typeof error === 'object' && error !== null && 'response' in error) {
     const response = (error as { response?: { data?: { error?: string; message?: string } } }).response;
     return response?.data?.error || response?.data?.message || 'Erro ao processar a solicitação.';
   }
-
   return 'Erro ao processar a solicitação.';
 }
 
 function formatDate(value?: string) {
-  if (!value) return '-';
-
+  if (!value) return '—';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '-';
-
+  if (Number.isNaN(date.getTime())) return '—';
   return new Intl.DateTimeFormat('pt-BR').format(date);
 }
 
@@ -570,23 +635,30 @@ function buildPayload(form: EmpresaForm) {
 }
 
 function getInitials(nome: string) {
-  return nome
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('') || 'E';
+  return nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || 'E';
 }
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+type ActiveTab = 'listar' | 'cadastrar';
 
 const AdminCompanyPage: React.FC = () => {
   const navigate = useNavigate();
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [form, setForm] = useState<EmpresaForm>(EMPTY_FORM);
   const [editingEmpresaId, setEditingEmpresaId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() =>
+    (localStorage.getItem('vistoriapro_company_tab') as ActiveTab) || 'listar',
+  );
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; type: 'success' | 'error' | 'info' }>({
+    open: false, message: '', type: 'info',
+  });
+  const toast = (message: string, type: 'success' | 'error' | 'info' = 'info') =>
+    setSnackbar({ open: true, message, type });
 
   const isEditing = editingEmpresaId !== null;
 
@@ -596,7 +668,7 @@ const AdminCompanyPage: React.FC = () => {
       const { data } = await api.get<Empresa[]>('/empresas');
       setEmpresas(data);
     } catch (error) {
-      setFeedback({ type: 'error', message: getErrorMessage(error) });
+      toast(getErrorMessage(error), 'error');
     } finally {
       setLoading(false);
     }
@@ -607,30 +679,26 @@ const AdminCompanyPage: React.FC = () => {
   }, []);
 
   const filteredEmpresas = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    if (!normalizedSearch) return empresas;
-
-    return empresas.filter((empresa) => [
-      empresa.nome,
-      empresa.cnpj,
-      empresa.email,
-      empresa.telefone,
-      empresa.whatsapp,
-      empresa.endereco,
-      empresa.site,
-      empresa.instagram,
-      empresa.creci,
-    ].some((value) => String(value || '').toLowerCase().includes(normalizedSearch)));
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return empresas;
+    return empresas.filter((e) =>
+      [e.nome, e.cnpj, e.email, e.telefone, e.whatsapp, e.site, e.instagram, e.creci]
+        .some((v) => String(v || '').toLowerCase().includes(term)),
+    );
   }, [empresas, searchTerm]);
 
-  const companiesWithLogo = empresas.filter((empresa) => empresa.logo_url).length;
-  const companiesWithReportContacts = empresas.filter((empresa) => (
-    empresa.telefone || empresa.whatsapp || empresa.endereco || empresa.site || empresa.instagram
-  )).length;
+  const companiesWithLogo = empresas.filter((e) => e.logo_url).length;
+  const companiesWithContacts = empresas.filter((e) => e.telefone || e.whatsapp || e.site).length;
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
     setEditingEmpresaId(null);
+  };
+
+  const handleTabChange = (tab: ActiveTab) => {
+    setActiveTab(tab);
+    localStorage.setItem('vistoriapro_company_tab', tab);
+    if (tab !== 'cadastrar') resetForm();
   };
 
   const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -639,45 +707,38 @@ const AdminCompanyPage: React.FC = () => {
     if (!file) return;
 
     if (!ALLOWED_LOGO_TYPES.includes(file.type)) {
-      setFeedback({ type: 'error', message: 'Selecione uma logomarca em PNG ou JPG.' });
+      toast('Selecione uma logomarca em PNG ou JPG.', 'error');
       return;
     }
 
     if (file.size > MAX_LOGO_SIZE_BYTES) {
-      setFeedback({ type: 'error', message: 'A logomarca deve ter ate 1,5 MB.' });
+      toast('A logomarca deve ter até 1,5 MB.', 'error');
       return;
     }
 
     const reader = new FileReader();
-    reader.onload = () => {
-      setForm((current) => ({ ...current, logo_url: String(reader.result || '') }));
-      setFeedback(null);
-    };
-    reader.onerror = () => {
-      setFeedback({ type: 'error', message: 'Nao foi possivel ler a imagem selecionada.' });
-    };
+    reader.onload = () => setForm((f) => ({ ...f, logo_url: String(reader.result || '') }));
+    reader.onerror = () => toast('Não foi possível ler a imagem.', 'error');
     reader.readAsDataURL(file);
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSaving(true);
-    setFeedback(null);
-
     try {
       const payload = buildPayload(form);
       if (isEditing) {
         await api.put(`/empresas/${editingEmpresaId}`, payload);
-        setFeedback({ type: 'success', message: 'Identidade da empresa atualizada. Os proximos laudos ja usam esses dados.' });
+        toast('Empresa atualizada com sucesso.', 'success');
       } else {
         await api.post('/empresas', payload);
-        setFeedback({ type: 'success', message: 'Empresa cadastrada. Agora voce pode vincular usuarios a ela.' });
+        toast('Empresa cadastrada. Agora você pode vincular usuários a ela.', 'success');
       }
-
       resetForm();
+      handleTabChange('listar');
       await fetchEmpresas();
     } catch (error) {
-      setFeedback({ type: 'error', message: getErrorMessage(error) });
+      toast(getErrorMessage(error), 'error');
     } finally {
       setSaving(false);
     }
@@ -686,46 +747,162 @@ const AdminCompanyPage: React.FC = () => {
   const handleEdit = (empresa: Empresa) => {
     setForm(toForm(empresa));
     setEditingEmpresaId(empresa.id);
-    setFeedback(null);
+    handleTabChange('cadastrar');
+  };
+
+  const handleDelete = async (empresa: Empresa) => {
+    if (!window.confirm(`Excluir a empresa "${empresa.nome}"? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await api.delete(`/empresas/${empresa.id}`);
+      setEmpresas((prev) => prev.filter((e) => e.id !== empresa.id));
+      toast(`Empresa "${empresa.nome}" removida.`, 'success');
+    } catch (error) {
+      toast(getErrorMessage(error), 'error');
+    }
   };
 
   return (
     <>
-      <AppHeader title="Cadastrar Empresa" showBackButton />
+      <AppHeader title="Gerenciar Empresas" showBackButton />
       <Container>
         <Content>
-          <MetricsRow>
-            <Metric>
-              <MetricValue>{empresas.length}</MetricValue>
-              <MetricLabel>Total de empresas</MetricLabel>
-            </Metric>
-            <Metric>
-              <MetricValue>{companiesWithLogo}</MetricValue>
-              <MetricLabel>Com logomarca</MetricLabel>
-            </Metric>
-            <Metric>
-              <MetricValue>{companiesWithReportContacts}</MetricValue>
-              <MetricLabel>Com dados para laudo</MetricLabel>
-            </Metric>
-          </MetricsRow>
+          {/* Stats */}
+          <StatGrid>
+            <StatCard>
+              <StatValue>{empresas.length}</StatValue>
+              <StatLabel>Total de empresas</StatLabel>
+            </StatCard>
+            <StatCard>
+              <StatValue>{companiesWithLogo}</StatValue>
+              <StatLabel>Com logomarca</StatLabel>
+            </StatCard>
+            <StatCard>
+              <StatValue>{companiesWithContacts}</StatValue>
+              <StatLabel>Com contato</StatLabel>
+            </StatCard>
+          </StatGrid>
 
-          <WorkArea>
+          {/* Tabs */}
+          <Tabs>
+            <TabBtn $active={activeTab === 'listar'} onClick={() => handleTabChange('listar')}>
+              <Building2 size={17} />
+              Empresas
+            </TabBtn>
+            <TabBtn $active={activeTab === 'cadastrar'} onClick={() => handleTabChange('cadastrar')}>
+              {isEditing ? <Edit3 size={17} /> : <Plus size={17} />}
+              {isEditing ? 'Editar empresa' : 'Nova empresa'}
+            </TabBtn>
+            <NavLink onClick={() => navigate('/admin/users')}>
+              <Users size={15} />
+              Usuários
+              <ChevronRight size={14} />
+            </NavLink>
+          </Tabs>
+
+          {/* ── LIST TAB ── */}
+          {activeTab === 'listar' && (
             <Panel>
-              <PanelHeader>
-                <PanelTitleGroup>
-                  <PanelTitle>
-                    {isEditing ? <Edit3 size={20} /> : <Plus size={20} />}
-                    {isEditing ? 'Editar empresa' : 'Nova empresa'}
-                  </PanelTitle>
-                  <PanelHint>
-                    Logomarca e contatos salvos aqui aparecem automaticamente no cabeçalho e rodape dos laudos.
-                  </PanelHint>
-                </PanelTitleGroup>
-              </PanelHeader>
+              <Toolbar>
+                <ToolbarLeft>
+                  <Building2 size={20} />
+                  {filteredEmpresas.length} empresa{filteredEmpresas.length !== 1 ? 's' : ''}
+                </ToolbarLeft>
+                <SearchBox>
+                  <Search size={18} />
+                  <SearchInput
+                    as="input"
+                    type="search"
+                    placeholder="Buscar por nome, CNPJ, email..."
+                    value={searchTerm}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                  />
+                </SearchBox>
+              </Toolbar>
+
+              {loading ? (
+                <EmptyState>
+                  <RefreshCw size={28} strokeWidth={1.5} />
+                  Carregando empresas...
+                </EmptyState>
+              ) : filteredEmpresas.length === 0 ? (
+                <EmptyState>
+                  <Building2 size={36} strokeWidth={1.5} />
+                  {searchTerm ? 'Nenhuma empresa encontrada.' : 'Nenhuma empresa cadastrada ainda.'}
+                </EmptyState>
+              ) : (
+                <TableWrap>
+                  <Table>
+                    <THead>
+                      <tr>
+                        <TH>Empresa</TH>
+                        <TH>Contato</TH>
+                        <TH>Laudo</TH>
+                        <TH>Cadastro</TH>
+                        <TH>Ações</TH>
+                      </tr>
+                    </THead>
+                    <tbody>
+                      {filteredEmpresas.map((empresa) => (
+                        <TR key={empresa.id}>
+                          <TD data-label="Empresa">
+                            <CompanyIdentity>
+                              <CompanyAvatar>
+                                {empresa.logo_url
+                                  ? <CompanyLogoThumb src={empresa.logo_url} alt="" />
+                                  : getInitials(empresa.nome)
+                                }
+                              </CompanyAvatar>
+                              <div>
+                                <CompanyName>{empresa.nome}</CompanyName>
+                                <CompanyMeta>{empresa.cnpj || 'Sem CNPJ'}{empresa.creci ? ` · ${empresa.creci}` : ''}</CompanyMeta>
+                              </div>
+                            </CompanyIdentity>
+                          </TD>
+                          <TD data-label="Contato">
+                            {empresa.email || '—'}
+                            <CompanyMeta>{empresa.telefone || empresa.whatsapp || 'Sem telefone'}</CompanyMeta>
+                          </TD>
+                          <TD data-label="Laudo">
+                            {empresa.endereco || empresa.site || empresa.instagram || 'Dados pendentes'}
+                            <CompanyMeta>{empresa.logo_url ? 'Logomarca configurada' : 'Sem logomarca'}</CompanyMeta>
+                          </TD>
+                          <TD data-label="Cadastro">{formatDate(empresa.created_at)}</TD>
+                          <TD data-label="Ações">
+                            <ActionGroup>
+                              <Btn $variant="ghost" onClick={() => handleEdit(empresa)}>
+                                <Edit3 size={15} />
+                                Editar
+                              </Btn>
+                              <Btn $variant="danger" onClick={() => handleDelete(empresa)}>
+                                <Trash2 size={15} />
+                                Excluir
+                              </Btn>
+                            </ActionGroup>
+                          </TD>
+                        </TR>
+                      ))}
+                    </tbody>
+                  </Table>
+                </TableWrap>
+              )}
+            </Panel>
+          )}
+
+          {/* ── FORM TAB ── */}
+          {activeTab === 'cadastrar' && (
+            <Panel>
+              <PanelTitle>
+                {isEditing ? <Edit3 size={20} /> : <Plus size={20} />}
+                {isEditing ? 'Editar empresa' : 'Nova empresa'}
+              </PanelTitle>
+              <PanelHint>
+                Logomarca e contatos salvos aqui aparecem automaticamente no cabeçalho e rodapé dos laudos.
+              </PanelHint>
 
               <Form onSubmit={handleSubmit}>
+                {/* Logo */}
                 <FieldGroup>
-                  <LabelText>Logomarca para o laudo</LabelText>
+                  <FieldLabel>Logomarca para o laudo</FieldLabel>
                   <LogoUpload>
                     <LogoPreview>
                       {form.logo_url ? (
@@ -738,10 +915,10 @@ const AdminCompanyPage: React.FC = () => {
                       )}
                     </LogoPreview>
                     <LogoActions>
-                      <Button as="label" htmlFor="company-logo-input" type="button" $variant="ghost">
+                      <Btn as="label" htmlFor="company-logo-input" type="button" $variant="ghost">
                         <ImagePlus size={16} />
                         Escolher imagem
-                      </Button>
+                      </Btn>
                       <HiddenFileInput
                         id="company-logo-input"
                         type="file"
@@ -749,252 +926,162 @@ const AdminCompanyPage: React.FC = () => {
                         onChange={handleLogoChange}
                       />
                       {form.logo_url && (
-                        <Button
+                        <Btn
                           type="button"
-                          $variant="secondary"
-                          onClick={() => setForm((current) => ({ ...current, logo_url: '' }))}
+                          $variant="ghost"
+                          onClick={() => setForm((f) => ({ ...f, logo_url: '' }))}
                         >
                           <X size={16} />
                           Remover
-                        </Button>
+                        </Btn>
                       )}
                     </LogoActions>
                   </LogoUpload>
                 </FieldGroup>
 
+                {/* Nome */}
                 <FieldGroup>
-                  <LabelText>Razão social ou nome fantasia</LabelText>
+                  <FieldLabel>Razão social ou nome fantasia</FieldLabel>
                   <Input
                     name="nome"
                     autoComplete="organization"
-                    placeholder="Ex.: Imobiliaria Central"
+                    placeholder="Ex.: Imobiliária Central"
                     value={form.nome}
-                    onChange={(event) => setForm((current) => ({ ...current, nome: event.target.value }))}
+                    onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
                     required
                   />
                 </FieldGroup>
 
+                {/* CNPJ + CRECI */}
                 <FieldRow>
                   <FieldGroup>
-                    <LabelText>CNPJ</LabelText>
+                    <FieldLabel>CNPJ</FieldLabel>
                     <Input
                       name="cnpj"
                       inputMode="numeric"
                       placeholder="00.000.000/0000-00"
                       value={form.cnpj}
-                      onChange={(event) => setForm((current) => ({ ...current, cnpj: event.target.value }))}
+                      onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))}
                       required
                     />
                   </FieldGroup>
-
                   <FieldGroup>
-                    <LabelText>CRECI / registro</LabelText>
+                    <FieldLabel>CRECI / registro</FieldLabel>
                     <Input
                       name="creci"
                       placeholder="Ex.: CRECI 00000-J"
                       value={form.creci || ''}
-                      onChange={(event) => setForm((current) => ({ ...current, creci: event.target.value }))}
+                      onChange={(e) => setForm((f) => ({ ...f, creci: e.target.value }))}
                     />
                   </FieldGroup>
                 </FieldRow>
 
+                {/* Responsável */}
                 <FieldGroup>
-                  <LabelText>Responsavel</LabelText>
+                  <FieldLabel>Responsável</FieldLabel>
                   <Input
                     name="responsavel_nome"
                     autoComplete="name"
-                    placeholder="Nome do responsavel pela empresa"
+                    placeholder="Nome do responsável pela empresa"
                     value={form.responsavel_nome || ''}
-                    onChange={(event) => setForm((current) => ({ ...current, responsavel_nome: event.target.value }))}
+                    onChange={(e) => setForm((f) => ({ ...f, responsavel_nome: e.target.value }))}
                   />
                 </FieldGroup>
 
+                {/* Email */}
                 <FieldGroup>
-                  <LabelText>Email administrativo</LabelText>
+                  <FieldLabel>Email administrativo</FieldLabel>
                   <Input
                     type="email"
                     name="email"
                     autoComplete="email"
                     placeholder="administrativo@empresa.com"
                     value={form.email}
-                    onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                     required
                   />
                 </FieldGroup>
 
+                {/* Telefone + WhatsApp */}
                 <FieldRow>
                   <FieldGroup>
-                    <LabelText>Telefone</LabelText>
+                    <FieldLabel>Telefone</FieldLabel>
                     <Input
                       name="telefone"
                       inputMode="tel"
                       placeholder="(11) 3333-3333"
                       value={form.telefone || ''}
-                      onChange={(event) => setForm((current) => ({ ...current, telefone: event.target.value }))}
+                      onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))}
                     />
                   </FieldGroup>
-
                   <FieldGroup>
-                    <LabelText>WhatsApp</LabelText>
+                    <FieldLabel>WhatsApp</FieldLabel>
                     <Input
                       name="whatsapp"
                       inputMode="tel"
                       placeholder="(11) 99999-9999"
                       value={form.whatsapp || ''}
-                      onChange={(event) => setForm((current) => ({ ...current, whatsapp: event.target.value }))}
+                      onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))}
                     />
                   </FieldGroup>
                 </FieldRow>
 
+                {/* Site + Instagram */}
                 <FieldRow>
                   <FieldGroup>
-                    <LabelText>Site</LabelText>
+                    <FieldLabel>Site</FieldLabel>
                     <Input
                       name="site"
                       inputMode="url"
                       placeholder="www.empresa.com.br"
                       value={form.site || ''}
-                      onChange={(event) => setForm((current) => ({ ...current, site: event.target.value }))}
+                      onChange={(e) => setForm((f) => ({ ...f, site: e.target.value }))}
                     />
                   </FieldGroup>
-
                   <FieldGroup>
-                    <LabelText>Instagram</LabelText>
+                    <FieldLabel>Instagram</FieldLabel>
                     <Input
                       name="instagram"
                       placeholder="@empresa"
                       value={form.instagram || ''}
-                      onChange={(event) => setForm((current) => ({ ...current, instagram: event.target.value }))}
+                      onChange={(e) => setForm((f) => ({ ...f, instagram: e.target.value }))}
                     />
                   </FieldGroup>
                 </FieldRow>
 
+                {/* Endereço */}
                 <FieldGroup>
-                  <LabelText>Endereço para rodape</LabelText>
+                  <FieldLabel>Endereço para rodapé</FieldLabel>
                   <TextArea
                     name="endereco"
-                    placeholder="Rua, numero, bairro, cidade/UF"
+                    placeholder="Rua, número, bairro, cidade/UF"
                     value={form.endereco || ''}
-                    onChange={(event) => setForm((current) => ({ ...current, endereco: event.target.value }))}
+                    onChange={(e) => setForm((f) => ({ ...f, endereco: e.target.value }))}
                   />
                 </FieldGroup>
 
-                {feedback && (
-                  <Feedback $error={feedback.type === 'error'}>
-                    {feedback.message}
-                  </Feedback>
-                )}
-
                 <FormActions>
-                  {isEditing && (
-                    <Button type="button" $variant="secondary" onClick={resetForm} disabled={saving}>
-                      <X size={17} />
-                      Cancelar
-                    </Button>
-                  )}
-                  <Button type="submit" $variant="primary" disabled={saving}>
-                    {isEditing ? <Save size={17} /> : <Plus size={17} />}
-                    {saving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Cadastrar'}
-                  </Button>
+                  <Btn type="button" $variant="ghost" onClick={() => handleTabChange('listar')} disabled={saving}>
+                    <X size={16} />
+                    Cancelar
+                  </Btn>
+                  <Btn type="submit" $variant="primary" disabled={saving}>
+                    {isEditing ? <Save size={16} /> : <Plus size={16} />}
+                    {saving ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Cadastrar empresa'}
+                  </Btn>
                 </FormActions>
               </Form>
-
-              <NoteBox>
-                As informações preenchidas aqui entram nos proximos PDF e Word gerados para vistorias dessa empresa.
-              </NoteBox>
             </Panel>
-
-            <Panel>
-              <PanelHeader>
-                <PanelTitleGroup>
-                  <PanelTitle>
-                    <Building2 size={20} />
-                    Empresas cadastradas
-                  </PanelTitle>
-                  <PanelHint>{filteredEmpresas.length} empresa{filteredEmpresas.length === 1 ? '' : 's'} na visualização atual.</PanelHint>
-                </PanelTitleGroup>
-                <SearchBox>
-                  <Search size={18} />
-                  <SearchInput
-                    type="search"
-                    placeholder="Buscar empresa"
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                  />
-                </SearchBox>
-              </PanelHeader>
-
-              {loading ? (
-                <EmptyState>
-                  <RefreshCw size={22} />
-                  <p>Carregando empresas...</p>
-                </EmptyState>
-              ) : filteredEmpresas.length === 0 ? (
-                <EmptyState>Nenhuma empresa encontrada.</EmptyState>
-              ) : (
-                <TableScroll>
-                  <CompanyTable>
-                    <CompanyTableHeader>
-                      <tr>
-                        <CompanyTableHeadCell>Empresa</CompanyTableHeadCell>
-                        <CompanyTableHeadCell>Contato</CompanyTableHeadCell>
-                        <CompanyTableHeadCell>Laudo</CompanyTableHeadCell>
-                        <CompanyTableHeadCell>Cadastro</CompanyTableHeadCell>
-                        <CompanyTableHeadCell>Ações</CompanyTableHeadCell>
-                      </tr>
-                    </CompanyTableHeader>
-                    <tbody>
-                      {filteredEmpresas.map((empresa) => (
-                        <CompanyTableRow key={empresa.id}>
-                          <CompanyTableCell data-label="Empresa">
-                            <CompanyIdentity>
-                              <CompanyAvatar>
-                                {empresa.logo_url ? (
-                                  <CompanyLogoThumb src={empresa.logo_url} alt="" />
-                                ) : (
-                                  getInitials(empresa.nome)
-                                )}
-                              </CompanyAvatar>
-                              <div>
-                                <CompanyName>{empresa.nome}</CompanyName>
-                                <CompanyMeta>{empresa.cnpj || 'Sem CNPJ'}{empresa.creci ? ` | ${empresa.creci}` : ''}</CompanyMeta>
-                              </div>
-                            </CompanyIdentity>
-                          </CompanyTableCell>
-                          <CompanyTableCell data-label="Contato">
-                            {empresa.email || '-'}
-                            <CompanyMeta>{empresa.telefone || empresa.whatsapp || 'Sem telefone'}</CompanyMeta>
-                          </CompanyTableCell>
-                          <CompanyTableCell data-label="Laudo">
-                            {empresa.endereco || empresa.site || empresa.instagram || 'Dados pendentes'}
-                            <CompanyMeta>{empresa.logo_url ? 'Logomarca configurada' : 'Sem logomarca'}</CompanyMeta>
-                          </CompanyTableCell>
-                          <CompanyTableCell data-label="Cadastro">{formatDate(empresa.created_at)}</CompanyTableCell>
-                          <CompanyTableCell data-label="Ações">
-                            <ActionCell>
-                              <Button type="button" $variant="ghost" onClick={() => handleEdit(empresa)}>
-                                <Edit3 size={16} />
-                                Editar
-                              </Button>
-                            </ActionCell>
-                          </CompanyTableCell>
-                        </CompanyTableRow>
-                      ))}
-                    </tbody>
-                  </CompanyTable>
-                </TableScroll>
-              )}
-
-              <NoteBox>
-                <Button type="button" $variant="secondary" onClick={() => navigate('/admin/users')}>
-                  Ir para usuários
-                  <ExternalLink size={16} />
-                </Button>
-              </NoteBox>
-            </Panel>
-          </WorkArea>
+          )}
         </Content>
       </Container>
+
+      <Snackbar
+        open={snackbar.open}
+        message={snackbar.message}
+        type={snackbar.type}
+        onClose={() => setSnackbar((s) => ({ ...s, open: false }))}
+      />
     </>
   );
 };
