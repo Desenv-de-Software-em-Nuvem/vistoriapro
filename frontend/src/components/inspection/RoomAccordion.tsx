@@ -201,7 +201,7 @@ const PhotoThumb = styled.div<{ $src: string }>`
   border-radius: 8px;
   border: 1px solid #444;
   background-color: #222;
-  background-image: url(${({ $src }) => $src});
+  background-image: url('${({ $src }) => $src}');
   background-size: cover;
   background-position: center;
   cursor: pointer;
