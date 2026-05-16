@@ -69,6 +69,9 @@ let pdfBrowserLaunchPromise = null;
 /** Cache de logo processada por empresa (Jimp crop+resize+cores extraídas). TTL de 5 min. */
 const logoProcessadaCache = new Map();
 const LOGO_CACHE_TTL_MS = 5 * 60 * 1000;
+const imagemRelatorioCache = new Map();
+const IMAGEM_RELATORIO_CACHE_TTL_MS = 10 * 60 * 1000;
+const IMAGEM_RELATORIO_CACHE_MAX_ITEMS = 180;
 
 /** Executa fn em paralelo com no máximo `limit` concurrent. Mantém ordem do array original. */
 async function mapComConcorrencia(items, fn, limit = 6) {
@@ -82,6 +85,33 @@ async function mapComConcorrencia(items, fn, limit = 6) {
   }
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
   return results;
+}
+
+function obterImagemRelatorioCache(key) {
+  const cached = imagemRelatorioCache.get(key);
+  if (!cached) return null;
+
+  if (Date.now() - cached.createdAt > IMAGEM_RELATORIO_CACHE_TTL_MS) {
+    imagemRelatorioCache.delete(key);
+    return null;
+  }
+
+  imagemRelatorioCache.delete(key);
+  imagemRelatorioCache.set(key, cached);
+  return cached.value;
+}
+
+function salvarImagemRelatorioCache(key, value) {
+  imagemRelatorioCache.set(key, {
+    createdAt: Date.now(),
+    value,
+  });
+
+  while (imagemRelatorioCache.size > IMAGEM_RELATORIO_CACHE_MAX_ITEMS) {
+    const oldestKey = imagemRelatorioCache.keys().next().value;
+    if (!oldestKey) break;
+    imagemRelatorioCache.delete(oldestKey);
+  }
 }
 
 async function obtainPdfBrowser() {
@@ -978,6 +1008,10 @@ async function compactarImagemParaRelatorio(req, url) {
   const resolvedUrl = normalizarUrlImagem(req, url);
   if (!resolvedUrl) return { url: '', buffer: null };
 
+  const cacheKey = `${FOTO_MAX_WIDTH}x${FOTO_MAX_HEIGHT}:q${FOTO_JPEG_QUALITY}:${resolvedUrl}`;
+  const cached = obterImagemRelatorioCache(cacheKey);
+  if (cached) return cached;
+
   const imageData = await obterImagemBuffer(req, url);
   if (!imageData || !imageData.buffer || imageData.mimeType.includes('svg')) {
     return { url: resolvedUrl, buffer: null };
@@ -992,12 +1026,14 @@ async function compactarImagemParaRelatorio(req, url) {
         .jpeg({ quality: FOTO_JPEG_QUALITY })
         .toBuffer();
       const finalMeta = await sharp(compactedBuffer).metadata();
-      return {
+      const result = {
         url: `data:image/jpeg;base64,${compactedBuffer.toString('base64')}`,
         buffer: compactedBuffer,
         width: finalMeta.width || FOTO_MAX_WIDTH,
         height: finalMeta.height || FOTO_MAX_HEIGHT,
       };
+      salvarImagemRelatorioCache(cacheKey, result);
+      return result;
     } catch (err) {
       console.warn('[gerarRelatorio] Sharp falhou, usando Jimp:', err.message);
     }
@@ -1008,12 +1044,14 @@ async function compactarImagemParaRelatorio(req, url) {
     const image = await Jimp.read(imageData.buffer);
     image.scaleToFit({ w: FOTO_MAX_WIDTH, h: FOTO_MAX_HEIGHT });
     const compactedBuffer = await image.getBuffer(JimpMime.jpeg, { quality: FOTO_JPEG_QUALITY });
-    return {
+    const result = {
       url: `data:image/jpeg;base64,${compactedBuffer.toString('base64')}`,
       buffer: compactedBuffer,
       width: image.bitmap.width,
       height: image.bitmap.height,
     };
+    salvarImagemRelatorioCache(cacheKey, result);
+    return result;
   } catch (err) {
     console.warn('[gerarRelatorio] Não foi possível compactar imagem do relatório:', err.message);
     return { url: resolvedUrl, buffer: null };

@@ -347,30 +347,40 @@ export const InspectionPage: React.FC = () => {
       blobUrls.forEach(url => { statusUpdate[url] = 'uploading'; });
       setPhotoUploadStatus(prev => ({ ...prev, ...statusUpdate }));
 
-      files.forEach((file, i) => {
+      const uploadOnePhoto = async (file: File, i: number) => {
         const blobUrl = blobUrls[i];
-        const promise: Promise<void> = (async () => {
-          try {
-            const vId = await ensureVistoriaExists();
-            const uploaded = await uploadFoto({ vistoria_id: vId, file, descricao: '', comodo_nome: roomName });
-            const storedUrl = uploaded?.url;
-            if (storedUrl) {
-              setInspection(prev => prev ? {
-                ...prev,
-                rooms: prev.rooms.map((r: RoomAccordionType) => r.id === roomId ? {
-                  ...r, photos: r.photos.map((p: string) => p === blobUrl ? storedUrl : p)
-                } : r)
-              } : prev);
-              URL.revokeObjectURL(blobUrl);
-            }
-            setPhotoUploadStatus(prev => ({ ...prev, [blobUrl]: 'done' }));
-          } catch {
-            setPhotoUploadStatus(prev => ({ ...prev, [blobUrl]: 'error' }));
+        try {
+          const vId = await ensureVistoriaExists();
+          const uploadFile = await prepareImageFileForUpload(file);
+          const uploaded = await uploadFoto({ vistoria_id: vId, file: uploadFile, descricao: '', comodo_nome: roomName });
+          const storedUrl = uploaded?.url;
+          if (storedUrl) {
+            setInspection(prev => prev ? {
+              ...prev,
+              rooms: prev.rooms.map((r: RoomAccordionType) => r.id === roomId ? {
+                ...r, photos: r.photos.map((p: string) => p === blobUrl ? storedUrl : p)
+              } : r)
+            } : prev);
+            URL.revokeObjectURL(blobUrl);
           }
-        })();
-        pendingUploadsRef.current.add(promise);
-        promise.finally(() => pendingUploadsRef.current.delete(promise));
-      });
+          setPhotoUploadStatus(prev => ({ ...prev, [blobUrl]: 'done' }));
+        } catch {
+          setPhotoUploadStatus(prev => ({ ...prev, [blobUrl]: 'error' }));
+        }
+      };
+
+      const uploadQueue: Promise<void> = (async () => {
+        let nextIndex = 0;
+        const workers = Array.from({ length: Math.min(3, files.length) }, async () => {
+          while (nextIndex < files.length) {
+            const currentIndex = nextIndex++;
+            await uploadOnePhoto(files[currentIndex], currentIndex);
+          }
+        });
+        await Promise.all(workers);
+      })();
+      pendingUploadsRef.current.add(uploadQueue);
+      uploadQueue.finally(() => pendingUploadsRef.current.delete(uploadQueue));
 
       setSnackbar({
         open: true,
@@ -702,16 +712,48 @@ export const InspectionPage: React.FC = () => {
     return new File([u8arr], filename, { type: mime });
   }
 
-  function resizeImageForUpload(dataUrl: string, maxSize = 2000) {
+  function fileToDataUrl(file: File) {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event: ProgressEvent<FileReader>) => {
+        const result = event.target?.result;
+        if (typeof result === 'string') {
+          resolve(result);
+          return;
+        }
+        reject(new Error('Não foi possível preparar a foto.'));
+      };
+      reader.onerror = () => reject(new Error('Não foi possível ler a foto.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function prepareImageFileForUpload(file: File) {
+    if (!file.type.startsWith('image/')) return file;
+
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      const shouldReencode = file.size > 4 * 1024 * 1024 || file.type !== 'image/jpeg';
+      const resized = await resizeImageForUpload(dataUrl, 1600, shouldReencode, 0.9);
+      if (resized === dataUrl) return file;
+
+      const baseName = file.name.replace(/\.[^.]+$/, '') || 'foto';
+      return base64ToFile(resized, `${baseName}_${Date.now()}.jpg`);
+    } catch {
+      return file;
+    }
+  }
+
+  function resizeImageForUpload(dataUrl: string, maxSize = 2000, forceEncode = false, quality = 0.95) {
     return new Promise<string>((resolve) => {
       const image = new Image();
       image.onload = () => {
         const maxDim = Math.max(image.width, image.height);
-        if (maxDim <= maxSize) {
+        if (maxDim <= maxSize && !forceEncode) {
           resolve(dataUrl);
           return;
         }
-        const scale = maxSize / maxDim;
+        const scale = Math.min(1, maxSize / maxDim);
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(image.width * scale);
         canvas.height = Math.round(image.height * scale);
@@ -722,7 +764,7 @@ export const InspectionPage: React.FC = () => {
         }
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
         // Qualidade alta: só redimensiona, compressão real fica pro Sharp no backend
-        resolve(canvas.toDataURL('image/jpeg', 0.95));
+        resolve(canvas.toDataURL('image/jpeg', quality));
       };
       image.onerror = () => resolve(dataUrl);
       image.src = dataUrl;

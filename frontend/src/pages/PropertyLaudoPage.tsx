@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useEffect } from 'react'
 import styled from 'styled-components'
-import { FileText, Eye, Calendar, User, Building2, MapPin, Trash2 } from 'lucide-react'
+import { FileText, Calendar, User, Building2, MapPin } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '../services/api'
 import { InspectionDetailsForm } from '../components/InspectionDetailsForm'
@@ -159,10 +159,12 @@ const VistoriaMain = styled.div`
 const VistoriaHeader = styled.div`
   display: flex;
   gap: 0.75rem;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: space-between;
 
   @media (max-width: 520px) {
     flex-direction: column;
+    align-items: flex-start;
   }
 `
 
@@ -176,12 +178,18 @@ const VistoriaTitle = styled.h4`
 `
 
 const VistoriaStatus = styled.span<{ $status: string }>`
-  padding: 0.35rem 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.75rem;
+  padding: 0 0.65rem;
   border-radius: ${({ theme }) => theme.borderRadius.full};
   font-size: ${({ theme }) => theme.fontSizes.xs};
   font-weight: 800;
+  line-height: 1;
   text-transform: uppercase;
   white-space: nowrap;
+  box-sizing: border-box;
   ${({ $status, theme }) => {
     switch ($status) {
       case 'concluida':
@@ -223,17 +231,25 @@ const VistoriaInfo = styled.div`
 
 const VistoriaActions = styled.div`
   display: grid;
-  grid-template-columns: repeat(4, max-content);
-  gap: 0.55rem;
-  justify-content: end;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 20rem;
+  margin-left: auto;
 
-  @media (max-width: 820px) {
-    grid-template-columns: repeat(2, 1fr);
-    justify-content: stretch;
+  @media (min-width: 720px) {
+    grid-template-columns: repeat(4, minmax(4.5rem, 1fr));
+    max-width: 100%;
   }
 
-  @media (max-width: 520px) {
-    grid-template-columns: 1fr;
+  @media (max-width: 820px) {
+    max-width: none;
+    margin-left: 0;
+  }
+
+  & > button {
+    width: 100%;
+    min-width: 0;
   }
 `
 
@@ -253,19 +269,49 @@ const DetailsGenerateActions = styled.div`
   }
 `
 
+const ButtonSpinner = styled.span`
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  flex-shrink: 0;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+`
+
 const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'success' | 'danger' }>`
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.55rem 0.8rem;
-  border-radius: ${({ theme }) => theme.borderRadius.lg};
-  font-size: ${({ theme }) => theme.fontSizes.sm};
-  font-weight: 800;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  justify-content: center;
-  min-height: 38px;
-  white-space: nowrap;
+  && {
+    box-sizing: border-box;
+    display: inline-grid;
+    place-items: center;
+    grid-auto-flow: column;
+    column-gap: 0.35rem;
+    min-width: 4.75rem;
+    height: 2.5rem;
+    padding: 0 1rem;
+    margin: 0;
+    border-radius: ${({ theme }) => theme.borderRadius.lg};
+    border-style: solid;
+    border-width: 1px;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: center;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  && ${ButtonSpinner} {
+    margin: 0;
+  }
 
   &:disabled {
     opacity: 0.65;
@@ -278,10 +324,20 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'succe
         return `
           background: ${theme.colors.primary};
           color: ${theme.colors.textWhite};
-          border: none;
+          border: 1px solid ${theme.colors.primary};
           &:hover:not(:disabled) {
             background: ${theme.colors.primaryDark};
-            transform: translateY(-1px);
+            border-color: ${theme.colors.primaryDark};
+          }
+        `;
+      case 'secondary':
+        return `
+          background: ${theme.colors.backgroundSecondary};
+          color: ${theme.colors.text};
+          border: 1px solid ${theme.colors.borderLight};
+          &:hover:not(:disabled) {
+            background: ${theme.colors.backgroundGlass};
+            border-color: ${theme.colors.border};
           }
         `;
       case 'success':
@@ -291,46 +347,28 @@ const ActionButton = styled.button<{ $variant?: 'primary' | 'secondary' | 'succe
           border: 1px solid ${theme.colors.success};
           &:hover:not(:disabled) {
             background: rgba(16, 185, 129, 0.18);
-            transform: translateY(-1px);
           }
         `;
       case 'danger':
         return `
-          background: transparent;
+          background: rgba(239, 68, 68, 0.08);
           color: ${theme.colors.error};
           border: 1px solid ${theme.colors.error};
           &:hover:not(:disabled) {
-            background: rgba(239, 68, 68, 0.12);
-            transform: translateY(-1px);
+            background: rgba(239, 68, 68, 0.15);
           }
         `;
       default:
         return `
-          background: transparent;
+          background: ${theme.colors.backgroundSecondary};
           color: ${theme.colors.text};
-          border: 1px solid ${theme.colors.border};
+          border: 1px solid ${theme.colors.borderLight};
           &:hover:not(:disabled) {
-            background: ${theme.colors.backgroundTertiary};
-            transform: translateY(-1px);
+            background: ${theme.colors.backgroundGlass};
           }
         `;
     }
   }}
-`
-
-const ButtonSpinner = styled.span`
-  width: 14px;
-  height: 14px;
-  border: 2px solid currentColor;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.75s linear infinite;
-  flex: 0 0 auto;
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
 `
 
 const EmptyState = styled.div`
@@ -418,11 +456,6 @@ export const PropertyLaudoPage: React.FC = () => {
     if (!generatingReport) return false
     if (generatingReport.vistoriaId !== vistoriaId) return false
     return formato ? generatingReport.formato === formato : true
-  }
-
-  const getReportButtonLabel = (vistoriaId: number, formato: ReportFormat, defaultLabel: string) => {
-    if (!isGeneratingReport(vistoriaId, formato)) return defaultLabel
-    return formato === 'pdf' ? 'Gerando PDF...' : 'Gerando Word...'
   }
 
   const handleExcluirVistoria = async (vistoriaId: number) => {
@@ -626,14 +659,20 @@ export const PropertyLaudoPage: React.FC = () => {
             
             {allRequiredFilled && (
               <DetailsGenerateActions>
-                <ActionButton 
-                  $variant="success" 
+                <ActionButton
+                  $variant="success"
                   onClick={() => handleGerarLaudo(selectedVistoria, 'pdf')}
                   disabled={Boolean(generatingReport)}
                   aria-busy={isGeneratingReport(selectedVistoria, 'pdf')}
                 >
-                  {isGeneratingReport(selectedVistoria, 'pdf') ? <ButtonSpinner /> : <FileText size={16} />}
-                  {getReportButtonLabel(selectedVistoria, 'pdf', 'Gerar Laudo PDF')}
+                  {isGeneratingReport(selectedVistoria, 'pdf') ? (
+                    <>
+                      <ButtonSpinner aria-hidden />
+                      Gerando PDF…
+                    </>
+                  ) : (
+                    'Gerar Laudo PDF'
+                  )}
                 </ActionButton>
                 <ActionButton
                   $variant="success"
@@ -641,8 +680,14 @@ export const PropertyLaudoPage: React.FC = () => {
                   disabled={Boolean(generatingReport)}
                   aria-busy={isGeneratingReport(selectedVistoria, 'word')}
                 >
-                  {isGeneratingReport(selectedVistoria, 'word') ? <ButtonSpinner /> : <FileText size={16} />}
-                  {getReportButtonLabel(selectedVistoria, 'word', 'Gerar Laudo Word')}
+                  {isGeneratingReport(selectedVistoria, 'word') ? (
+                    <>
+                      <ButtonSpinner aria-hidden />
+                      Gerando Word…
+                    </>
+                  ) : (
+                    'Gerar Laudo Word'
+                  )}
                 </ActionButton>
               </DetailsGenerateActions>
             )}
@@ -725,20 +770,27 @@ export const PropertyLaudoPage: React.FC = () => {
 
                   <VistoriaActions>
                     <ActionButton
+                      $variant="secondary"
+                      type="button"
                       onClick={() => handlePreencherDadosLaudo(vistoria.id)}
                       disabled={Boolean(generatingReport)}
                     >
-                      <Eye size={14} />
                       Dados
                     </ActionButton>
-                    <ActionButton 
-                      $variant="success" 
+                    <ActionButton
+                      $variant="success"
                       onClick={() => handleGerarLaudo(vistoria.id, 'pdf')}
                       disabled={Boolean(generatingReport)}
                       aria-busy={isGeneratingReport(vistoria.id, 'pdf')}
                     >
-                      {isGeneratingReport(vistoria.id, 'pdf') ? <ButtonSpinner /> : <FileText size={14} />}
-                      {getReportButtonLabel(vistoria.id, 'pdf', 'PDF')}
+                      {isGeneratingReport(vistoria.id, 'pdf') ? (
+                        <>
+                          <ButtonSpinner aria-hidden />
+                          Gerando…
+                        </>
+                      ) : (
+                        'PDF'
+                      )}
                     </ActionButton>
                     <ActionButton
                       $variant="success"
@@ -746,16 +798,21 @@ export const PropertyLaudoPage: React.FC = () => {
                       disabled={Boolean(generatingReport)}
                       aria-busy={isGeneratingReport(vistoria.id, 'word')}
                     >
-                      {isGeneratingReport(vistoria.id, 'word') ? <ButtonSpinner /> : <FileText size={14} />}
-                      {getReportButtonLabel(vistoria.id, 'word', 'Word')}
+                      {isGeneratingReport(vistoria.id, 'word') ? (
+                        <>
+                          <ButtonSpinner aria-hidden />
+                          Gerando…
+                        </>
+                      ) : (
+                        'Word'
+                      )}
                     </ActionButton>
                     <ActionButton
                       $variant="danger"
                       onClick={() => handleExcluirVistoria(vistoria.id)}
                       disabled={deletingId === vistoria.id || Boolean(generatingReport)}
                     >
-                      <Trash2 size={14} />
-                      {deletingId === vistoria.id ? 'Excluindo...' : 'Excluir'}
+                      {deletingId === vistoria.id ? 'Excluindo…' : 'Excluir'}
                     </ActionButton>
                   </VistoriaActions>
                 </VistoriaCard>

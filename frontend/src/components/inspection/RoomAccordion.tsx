@@ -2,9 +2,21 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
-import { ChevronDown, ChevronUp, Camera, Image, CheckCircle2, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronUp, Camera, Image, CheckCircle2, Sparkles, ImageOff } from 'lucide-react';
 import { CameraModal } from './CameraModal';
 import { TranscriptionButton } from './TranscriptionButton';
+
+function getApiAssetBaseUrl() {
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  return apiUrl.replace(/\/api\/?$/, '').replace(/\/$/, '');
+}
+
+function resolvePhotoUrl(photo: string) {
+  if (!photo) return '';
+  if (/^(data:|blob:|https?:\/\/)/i.test(photo)) return photo;
+  if (photo.startsWith('/')) return `${getApiAssetBaseUrl()}${photo}`;
+  return photo;
+}
 
 const PhotoModalOverlay = styled.div`
   position: fixed;
@@ -202,17 +214,23 @@ const PhotosGrid = styled.div`
   margin-bottom: 12px;
 `;
 
-const PhotoThumb = styled.div<{ $src: string }>`
+const PhotoThumb = styled.button<{ $isDisabled?: boolean; $isError?: boolean }>`
   width: 64px;
   height: 64px;
   border-radius: 8px;
-  border: 1px solid #444;
-  background-color: #222;
-  background-image: url('${({ $src }) => $src}');
-  background-size: cover;
-  background-position: center;
-  cursor: pointer;
+  border: 1px solid ${({ theme, $isError }) => $isError ? theme.colors.error : theme.colors.borderLight};
+  background: ${({ theme }) => theme.colors.backgroundTertiary};
+  cursor: ${({ $isDisabled }) => $isDisabled ? 'default' : 'pointer'};
   flex-shrink: 0;
+  display: block;
+  overflow: hidden;
+  position: relative;
+  padding: 0;
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.primary};
+    outline-offset: 2px;
+  }
 `;
 
 const PhotoWrapper = styled.div`
@@ -220,6 +238,38 @@ const PhotoWrapper = styled.div`
   width: 64px;
   height: 64px;
   flex-shrink: 0;
+`;
+
+const PhotoImage = styled.img<{ $loaded: boolean }>`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: ${({ $loaded }) => $loaded ? 1 : 0};
+  transition: opacity 0.18s ease;
+`;
+
+const PhotoSkeleton = styled.div`
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, #202020 8%, #303030 18%, #202020 33%);
+  background-size: 200% 100%;
+  animation: thumbnailLoading 1.15s linear infinite;
+
+  @keyframes thumbnailLoading {
+    to {
+      background-position-x: -200%;
+    }
+  }
+`;
+
+const PhotoErrorState = styled.div`
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: ${({ theme }) => theme.colors.error};
+  background: rgba(239, 68, 68, 0.08);
 `;
 
 const ShimmerOverlay = styled.div`
@@ -390,7 +440,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
   photoUploadStatus = {},
 }) => {
   const photoKey = (src: string) => {
-    if (src.startsWith('blob:') || src.startsWith('http')) return src;
+    if (src.startsWith('blob:') || src.startsWith('http') || src.startsWith('/uploads/')) return src;
     return src.slice(0, 300);
   };
   const [expanded, setExpanded] = useState(false);
@@ -398,6 +448,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
   const [photoModal, setPhotoModal] = useState<{ open: boolean; src: string; idx: number } | null>(null);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
+  const [photoLoadStatus, setPhotoLoadStatus] = useState<Record<string, 'loaded' | 'error'>>({});
 
   // Quando a foto for capturada no modal, repassa para o handler original
   const handleCameraCapture = (dataUrl: string) => {
@@ -453,15 +504,41 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
         {room.photos.length > 0 && (
           <PhotosGrid>
             {room.photos.map((src, idx) => {
-              const status = photoUploadStatus[photoKey(src)];
+              const key = photoKey(src);
+              const status = photoUploadStatus[key];
+              const displaySrc = resolvePhotoUrl(src);
+              const loadStatus = photoLoadStatus[key];
+              const isLoaded = loadStatus === 'loaded';
+              const isError = loadStatus === 'error';
+              const isUploading = status === 'uploading';
               return (
-                <PhotoWrapper key={idx}>
+                <PhotoWrapper key={`${key}-${idx}`}>
                   <PhotoThumb
-                    $src={src}
-                    onClick={() => status !== 'uploading' && handlePhotoClick(src, idx)}
-                    style={{ cursor: status === 'uploading' ? 'default' : 'pointer' }}
-                  />
-                  {status === 'uploading' && <ShimmerOverlay />}
+                    type="button"
+                    $isDisabled={isUploading}
+                    $isError={isError}
+                    onClick={() => !isUploading && !isError && handlePhotoClick(src, idx)}
+                    title={isError ? 'Não foi possível carregar esta foto' : 'Ampliar foto'}
+                  >
+                    {!isError && (
+                      <PhotoImage
+                        src={displaySrc}
+                        alt={`Foto ${idx + 1} de ${room.name}`}
+                        $loaded={isLoaded}
+                        loading="lazy"
+                        decoding="async"
+                        onLoad={() => setPhotoLoadStatus(prev => ({ ...prev, [key]: 'loaded' }))}
+                        onError={() => setPhotoLoadStatus(prev => ({ ...prev, [key]: 'error' }))}
+                      />
+                    )}
+                    {!isLoaded && !isError && <PhotoSkeleton />}
+                    {isError && (
+                      <PhotoErrorState>
+                        <ImageOff size={18} />
+                      </PhotoErrorState>
+                    )}
+                  </PhotoThumb>
+                  {isUploading && <ShimmerOverlay />}
                   {status === 'error' && <ErrorDot title="Falha no upload" />}
                 </PhotoWrapper>
               );
@@ -472,7 +549,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
         {photoModal?.open && renderInBody(
           <PhotoModalOverlay>
             <PhotoModalBox>
-              <PhotoModalImg src={photoModal.src} alt="Foto ampliada" />
+              <PhotoModalImg src={resolvePhotoUrl(photoModal.src)} alt="Foto ampliada" />
               <PhotoModalActions>
                 <PhotoModalButton onClick={() => handleDeletePhoto(photoModal.idx)} style={{ background: '#e74c3c' }}>Apagar</PhotoModalButton>
                 <PhotoModalButton onClick={() => setPhotoModal(null)}>Fechar</PhotoModalButton>
