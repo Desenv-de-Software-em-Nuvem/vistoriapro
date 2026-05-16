@@ -114,6 +114,7 @@ async function obtainPdfBrowser() {
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-background-networking',
+        '--force-device-scale-factor=1',
       ],
       protocolTimeout: 300_000,
     })
@@ -147,7 +148,7 @@ const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabase
 const relatoriosDir = path.join(__dirname, '../../uploads/relatorios');
 const FOTO_MAX_WIDTH = 720;
 const FOTO_MAX_HEIGHT = 720;
-const FOTO_JPEG_QUALITY = 15;
+const FOTO_JPEG_QUALITY = 25;
 const LOGO_MAX_WIDTH = 900;
 const LOGO_MAX_HEIGHT = 360;
 const LOGO_CROP_PADDING_RATIO = 0.02;
