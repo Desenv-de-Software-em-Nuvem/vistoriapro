@@ -195,13 +195,17 @@ const PhotosGrid = styled.div`
   margin-bottom: 12px;
 `;
 
-const PhotoThumb = styled.img`
+const PhotoThumb = styled.div<{ $src: string }>`
   width: 64px;
   height: 64px;
-  object-fit: cover;
   border-radius: 8px;
-  border: 1px solid #ccc;
-  display: block;
+  border: 1px solid #444;
+  background-color: #222;
+  background-image: url(${({ $src }) => $src});
+  background-size: cover;
+  background-position: center;
+  cursor: pointer;
+  flex-shrink: 0;
 `;
 
 const PhotoWrapper = styled.div`
@@ -370,7 +374,10 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
   isAiGenerating = false,
   photoUploadStatus = {},
 }) => {
-  const photoKey = (src: string) => src.startsWith('data:') ? src.slice(0, 300) : src;
+  const photoKey = (src: string) => {
+    if (src.startsWith('blob:') || src.startsWith('http')) return src;
+    return src.slice(0, 300);
+  };
   const [expanded, setExpanded] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [photoModal, setPhotoModal] = useState<{ open: boolean; src: string; idx: number } | null>(null);
@@ -435,8 +442,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
               return (
                 <PhotoWrapper key={idx}>
                   <PhotoThumb
-                    src={src}
-                    alt="Foto do cômodo"
+                    $src={src}
                     onClick={() => status !== 'uploading' && handlePhotoClick(src, idx)}
                     style={{ cursor: status === 'uploading' ? 'default' : 'pointer' }}
                   />

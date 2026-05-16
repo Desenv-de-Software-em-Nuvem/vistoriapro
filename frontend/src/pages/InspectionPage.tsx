@@ -143,7 +143,10 @@ export const InspectionPage: React.FC = () => {
   const pendingUploadsRef = useRef<Set<Promise<void>>>(new Set());
   const inspectionRef = useRef<InspectionData | null>(null);
 
-  const photoKey = (src: string) => src.startsWith('data:') ? src.slice(0, 300) : src;
+  const photoKey = (src: string) => {
+    if (src.startsWith('blob:') || src.startsWith('http')) return src;
+    return src.slice(0, 300); // data URL camera: fatia para chave de status
+  };
   // Recupera o tipo de imóvel selecionado na página anterior via state do React Router
   const location = useLocation();
   // O tipo selecionado vem como enum (ex: 'CASA_RESIDENCIAL'), precisa converter para o label do banco (ex: 'Casa Residencial')
@@ -321,59 +324,32 @@ export const InspectionPage: React.FC = () => {
     input.type = 'file';
     input.accept = 'image/*';
     input.multiple = true;
-    input.onchange = async (e: Event) => {
+    input.onchange = (e: Event) => {
       const target = e.target as HTMLInputElement;
       const files = Array.from(target.files || []);
       if (!files.length) return;
 
       const roomName = inspection?.rooms.find((r: RoomAccordionType) => r.id === roomId)?.name || roomId;
 
-      // createImageBitmap: decodifica a imagem na GPU (não bloqueia main thread).
-      // Canvas de 128px apenas para gerar um thumbnail leve para exibição.
-      // O File original é mantido para upload direto — Sharp no backend faz compressão real.
-      const THUMB_SIZE = 128;
-      const entries = await Promise.all(files.map(async (file) => {
-        try {
-          const bitmap = await createImageBitmap(file);
-          const scale = THUMB_SIZE / Math.max(bitmap.width, bitmap.height);
-          const canvas = document.createElement('canvas');
-          canvas.width = Math.round(bitmap.width * scale);
-          canvas.height = Math.round(bitmap.height * scale);
-          canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-          bitmap.close();
-          return { thumb: canvas.toDataURL('image/jpeg', 0.75), file };
-        } catch {
-          // Fallback: lê como data URL pequena
-          return new Promise<{ thumb: string; file: File }>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = ev => resolve({ thumb: ev.target?.result as string, file });
-            reader.onerror = () => resolve({ thumb: '', file });
-            reader.readAsDataURL(file);
-          });
-        }
-      }));
+      // Blob URLs: ponteiro direto ao arquivo, zero cópia, zero processamento.
+      // Funciona como background-image CSS (não depende de src em <img>).
+      const blobUrls = files.map(f => URL.createObjectURL(f));
 
-      const validEntries = entries.filter(e => e.thumb);
-      const thumbs = validEntries.map(e => e.thumb);
-
-      // Um único setInspection para todas as fotos (um render só)
       setInspection((prev: InspectionData | null) => prev ? {
         ...prev,
         rooms: prev.rooms.map((room: RoomAccordionType) =>
           room.id === roomId
-            ? { ...room, photos: [...(room.photos || []), ...thumbs], completed: false }
+            ? { ...room, photos: [...(room.photos || []), ...blobUrls], completed: false }
             : room
         )
       } : prev);
 
-      // Uma única atualização de status para todas
       const statusUpdate: Record<string, 'uploading'> = {};
-      validEntries.forEach(({ thumb }) => { statusUpdate[photoKey(thumb)] = 'uploading'; });
+      blobUrls.forEach(url => { statusUpdate[url] = 'uploading'; });
       setPhotoUploadStatus(prev => ({ ...prev, ...statusUpdate }));
 
-      // Upload do File original em background para cada foto
-      validEntries.forEach(({ thumb, file }) => {
-        const key = photoKey(thumb);
+      files.forEach((file, i) => {
+        const blobUrl = blobUrls[i];
         const promise: Promise<void> = (async () => {
           try {
             const vId = await ensureVistoriaExists();
@@ -383,13 +359,14 @@ export const InspectionPage: React.FC = () => {
               setInspection(prev => prev ? {
                 ...prev,
                 rooms: prev.rooms.map((r: RoomAccordionType) => r.id === roomId ? {
-                  ...r, photos: r.photos.map((p: string) => p === thumb ? storedUrl : p)
+                  ...r, photos: r.photos.map((p: string) => p === blobUrl ? storedUrl : p)
                 } : r)
               } : prev);
+              URL.revokeObjectURL(blobUrl);
             }
-            setPhotoUploadStatus(prev => ({ ...prev, [key]: 'done' }));
+            setPhotoUploadStatus(prev => ({ ...prev, [blobUrl]: 'done' }));
           } catch {
-            setPhotoUploadStatus(prev => ({ ...prev, [key]: 'error' }));
+            setPhotoUploadStatus(prev => ({ ...prev, [blobUrl]: 'error' }));
           }
         })();
         pendingUploadsRef.current.add(promise);
@@ -398,7 +375,7 @@ export const InspectionPage: React.FC = () => {
 
       setSnackbar({
         open: true,
-        message: validEntries.length > 1 ? `${validEntries.length} fotos adicionadas ao cômodo.` : 'Foto adicionada ao cômodo.',
+        message: files.length > 1 ? `${files.length} fotos adicionadas ao cômodo.` : 'Foto adicionada ao cômodo.',
         type: 'success'
       });
     };
