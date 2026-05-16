@@ -9,8 +9,9 @@ ENV PUPPETEER_BROWSER_INSTALL=0
 # Copiar package.json e package-lock.json (ou yarn.lock)
 COPY backend/package*.json ./
 
-# Instalar dependências
-RUN npm ci --only=production
+# Instalar dependências (--ignore-scripts evita postinstall que baixa Chrome,
+# pois o estágio final usa o Chromium instalado via apk)
+RUN npm ci --only=production --ignore-scripts
 
 # Stage 2: Runtime
 FROM node:22-alpine
