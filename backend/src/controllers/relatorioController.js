@@ -147,7 +147,7 @@ const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabase
 const relatoriosDir = path.join(__dirname, '../../uploads/relatorios');
 const FOTO_MAX_WIDTH = 720;
 const FOTO_MAX_HEIGHT = 720;
-const FOTO_JPEG_QUALITY = 18;
+const FOTO_JPEG_QUALITY = 38;
 const LOGO_MAX_WIDTH = 900;
 const LOGO_MAX_HEIGHT = 360;
 const LOGO_CROP_PADDING_RATIO = 0.02;
@@ -1863,12 +1863,14 @@ module.exports = {
         extensao = 'docx';
       } else {
         // Geração do PDF: reutiliza o mesmo Chrome entre laudos (fecha só a aba)
+        console.log(`[pdf-diag] html=${(html.length/1024).toFixed(1)}KB fotos=${fotos.length}`);
         const browser = await obtainPdfBrowser();
         const page = await browser.newPage();
         try {
           await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 300_000 });
           await page.emulateMediaType('print');
           buffer = await page.pdf({
+            // diag: tamanho do PDF logado abaixo
             format: 'A4',
             printBackground: true,
             displayHeaderFooter: true,
@@ -1881,6 +1883,7 @@ module.exports = {
               right: '16mm'
             }
           });
+          console.log(`[pdf-diag] pdf=${(buffer.length/1024).toFixed(1)}KB`);
         } finally {
           await page.close().catch(() => {});
         }
