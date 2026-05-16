@@ -321,39 +321,60 @@ export const InspectionPage: React.FC = () => {
     input.type = 'file';
     input.accept = 'image/*';
     input.multiple = true;
-    input.onchange = async (e: Event) => {
+    input.onchange = (e: Event) => {
       const target = e.target as HTMLInputElement;
       const files = Array.from(target.files || []);
       if (!files.length) return;
-      try {
-        const rawUrls = await Promise.all(files.map(fileToDataUrl));
-        // Redimensiona imediatamente para evitar data URLs gigantes (5-8MB por foto de celular)
-        // que travam o browser ao renderizar thumbnails e animações
-        const results = await Promise.all(rawUrls.map(url => resizeImageForUpload(url, 1400)));
-        const roomName = inspection?.rooms.find((r: RoomAccordionType) => r.id === roomId)?.name || roomId;
-        setInspection((prev: InspectionData | null) => prev ? {
-          ...prev,
-          rooms: prev.rooms.map((room: RoomAccordionType) =>
-            room.id === roomId
-              ? { ...room, photos: [...(room.photos || []), ...results], completed: false }
-              : room
-          )
-        } : prev);
-        for (const dataUrl of results) {
-          uploadPhotoBackground(dataUrl, roomId, roomName);
-        }
-        setSnackbar({
-          open: true,
-          message: results.length > 1 ? `${results.length} fotos adicionadas ao cômodo.` : 'Foto adicionada ao cômodo.',
-          type: 'success'
-        });
-      } catch (error) {
-        setSnackbar({
-          open: true,
-          message: error instanceof Error ? error.message : 'Erro ao carregar imagens da galeria.',
-          type: 'error'
-        });
-      }
+
+      // URL.createObjectURL é O(1): ponteiro direto pro arquivo, zero cópia de dados.
+      // O browser renderiza o thumbnail direto da memória do arquivo — sem canvas, sem base64.
+      const blobUrls = files.map(f => URL.createObjectURL(f));
+      const roomName = inspection?.rooms.find((r: RoomAccordionType) => r.id === roomId)?.name || roomId;
+
+      // Adiciona thumbnails instantaneamente (sem await, sem processamento)
+      setInspection((prev: InspectionData | null) => prev ? {
+        ...prev,
+        rooms: prev.rooms.map((room: RoomAccordionType) =>
+          room.id === roomId
+            ? { ...room, photos: [...(room.photos || []), ...blobUrls], completed: false }
+            : room
+        )
+      } : prev);
+
+      // Inicia upload de cada arquivo original diretamente (sem canvas no cliente)
+      files.forEach((file, i) => {
+        const blobUrl = blobUrls[i];
+        const key = blobUrl;
+        setPhotoUploadStatus(prev => ({ ...prev, [key]: 'uploading' }));
+        const promise: Promise<void> = (async () => {
+          try {
+            const vId = await ensureVistoriaExists();
+            // Envia o File original — Sharp no backend faz resize/compressão
+            const uploaded = await uploadFoto({ vistoria_id: vId, file, descricao: '', comodo_nome: roomName });
+            const storedUrl = uploaded?.url;
+            if (storedUrl) {
+              setInspection(prev => prev ? {
+                ...prev,
+                rooms: prev.rooms.map((r: RoomAccordionType) => r.id === roomId ? {
+                  ...r, photos: r.photos.map((p: string) => p === blobUrl ? storedUrl : p)
+                } : r)
+              } : prev);
+              URL.revokeObjectURL(blobUrl);
+            }
+            setPhotoUploadStatus(prev => ({ ...prev, [key]: 'done' }));
+          } catch {
+            setPhotoUploadStatus(prev => ({ ...prev, [key]: 'error' }));
+          }
+        })();
+        pendingUploadsRef.current.add(promise);
+        promise.finally(() => pendingUploadsRef.current.delete(promise));
+      });
+
+      setSnackbar({
+        open: true,
+        message: files.length > 1 ? `${files.length} fotos adicionadas ao cômodo.` : 'Foto adicionada ao cômodo.',
+        type: 'success'
+      });
     };
     input.click();
   };
@@ -702,8 +723,17 @@ export const InspectionPage: React.FC = () => {
         async function uploadWorker() {
           while (idx < todasFotos.length) {
             const { photo, roomId, roomName } = todasFotos[idx++];
-            const resized = await resizeImageForUpload(photo);
-            const file = base64ToFile(resized, `comodo_${roomId}_${Date.now()}.jpg`);
+            let file: File;
+            if (photo.startsWith('blob:')) {
+              // Blob URL de galeria: busca o arquivo original via fetch
+              const resp = await fetch(photo);
+              const blob = await resp.blob();
+              file = new File([blob], `comodo_${roomId}_${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
+            } else {
+              // Data URL de câmera: converte normalmente
+              const resized = await resizeImageForUpload(photo);
+              file = base64ToFile(resized, `comodo_${roomId}_${Date.now()}.jpg`);
+            }
             await uploadFoto({ vistoria_id: vistoriaId!, file, descricao: '', comodo_nome: roomName });
           }
         }
