@@ -136,6 +136,7 @@ export const InspectionPage: React.FC = () => {
   // Snackbar state
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; type: 'success' | 'error' | 'info'; duration?: number }>({ open: false, message: '', type: 'info' });
   const [saving, setSaving] = useState(false);
+  const [successData, setSuccessData] = useState<{ vistoriaId: string; imovelNome: string; totalComodos: number; totalFotos: number } | null>(null);
   const [photoUploadStatus, setPhotoUploadStatus] = useState<Record<string, 'uploading' | 'done' | 'error'>>({});
   const vistoriaIdRef = useRef<string>('');
   const vistoriaCreatingRef = useRef<Promise<string> | null>(null);
@@ -704,9 +705,14 @@ export const InspectionPage: React.FC = () => {
         await atualizarVistoria(vistoriaId, { status: 'finalizada' });
       }
       
-      setSnackbar({ open: true, message: 'Vistoria finalizada e salva com sucesso!', type: 'success' });
-      // Remove progresso local ao finalizar
+      const totalFotos = inspection.rooms.reduce((acc: number, r: RoomAccordionType) => acc + r.photos.length, 0);
       await removeProgress();
+      setSuccessData({
+        vistoriaId,
+        imovelNome: selectedImovel.nome,
+        totalComodos: inspection.rooms.length,
+        totalFotos,
+      });
     } catch (e) {
       console.error('Erro ao finalizar vistoria:', e);
       setSnackbar({ open: true, message: 'Erro ao finalizar vistoria: ' + (e as Error).message, type: 'error' });
@@ -838,8 +844,86 @@ export const InspectionPage: React.FC = () => {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
+        @keyframes popIn {
+          0%   { transform: scale(0.7); opacity: 0; }
+          70%  { transform: scale(1.08); opacity: 1; }
+          100% { transform: scale(1); }
+        }
+        @keyframes checkDraw {
+          0%   { stroke-dashoffset: 60; }
+          100% { stroke-dashoffset: 0; }
+        }
       `}</style>
       </Main>
+      {successData && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.75)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '24px',
+        }}>
+          <div style={{
+            background: '#1a1a2e', borderRadius: 24, padding: '40px 32px',
+            maxWidth: 380, width: '100%', textAlign: 'center',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+            animation: 'popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
+          }}>
+            {/* Checkmark animado */}
+            <div style={{ marginBottom: 24 }}>
+              <svg width="80" height="80" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="36" fill="none" stroke="#2ecc40" strokeWidth="5" opacity="0.2" />
+                <circle cx="40" cy="40" r="36" fill="none" stroke="#2ecc40" strokeWidth="5"
+                  strokeDasharray="226" strokeDashoffset="0" strokeLinecap="round"
+                  style={{ animation: 'checkDraw 0.6s ease forwards' }} />
+                <polyline points="24,42 35,53 57,29" fill="none" stroke="#2ecc40" strokeWidth="5"
+                  strokeLinecap="round" strokeLinejoin="round"
+                  strokeDasharray="60" strokeDashoffset="0"
+                  style={{ animation: 'checkDraw 0.5s 0.3s ease both' }} />
+              </svg>
+            </div>
+
+            <h2 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 800, margin: '0 0 8px' }}>
+              Vistoria Finalizada!
+            </h2>
+            <p style={{ color: '#aaa', fontSize: '0.95rem', margin: '0 0 20px' }}>
+              {successData.imovelNome}
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginBottom: 28 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#2ecc40', fontSize: '1.8rem', fontWeight: 800 }}>{successData.totalComodos}</div>
+                <div style={{ color: '#888', fontSize: '0.8rem' }}>cômodos</div>
+              </div>
+              <div style={{ width: 1, background: '#333' }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#2ecc40', fontSize: '1.8rem', fontWeight: 800 }}>{successData.totalFotos}</div>
+                <div style={{ color: '#888', fontSize: '0.8rem' }}>fotos</div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button
+                onClick={() => { setSuccessData(null); navigate(`/property-laudo/${successData.vistoriaId}`); }}
+                style={{
+                  padding: '14px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                  background: '#2ecc40', color: '#fff', fontWeight: 700, fontSize: '1rem',
+                }}
+              >
+                Ver Vistoria
+              </button>
+              <button
+                onClick={() => { setSuccessData(null); navigate(-1); }}
+                style={{
+                  padding: '14px', borderRadius: 12, border: '1px solid #333', cursor: 'pointer',
+                  background: 'transparent', color: '#aaa', fontWeight: 600, fontSize: '0.95rem',
+                }}
+              >
+                Nova Vistoria
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <Snackbar
         open={snackbar.open}
         message={snackbar.message}
