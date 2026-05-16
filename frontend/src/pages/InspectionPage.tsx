@@ -143,7 +143,7 @@ export const InspectionPage: React.FC = () => {
   const pendingUploadsRef = useRef<Set<Promise<void>>>(new Set());
   const inspectionRef = useRef<InspectionData | null>(null);
 
-  const photoKey = (src: string) => src.startsWith('data:') ? src.slice(0, 150) : src;
+  const photoKey = (src: string) => src.startsWith('data:') ? src.slice(0, 300) : src;
   // Recupera o tipo de imóvel selecionado na página anterior via state do React Router
   const location = useLocation();
   // O tipo selecionado vem como enum (ex: 'CASA_RESIDENCIAL'), precisa converter para o label do banco (ex: 'Casa Residencial')
@@ -321,45 +321,71 @@ export const InspectionPage: React.FC = () => {
     input.type = 'file';
     input.accept = 'image/*';
     input.multiple = true;
-    input.onchange = (e: Event) => {
+    input.onchange = async (e: Event) => {
       const target = e.target as HTMLInputElement;
       const files = Array.from(target.files || []);
       if (!files.length) return;
 
-      // URL.createObjectURL é O(1): ponteiro direto pro arquivo, zero cópia de dados.
-      // O browser renderiza o thumbnail direto da memória do arquivo — sem canvas, sem base64.
-      const blobUrls = files.map(f => URL.createObjectURL(f));
       const roomName = inspection?.rooms.find((r: RoomAccordionType) => r.id === roomId)?.name || roomId;
 
-      // Adiciona thumbnails instantaneamente (sem await, sem processamento)
+      // createImageBitmap: decodifica a imagem na GPU (não bloqueia main thread).
+      // Canvas de 128px apenas para gerar um thumbnail leve para exibição.
+      // O File original é mantido para upload direto — Sharp no backend faz compressão real.
+      const THUMB_SIZE = 128;
+      const entries = await Promise.all(files.map(async (file) => {
+        try {
+          const bitmap = await createImageBitmap(file);
+          const scale = THUMB_SIZE / Math.max(bitmap.width, bitmap.height);
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(bitmap.width * scale);
+          canvas.height = Math.round(bitmap.height * scale);
+          canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+          bitmap.close();
+          return { thumb: canvas.toDataURL('image/jpeg', 0.75), file };
+        } catch {
+          // Fallback: lê como data URL pequena
+          return new Promise<{ thumb: string; file: File }>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = ev => resolve({ thumb: ev.target?.result as string, file });
+            reader.onerror = () => resolve({ thumb: '', file });
+            reader.readAsDataURL(file);
+          });
+        }
+      }));
+
+      const validEntries = entries.filter(e => e.thumb);
+      const thumbs = validEntries.map(e => e.thumb);
+
+      // Um único setInspection para todas as fotos (um render só)
       setInspection((prev: InspectionData | null) => prev ? {
         ...prev,
         rooms: prev.rooms.map((room: RoomAccordionType) =>
           room.id === roomId
-            ? { ...room, photos: [...(room.photos || []), ...blobUrls], completed: false }
+            ? { ...room, photos: [...(room.photos || []), ...thumbs], completed: false }
             : room
         )
       } : prev);
 
-      // Inicia upload de cada arquivo original diretamente (sem canvas no cliente)
-      files.forEach((file, i) => {
-        const blobUrl = blobUrls[i];
-        const key = blobUrl;
-        setPhotoUploadStatus(prev => ({ ...prev, [key]: 'uploading' }));
+      // Uma única atualização de status para todas
+      const statusUpdate: Record<string, 'uploading'> = {};
+      validEntries.forEach(({ thumb }) => { statusUpdate[photoKey(thumb)] = 'uploading'; });
+      setPhotoUploadStatus(prev => ({ ...prev, ...statusUpdate }));
+
+      // Upload do File original em background para cada foto
+      validEntries.forEach(({ thumb, file }) => {
+        const key = photoKey(thumb);
         const promise: Promise<void> = (async () => {
           try {
             const vId = await ensureVistoriaExists();
-            // Envia o File original — Sharp no backend faz resize/compressão
             const uploaded = await uploadFoto({ vistoria_id: vId, file, descricao: '', comodo_nome: roomName });
             const storedUrl = uploaded?.url;
             if (storedUrl) {
               setInspection(prev => prev ? {
                 ...prev,
                 rooms: prev.rooms.map((r: RoomAccordionType) => r.id === roomId ? {
-                  ...r, photos: r.photos.map((p: string) => p === blobUrl ? storedUrl : p)
+                  ...r, photos: r.photos.map((p: string) => p === thumb ? storedUrl : p)
                 } : r)
               } : prev);
-              URL.revokeObjectURL(blobUrl);
             }
             setPhotoUploadStatus(prev => ({ ...prev, [key]: 'done' }));
           } catch {
@@ -372,7 +398,7 @@ export const InspectionPage: React.FC = () => {
 
       setSnackbar({
         open: true,
-        message: files.length > 1 ? `${files.length} fotos adicionadas ao cômodo.` : 'Foto adicionada ao cômodo.',
+        message: validEntries.length > 1 ? `${validEntries.length} fotos adicionadas ao cômodo.` : 'Foto adicionada ao cômodo.',
         type: 'success'
       });
     };
@@ -625,49 +651,16 @@ export const InspectionPage: React.FC = () => {
     });
   };
 
-  /**
-   * Handler para finalizar a vistoria
-   * Este processo:
-   * 1. Cria uma nova vistoria ou usa a existente (status inicial: em_andamento)
-   * 2. Salva/atualiza todos os cômodos no backend
-   * 3. Faz upload de todas as fotos para o backend
-   * 4. Atualiza o status da vistoria para "finalizada" quando todo o processo é concluído
-   * 5. Remove o progresso local ao finalizar com sucesso
-   */
   const handleFinalizarVistoria = async () => {
     if (!inspection || !selectedImovel) {
-      setSnackbar({ open: true, message: 'Selecione um imóvel antes de finalizar a vistoria.', type: 'error' });
+      setSnackbar({ open: true, message: 'Selecione um imóvel antes de salvar o checklist.', type: 'error' });
       return;
     }
-
-    // Validação geral (comentada para testes)
-    /*
-    for (const room of inspection.rooms) {
-      if (!room.completed) {
-        setSnackbar({ open: true, message: `Finalize todos os cômodos antes de salvar a vistoria.`, type: 'error' });
-        return;
-      }
-      if (!room.description || room.description.trim().length < 3) {
-        setSnackbar({ open: true, message: `Adicione uma descrição para o cômodo \"${room.name}\".`, type: 'error' });
-        return;
-      }
-      if (!room.photos || room.photos.length === 0) {
-        setSnackbar({ open: true, message: `Adicione pelo menos uma foto ao cômodo \"${room.name}\".`, type: 'error' });
-        return;
-      }
-    }
-    */
 
     setSaving(true);
 
     try {
-      // 1. Aguarda uploads em background ainda pendentes
-      if (pendingUploadsRef.current.size > 0) {
-        setSnackbar({ open: true, message: 'Aguardando upload das fotos em andamento...', type: 'info' });
-        await Promise.allSettled([...pendingUploadsRef.current]);
-      }
-
-      // 2. Garante que existe uma vistoria (pode já ter sido criada pelo upload em background)
+      // 1. Garante que existe uma vistoria
       let vistoriaId = vistoriaIdRef.current || inspection.id;
       if (!vistoriaId) {
         const created = await criarVistoria({
@@ -682,56 +675,23 @@ export const InspectionPage: React.FC = () => {
         setInspection((prev: InspectionData | null) => prev ? { ...prev, id: vistoriaId } : prev);
       }
 
-      // 3. Salva/atualiza cada cômodo no backend
-      for (const room of inspection.rooms) {
-        await criarOuAtualizarComodoVistoria({
+      // 2. Salva descrições de todos os cômodos em paralelo (rápido)
+      await Promise.all(inspection.rooms.map((room: RoomAccordionType) =>
+        criarOuAtualizarComodoVistoria({
           vistoria_id: vistoriaId!,
           nome: room.name,
           descricao: room.description,
-        });
-      }
+        })
+      ));
 
-      // 4. Faz upload apenas das fotos que ainda não foram para o servidor (falhas ou novas)
-      // Usa inspectionRef para pegar o estado mais recente (evita closure stale)
-      const inspectionAtual = inspectionRef.current || inspection;
-      const todasFotos: { photo: string; roomId: string; roomName: string }[] = [];
-      for (const room of inspectionAtual.rooms) {
-        for (const photo of room.photos) {
-          if (!isStoredPhotoUrl(photo)) {
-            todasFotos.push({ photo, roomId: room.id, roomName: room.name });
-          }
-        }
-      }
-
-      if (todasFotos.length > 0) {
-        const CONCORRENCIA = 3;
-        let idx = 0;
-        async function uploadWorker() {
-          while (idx < todasFotos.length) {
-            const { photo, roomId, roomName } = todasFotos[idx++];
-            let file: File;
-            if (photo.startsWith('blob:')) {
-              // Blob URL de galeria: busca o arquivo original via fetch
-              const resp = await fetch(photo);
-              const blob = await resp.blob();
-              file = new File([blob], `comodo_${roomId}_${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
-            } else {
-              // Data URL de câmera: converte normalmente
-              const resized = await resizeImageForUpload(photo);
-              file = base64ToFile(resized, `comodo_${roomId}_${Date.now()}.jpg`);
-            }
-            await uploadFoto({ vistoria_id: vistoriaId!, file, descricao: '', comodo_nome: roomName });
-          }
-        }
-        await Promise.all(Array.from({ length: Math.min(CONCORRENCIA, todasFotos.length) }, uploadWorker));
-      }
-
-      // 4. Atualiza o status da vistoria para "finalizada"
+      // 3. Atualiza status da vistoria
       const vistoriaAtual = await buscarVistoriaPorId(vistoriaId);
       if (vistoriaAtual?.status !== 'finalizada') {
         await atualizarVistoria(vistoriaId, { status: 'finalizada' });
       }
-      
+
+      // Fotos continuam subindo em background — não bloqueamos o save nelas.
+      // O upload já está em andamento desde que cada foto foi adicionada.
       const comodosPreenchidos = inspection.rooms.filter(
         (r: RoomAccordionType) => r.photos.length > 0 || (r.description && r.description.trim().length > 0)
       );
@@ -745,8 +705,8 @@ export const InspectionPage: React.FC = () => {
         totalFotos,
       });
     } catch (e) {
-      console.error('Erro ao finalizar vistoria:', e);
-      setSnackbar({ open: true, message: 'Erro ao finalizar vistoria: ' + (e as Error).message, type: 'error' });
+      console.error('Erro ao salvar checklist:', e);
+      setSnackbar({ open: true, message: 'Erro ao salvar checklist: ' + (e as Error).message, type: 'error' });
     } finally {
       setSaving(false);
     }

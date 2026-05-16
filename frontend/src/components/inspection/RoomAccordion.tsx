@@ -370,7 +370,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
   isAiGenerating = false,
   photoUploadStatus = {},
 }) => {
-  const photoKey = (src: string) => src.startsWith('data:') ? src.slice(0, 150) : src;
+  const photoKey = (src: string) => src.startsWith('data:') ? src.slice(0, 300) : src;
   const [expanded, setExpanded] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [photoModal, setPhotoModal] = useState<{ open: boolean; src: string; idx: number } | null>(null);
