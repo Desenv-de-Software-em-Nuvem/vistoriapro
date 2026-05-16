@@ -7,7 +7,13 @@ require('dotenv').config();
 const mustache = require('mustache');
 const { Jimp, JimpMime } = require('jimp');
 let sharp;
-try { sharp = require('sharp'); } catch { sharp = null; }
+try {
+  sharp = require('sharp');
+  console.log(`[startup] Sharp OK v${sharp.versions?.sharp} (${process.platform})`);
+} catch (e) {
+  sharp = null;
+  console.error('[startup] Sharp INDISPONIVEL, usando Jimp como fallback:', e.message);
+}
 const {
   AlignmentType,
   BorderStyle,
