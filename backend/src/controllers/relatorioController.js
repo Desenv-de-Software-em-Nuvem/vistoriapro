@@ -98,9 +98,11 @@ async function obtainPdfBrowser() {
   if (pdfBrowserLaunchPromise) {
     return pdfBrowserLaunchPromise;
   }
+  const chromePath = process.platform === 'win32' ? findChromeExecutable() : undefined;
   pdfBrowserLaunchPromise = puppeteer
     .launch({
       headless: 'new',
+      ...(chromePath ? { executablePath: chromePath } : {}),
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
