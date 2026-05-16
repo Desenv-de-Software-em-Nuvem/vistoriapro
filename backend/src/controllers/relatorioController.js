@@ -137,9 +137,9 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_API_KEY;
 const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 const relatoriosDir = path.join(__dirname, '../../uploads/relatorios');
-const FOTO_MAX_WIDTH = 500;
-const FOTO_MAX_HEIGHT = 500;
-const FOTO_JPEG_QUALITY = 62;
+const FOTO_MAX_WIDTH = 720;
+const FOTO_MAX_HEIGHT = 720;
+const FOTO_JPEG_QUALITY = 38;
 const LOGO_MAX_WIDTH = 900;
 const LOGO_MAX_HEIGHT = 360;
 const LOGO_CROP_PADDING_RATIO = 0.02;
@@ -940,14 +940,12 @@ async function compactarImagemParaRelatorio(req, url) {
   // Sharp: nativo/libvips, ~50x mais rápido que Jimp para fotos de câmera (>3MB)
   if (sharp) {
     try {
-      const srcMeta = await sharp(imageData.buffer).metadata();
       const compactedBuffer = await sharp(imageData.buffer)
         .rotate()
         .resize(FOTO_MAX_WIDTH, FOTO_MAX_HEIGHT, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: FOTO_JPEG_QUALITY, mozjpeg: true })
+        .jpeg({ quality: FOTO_JPEG_QUALITY })
         .toBuffer();
       const finalMeta = await sharp(compactedBuffer).metadata();
-      console.log(`[foto] src=${srcMeta.width}x${srcMeta.height} ${Math.round(imageData.buffer.length/1024)}KB → ${finalMeta.width}x${finalMeta.height} ${Math.round(compactedBuffer.length/1024)}KB (q${FOTO_JPEG_QUALITY})`);
       return {
         url: `data:image/jpeg;base64,${compactedBuffer.toString('base64')}`,
         buffer: compactedBuffer,
