@@ -7,13 +7,7 @@ require('dotenv').config();
 const mustache = require('mustache');
 const { Jimp, JimpMime } = require('jimp');
 let sharp;
-try {
-  sharp = require('sharp');
-  console.log(`[startup] Sharp OK v${sharp.versions?.sharp} (${process.platform})`);
-} catch (e) {
-  sharp = null;
-  console.error('[startup] Sharp INDISPONIVEL, usando Jimp como fallback:', e.message);
-}
+try { sharp = require('sharp'); } catch { sharp = null; }
 const {
   AlignmentType,
   BorderStyle,
@@ -104,17 +98,14 @@ async function obtainPdfBrowser() {
   if (pdfBrowserLaunchPromise) {
     return pdfBrowserLaunchPromise;
   }
-  const chromePath = findChromeExecutable();
   pdfBrowserLaunchPromise = puppeteer
     .launch({
       headless: 'new',
-      ...(chromePath ? { executablePath: chromePath } : {}),
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-background-networking',
-        '--force-device-scale-factor=1',
       ],
       protocolTimeout: 300_000,
     })
@@ -952,7 +943,7 @@ async function compactarImagemParaRelatorio(req, url) {
       const compactedBuffer = await sharp(imageData.buffer)
         .rotate()
         .resize(FOTO_MAX_WIDTH, FOTO_MAX_HEIGHT, { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: FOTO_JPEG_QUALITY, mozjpeg: true })
+        .jpeg({ quality: FOTO_JPEG_QUALITY })
         .toBuffer();
       const finalMeta = await sharp(compactedBuffer).metadata();
       return {
