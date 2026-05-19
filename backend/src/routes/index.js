@@ -15,6 +15,7 @@ router.use('/ia', require('./ia'));
 router.use('/relatorios', require('./relatorios'));
 router.use('/locatarios-vistoria', require('./locatariosVistoria'));
 router.use('/comodos-vistoria', require('./comodos-vistoria'));
+router.use('/empresa-comodos-config', require('./empresa-comodos-config'));
 
 // Adicionar rota padrão para /api
 router.get('/', (req, res) => {

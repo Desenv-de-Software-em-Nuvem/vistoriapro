@@ -7,7 +7,7 @@ BEGIN
     CREATE TYPE status_vistoria AS ENUM ('em_andamento', 'finalizada', 'cancelada');
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'papel_usuario') THEN
-    CREATE TYPE papel_usuario AS ENUM ('admin', 'vistoriador', 'cliente');
+    CREATE TYPE papel_usuario AS ENUM ('admin', 'vistoriador');
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'estado_geral_comodo') THEN
     CREATE TYPE estado_geral_comodo AS ENUM ('Bom', 'Regular', 'Ruim');
@@ -106,14 +106,33 @@ CREATE TABLE IF NOT EXISTS vistorias (
 -- =========================
 -- TABELA COMODOS_VISTORIA
 -- =========================
+CREATE TABLE IF NOT EXISTS empresa_comodos_config (
+  id SERIAL PRIMARY KEY,
+  empresa_id INTEGER NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+  tipo_imovel VARCHAR(50) NOT NULL,
+  comodo_key VARCHAR(50) NOT NULL,
+  nome_exibicao VARCHAR(100) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT empresa_comodos_config_unique UNIQUE (empresa_id, tipo_imovel, comodo_key)
+);
+
 CREATE TABLE IF NOT EXISTS comodos_vistoria (
   id SERIAL PRIMARY KEY,
   vistoria_id INTEGER NOT NULL REFERENCES vistorias(id) ON DELETE CASCADE,
   nome VARCHAR(100) NOT NULL,
+  comodo_key VARCHAR(50),
   descricao TEXT,
   estado_geral estado_geral_comodo NOT NULL DEFAULT 'Bom',
   CONSTRAINT comodos_vistoria_vistoria_id_nome_unique UNIQUE (vistoria_id, nome)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS comodos_vistoria_vistoria_comodo_key_unique
+  ON comodos_vistoria(vistoria_id, comodo_key)
+  WHERE comodo_key IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_empresa_comodos_config_empresa_tipo
+  ON empresa_comodos_config(empresa_id, tipo_imovel);
 
 -- =========================
 -- TABELA FOTOS
@@ -183,7 +202,7 @@ CREATE INDEX IF NOT EXISTS idx_locatarios_vistoria_vistoria_id ON locatarios_vis
 -- =========================
 -- COMENTÁRIOS (DOCUMENTAÇÃO)
 -- =========================
-COMMENT ON TYPE papel_usuario IS 'admin: administrador do sistema, vistoriador: responsável por vistorias, cliente: usuário final';
+COMMENT ON TYPE papel_usuario IS 'admin: administrador do sistema, vistoriador: responsável por vistorias';
 COMMENT ON TYPE status_vistoria IS 'Status do ciclo da vistoria';
 COMMENT ON TYPE estado_geral_comodo IS 'Estado geral do cômodo: Bom, Regular, Ruim';
 COMMENT ON COLUMN usuarios.papel IS 'Papel do usuário no sistema';

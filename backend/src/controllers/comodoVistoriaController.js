@@ -4,7 +4,7 @@ const vistoriaModel = require('../models/vistoriaModel');
 module.exports = {
   async criarComodo(req, res) {
     try {
-      const { vistoria_id, nome, descricao } = req.body;
+      const { vistoria_id, nome, descricao, comodo_key } = req.body;
       if (!vistoria_id || !nome) {
         return res.status(400).json({ error: 'vistoria_id e nome são obrigatórios' });
       }
@@ -14,7 +14,7 @@ module.exports = {
         return res.status(404).json({ error: 'Vistoria não encontrada' });
       }
 
-      const comodo = await comodoVistoriaModel.criar({ vistoria_id, nome, descricao });
+      const comodo = await comodoVistoriaModel.criar({ vistoria_id, nome, descricao, comodo_key });
       res.status(201).json(comodo);
     } catch (err) {
       console.error('Erro ao criar cômodo:', err);

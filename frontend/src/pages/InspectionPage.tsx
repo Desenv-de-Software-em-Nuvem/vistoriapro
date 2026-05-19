@@ -49,7 +49,18 @@ import type { Imovel } from '../services/imovelService';
 import styled from 'styled-components';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getCanonicalPropertyType } from '../constants/propertyTypes';
-import { roomChecklists } from '../data/roomChecklists';
+import {
+  roomChecklists,
+  applyComodoLabels,
+  buildComodoConfigMap,
+  getDefaultRoomName,
+  getRoomIcon,
+} from '../data/roomChecklists';
+import {
+  listarComodosConfigEmpresa,
+  restaurarComodoConfigPadrao,
+  salvarComodoConfigEmpresa,
+} from '../services/empresaComodoConfigService';
 import { AppHeader } from '../components/AppHeader';
 import { Snackbar } from '../components/Snackbar';
 
@@ -198,17 +209,47 @@ export const InspectionPage: React.FC = () => {
 
 
 
-  // Quando selectedImovel ou idUsuario mudar, inicializa a inspection com os cômodos do tipo
+  const [comodoConfigMap, setComodoConfigMap] = useState<Record<string, string>>({});
+
+  // Quando selectedImovel ou progresso mudar, carrega config da empresa e monta o checklist
   useEffect(() => {
-    if (selectedImovel) {
-      // Se houver progresso salvo, carrega
-      if (progress && progress.data) {
-        setInspection(progress.data);
+    if (!selectedImovel) {
+      setInspection(null);
+      setComodoConfigMap({});
+      return;
+    }
+
+    let cancelled = false;
+    const tipo = getCanonicalPropertyType(selectedImovel.tipo || 'CASA');
+
+    const initInspection = async () => {
+      let configMap: Record<string, string> = {};
+      try {
+        const configs = await listarComodosConfigEmpresa(tipo);
+        if (!cancelled) {
+          configMap = buildComodoConfigMap(configs);
+          setComodoConfigMap(configMap);
+        }
+      } catch {
+        if (!cancelled) setComodoConfigMap({});
+      }
+
+      if (cancelled) return;
+
+      if (progress?.data) {
+        const saved = progress.data as InspectionData;
+        const roomsWithIcons = (saved.rooms || []).map((room) => ({
+          ...room,
+          icon: getRoomIcon(tipo, room.id),
+        }));
+        setInspection({
+          ...saved,
+          rooms: applyComodoLabels(roomsWithIcons, configMap),
+        });
         return;
       }
-      // Tenta pegar os cômodos pelo tipo do imóvel
-      const tipo = getCanonicalPropertyType(selectedImovel.tipo || 'CASA');
-      const defaultRooms = (roomChecklists[tipo] || roomChecklists['CASA']).map((room: RoomChecklistDefinition) => ({
+
+      const defaultRooms = (roomChecklists[tipo] || roomChecklists.CASA).map((room: RoomChecklistDefinition) => ({
         ...room,
         photos: [],
         description: '',
@@ -219,13 +260,62 @@ export const InspectionPage: React.FC = () => {
         title: `Vistoria - ${selectedImovel.nome}`,
         category: tipo,
         photos: [],
-        rooms: defaultRooms,
+        rooms: applyComodoLabels(defaultRooms, configMap),
         createdAt: new Date(),
       });
-    } else {
-      setInspection(null);
-    }
+    };
+
+    initInspection();
+    return () => { cancelled = true; };
   }, [selectedImovel, progress, idUsuario]);
+
+  const handleRenameRoom = async (roomId: string, newName: string) => {
+    if (!selectedImovel || !inspection) return;
+
+    const tipo = getCanonicalPropertyType(selectedImovel.tipo || 'CASA');
+    const trimmed = newName.trim();
+    if (!trimmed) {
+      setSnackbar({ open: true, message: 'Informe um nome para o cômodo.', type: 'error' });
+      return;
+    }
+
+    const defaultName = getDefaultRoomName(tipo, roomId);
+    const nextMap = { ...comodoConfigMap };
+
+    setInspection((prev) => {
+      if (!prev) return prev;
+      const updated: InspectionData = {
+        ...prev,
+        rooms: prev.rooms.map((room) =>
+          room.id === roomId ? { ...room, name: trimmed } : room
+        ),
+        photos: prev.photos.map((photo) =>
+          photo.roomId === roomId ? { ...photo, roomName: trimmed } : photo
+        ),
+      };
+      saveProgress(serializeInspection(updated));
+      return updated;
+    });
+
+    try {
+      if (defaultName && trimmed === defaultName) {
+        await restaurarComodoConfigPadrao(tipo, roomId);
+        delete nextMap[roomId];
+        setSnackbar({ open: true, message: 'Nome padrão restaurado para sua empresa.', type: 'success' });
+      } else {
+        await salvarComodoConfigEmpresa({
+          tipo_imovel: tipo,
+          comodo_key: roomId,
+          nome_exibicao: trimmed,
+        });
+        nextMap[roomId] = trimmed;
+        setSnackbar({ open: true, message: 'Nome salvo para todos da sua empresa.', type: 'success' });
+      }
+      setComodoConfigMap(nextMap);
+    } catch {
+      setSnackbar({ open: true, message: 'Erro ao salvar nome do cômodo.', type: 'error' });
+    }
+  };
 
 
   const ensureVistoriaExists = (): Promise<string> => {
@@ -666,6 +756,7 @@ export const InspectionPage: React.FC = () => {
         criarOuAtualizarComodoVistoria({
           vistoria_id: vistoriaId!,
           nome: room.name,
+          comodo_key: room.id,
           descricao: room.description,
         })
       ));
@@ -807,6 +898,13 @@ export const InspectionPage: React.FC = () => {
             onChangeDescription={handleChangeDescription}
             onToggleComplete={handleToggleComplete}
             onDeletePhoto={handleDeletePhoto}
+            onRenameRoom={handleRenameRoom}
+            getDefaultRoomName={(roomId) =>
+              getDefaultRoomName(
+                getCanonicalPropertyType(selectedImovel?.tipo || 'CASA'),
+                roomId
+              )
+            }
           />
         )}
         {/* ...outros fluxos, se necessário... */}

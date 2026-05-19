@@ -117,4 +117,32 @@ export const roomChecklists: Record<string, RoomDefinition[]> = {
   ],
 };
 
+export function getDefaultRoomName(tipoImovel: string, comodoKey: string): string | undefined {
+  const list = roomChecklists[tipoImovel] || roomChecklists.CASA || [];
+  return list.find((room) => room.id === comodoKey)?.name;
+}
+
+export function getRoomIcon(tipoImovel: string, comodoKey: string): React.ReactNode {
+  const list = roomChecklists[tipoImovel] || roomChecklists.CASA || [];
+  return list.find((room) => room.id === comodoKey)?.icon ?? <Home size={20} />;
+}
+
+export function buildComodoConfigMap(
+  configs: { comodo_key: string; nome_exibicao: string }[]
+): Record<string, string> {
+  return configs.reduce<Record<string, string>>((acc, item) => {
+    acc[item.comodo_key] = item.nome_exibicao;
+    return acc;
+  }, {});
+}
+
+export function applyComodoLabels<T extends { id: string; name: string }>(
+  rooms: T[],
+  configMap: Record<string, string>
+): T[] {
+  return rooms.map((room) => ({
+    ...room,
+    name: configMap[room.id] || room.name,
+  }));
+}
 

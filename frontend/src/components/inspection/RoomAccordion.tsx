@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
-import { ChevronDown, ChevronUp, Camera, Image, CheckCircle2, Sparkles, ImageOff } from 'lucide-react';
+import { ChevronDown, ChevronUp, Camera, Image, CheckCircle2, Sparkles, ImageOff, Pencil, Check, X, RotateCcw } from 'lucide-react';
 import { CameraModal } from './CameraModal';
 import { TranscriptionButton } from './TranscriptionButton';
 
@@ -113,6 +113,8 @@ interface RoomAccordionProps {
   onChangeDescription: (roomId: string, desc: string) => void;
   onToggleComplete?: (roomId: string, completed: boolean) => void;
   onDeletePhoto: (roomId: string, photoIdx: number) => void;
+  onRenameRoom?: (roomId: string, newName: string) => void | Promise<void>;
+  defaultRoomName?: string;
   isAiGenerating?: boolean;
   photoUploadStatus?: Record<string, 'uploading' | 'done' | 'error'>;
 }
@@ -140,6 +142,51 @@ const RoomTitle = styled.div`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
+  font-weight: 600;
+  min-width: 0;
+  flex: 1;
+`;
+
+const RoomNameText = styled.span`
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const HeaderActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+`;
+
+const IconActionButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  background: ${({ theme }) => theme.colors.backgroundSecondary};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  cursor: pointer;
+  padding: 0;
+
+  &:active {
+    transform: scale(0.97);
+  }
+`;
+
+const RenameInput = styled.input`
+  flex: 1;
+  min-width: 0;
+  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  background: ${({ theme }) => theme.colors.backgroundTertiary};
+  color: ${({ theme }) => theme.colors.text};
+  padding: 6px 8px;
+  font-size: 0.95rem;
   font-weight: 600;
 `;
 
@@ -436,6 +483,8 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
   onChangeDescription,
   onToggleComplete,
   onDeletePhoto,
+  onRenameRoom,
+  defaultRoomName,
   isAiGenerating = false,
   photoUploadStatus = {},
 }) => {
@@ -449,6 +498,13 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [photoLoadStatus, setPhotoLoadStatus] = useState<Record<string, 'loaded' | 'error'>>({});
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState(room.name);
+  const [isSavingName, setIsSavingName] = useState(false);
+
+  React.useEffect(() => {
+    if (!isEditingName) setEditNameValue(room.name);
+  }, [room.name, isEditingName]);
 
   // Quando a foto for capturada no modal, repassa para o handler original
   const handleCameraCapture = (dataUrl: string) => {
@@ -471,16 +527,97 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
     setAiModalOpen(false);
   };
 
+  const handleStartEditName = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setEditNameValue(room.name);
+    setIsEditingName(true);
+  };
+
+  const handleCancelEditName = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setEditNameValue(room.name);
+    setIsEditingName(false);
+  };
+
+  const handleSaveEditName = async (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!onRenameRoom) return;
+    const trimmed = editNameValue.trim();
+    if (!trimmed) return;
+    setIsSavingName(true);
+    try {
+      await onRenameRoom(room.id, trimmed);
+      setIsEditingName(false);
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
+  const handleRestoreDefaultName = async (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!onRenameRoom || !defaultRoomName) return;
+    setIsSavingName(true);
+    try {
+      await onRenameRoom(room.id, defaultRoomName);
+      setIsEditingName(false);
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
   return (
     <AccordionContainer>
-      <AccordionHeader onClick={() => setExpanded((e) => !e)}>
+      <AccordionHeader onClick={() => { if (!isEditingName) setExpanded((e) => !e); }}>
         <RoomTitle>
           {room.icon}
-          {room.name}
+          {isEditingName ? (
+            <RenameInput
+              value={editNameValue}
+              maxLength={100}
+              disabled={isSavingName}
+              onClick={(event) => event.stopPropagation()}
+              onChange={(event) => setEditNameValue(event.target.value)}
+              onKeyDown={(event) => {
+                event.stopPropagation();
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void handleSaveEditName(event as unknown as React.MouseEvent);
+                }
+                if (event.key === 'Escape') {
+                  handleCancelEditName(event as unknown as React.MouseEvent);
+                }
+              }}
+            />
+          ) : (
+            <RoomNameText>{room.name}</RoomNameText>
+          )}
         </RoomTitle>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {expanded ? <ChevronUp /> : <ChevronDown />}
-        </div>
+        <HeaderActions>
+          {isEditingName ? (
+            <>
+              {defaultRoomName && defaultRoomName !== editNameValue.trim() && (
+                <IconActionButton type="button" title={`Restaurar: ${defaultRoomName}`} disabled={isSavingName} onClick={handleRestoreDefaultName}>
+                  <RotateCcw size={16} />
+                </IconActionButton>
+              )}
+              <IconActionButton type="button" title="Salvar nome" disabled={isSavingName || !editNameValue.trim()} onClick={handleSaveEditName}>
+                <Check size={16} />
+              </IconActionButton>
+              <IconActionButton type="button" title="Cancelar" disabled={isSavingName} onClick={handleCancelEditName}>
+                <X size={16} />
+              </IconActionButton>
+            </>
+          ) : (
+            <>
+              {onRenameRoom && (
+                <IconActionButton type="button" title="Editar nome do cômodo (salva para a empresa)" onClick={handleStartEditName}>
+                  <Pencil size={16} />
+                </IconActionButton>
+              )}
+              {expanded ? <ChevronUp /> : <ChevronDown />}
+            </>
+          )}
+        </HeaderActions>
       </AccordionHeader>
       <AccordionContent $expanded={expanded}>
         <Menu>

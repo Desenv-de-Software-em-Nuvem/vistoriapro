@@ -485,7 +485,7 @@ function getInitials(nome: string) {
 }
 
 function getPapelLabel(papel: string) {
-  return ({ admin: 'Administrador', vistoriador: 'Vistoriador', cliente: 'Cliente' })[papel] || papel;
+  return ({ admin: 'Administrador', vistoriador: 'Vistoriador' })[papel] || papel;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -801,7 +801,6 @@ const AdminUsersPage: React.FC = () => {
                                         <option value="">Selecione</option>
                                         <option value="admin">Administrador</option>
                                         <option value="vistoriador">Vistoriador</option>
-                                        <option value="cliente">Cliente</option>
                                       </Select>
                                     </FieldGroup>
                                     {editFeedback && (
@@ -902,7 +901,6 @@ const AdminUsersPage: React.FC = () => {
                     <option value="">Selecione o papel</option>
                     <option value="admin">Administrador</option>
                     <option value="vistoriador">Vistoriador</option>
-                    <option value="cliente">Cliente</option>
                   </Select>
                 </FieldGroup>
                 {createFeedback && (

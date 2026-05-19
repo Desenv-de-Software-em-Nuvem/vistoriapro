@@ -8,6 +8,7 @@
 --
 -- Observação: não apaga dados. Não recria tabelas existentes com CREATE OR REPLACE.
 -- Só cria o que falta (tipos, tabelas, colunas, índices).
+-- Bases que ainda têm papel "cliente": rode databases/patch_remove_papel_cliente.sql
 -- =============================================================================
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -19,7 +20,7 @@ BEGIN
     CREATE TYPE status_vistoria AS ENUM ('em_andamento', 'finalizada', 'cancelada');
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'papel_usuario') THEN
-    CREATE TYPE papel_usuario AS ENUM ('admin', 'vistoriador', 'cliente');
+    CREATE TYPE papel_usuario AS ENUM ('admin', 'vistoriador');
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'estado_geral_comodo') THEN
     CREATE TYPE estado_geral_comodo AS ENUM ('Bom', 'Regular', 'Ruim');
@@ -199,6 +200,27 @@ ALTER TABLE vistorias
 ALTER TABLE comodos_vistoria
   ADD COLUMN IF NOT EXISTS estado_geral estado_geral_comodo NOT NULL DEFAULT 'Bom';
 
+ALTER TABLE comodos_vistoria
+  ADD COLUMN IF NOT EXISTS comodo_key VARCHAR(50);
+
+CREATE TABLE IF NOT EXISTS empresa_comodos_config (
+  id SERIAL PRIMARY KEY,
+  empresa_id INTEGER NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+  tipo_imovel VARCHAR(50) NOT NULL,
+  comodo_key VARCHAR(50) NOT NULL,
+  nome_exibicao VARCHAR(100) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT empresa_comodos_config_unique UNIQUE (empresa_id, tipo_imovel, comodo_key)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS comodos_vistoria_vistoria_comodo_key_unique
+  ON comodos_vistoria(vistoria_id, comodo_key)
+  WHERE comodo_key IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_empresa_comodos_config_empresa_tipo
+  ON empresa_comodos_config(empresa_id, tipo_imovel);
+
 ALTER TABLE fotos
   ADD COLUMN IF NOT EXISTS comodo_nome VARCHAR(100),
   ADD COLUMN IF NOT EXISTS comodo_id INTEGER REFERENCES comodos_vistoria(id) ON DELETE SET NULL;
@@ -216,6 +238,7 @@ CREATE INDEX IF NOT EXISTS idx_vistorias_imovel_id ON vistorias(imovel_id);
 CREATE INDEX IF NOT EXISTS idx_fotos_vistoria_id ON fotos(vistoria_id);
 CREATE INDEX IF NOT EXISTS idx_relatorios_vistoria_id ON relatorios(vistoria_id);
 CREATE INDEX IF NOT EXISTS idx_comodos_vistoria_vistoria_id ON comodos_vistoria(vistoria_id);
+-- Migration empresa_comodos_config: ver também databases/patch_empresa_comodos_config.sql
 CREATE INDEX IF NOT EXISTS idx_transcricoes_vistoria_id ON transcricoes(vistoria_id);
 CREATE INDEX IF NOT EXISTS idx_locatarios_vistoria_vistoria_id ON locatarios_vistoria(vistoria_id);
 

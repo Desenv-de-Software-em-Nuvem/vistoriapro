@@ -68,10 +68,24 @@ interface RoomChecklistProps {
   onChangeDescription: (roomId: string, desc: string) => void;
   onToggleComplete: (roomId: string, completed: boolean) => void;
   onDeletePhoto: (roomId: string, photoIdx: number) => void;
+  onRenameRoom?: (roomId: string, newName: string) => void | Promise<void>;
+  getDefaultRoomName?: (roomId: string) => string | undefined;
 }
 
 
-export const RoomChecklist: React.FC<Omit<RoomChecklistProps, 'onChangeEstadoGeral'>> = ({ rooms, aiLoadingRooms = {}, photoUploadStatus = {}, onCapturePhoto, onSelectFromGallery, onGenerateAiDescription, onChangeDescription, onToggleComplete, onDeletePhoto }) => (
+export const RoomChecklist: React.FC<Omit<RoomChecklistProps, 'onChangeEstadoGeral'>> = ({
+  rooms,
+  aiLoadingRooms = {},
+  photoUploadStatus = {},
+  onCapturePhoto,
+  onSelectFromGallery,
+  onGenerateAiDescription,
+  onChangeDescription,
+  onToggleComplete,
+  onDeletePhoto,
+  onRenameRoom,
+  getDefaultRoomName,
+}) => (
   <ChecklistSection>
     <SectionTitle>
       <Home size={24} />
@@ -90,6 +104,8 @@ export const RoomChecklist: React.FC<Omit<RoomChecklistProps, 'onChangeEstadoGer
           onChangeDescription={onChangeDescription}
           onToggleComplete={onToggleComplete}
           onDeletePhoto={onDeletePhoto}
+          onRenameRoom={onRenameRoom}
+          defaultRoomName={getDefaultRoomName?.(room.id)}
         />
       ))}
     </RoomGrid>
