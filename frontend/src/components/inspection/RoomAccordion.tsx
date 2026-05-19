@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import styled from 'styled-components';
 import { ChevronDown, ChevronUp, Camera, Image, CheckCircle2, Sparkles, ImageOff, Pencil, Check, X, RotateCcw } from 'lucide-react';
@@ -360,23 +360,64 @@ const ErrorDot = styled.div`
   border: 1.5px solid #fff;
 `;
 
-const DescriptionArea = styled.textarea`
+const DescriptionFieldRow = styled.div`
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: flex-start;
   width: 100%;
-  min-height: 36px;
-  max-height: 80px;
-  border-radius: 6px;
-  border: 1px solid ${({ theme }) => theme.colors.borderLight};
+  margin-bottom: 8px;
+`;
+
+const DescriptionField = styled.div`
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+`;
+
+const DescriptionHint = styled.span<{ $visible: boolean }>`
+  font-size: 0.75rem;
+  color: ${({ theme }) => theme.colors.textLight};
+  margin-bottom: 4px;
+  opacity: ${({ $visible }) => ($visible ? 0.85 : 0)};
+  max-height: ${({ $visible }) => ($visible ? '1.25rem' : '0')};
+  overflow: hidden;
+  transition: opacity 0.2s ease, max-height 0.2s ease;
+`;
+
+const DescriptionArea = styled.textarea<{ $expanded: boolean }>`
+  width: 100%;
+  box-sizing: border-box;
+  min-height: ${({ $expanded }) => ($expanded ? '132px' : '44px')};
+  max-height: ${({ $expanded }) => ($expanded ? 'min(42dvh, 300px)' : '92px')};
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  border: 1px solid
+    ${({ theme, $expanded }) => ($expanded ? theme.colors.primary : theme.colors.borderLight)};
   background: ${({ theme }) => theme.colors.backgroundTertiary};
   color: ${({ theme }) => theme.colors.text};
-  padding: 6px;
-  font-size: 0.95rem;
-  resize: vertical;
+  padding: 10px 12px;
+  font-size: 1rem;
+  line-height: 1.5;
+  resize: ${({ $expanded }) => ($expanded ? 'vertical' : 'none')};
   overflow-y: auto;
+  transition:
+    min-height 0.25s ease,
+    max-height 0.25s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   scrollbar-width: thin;
   scrollbar-color: ${({ theme }) => theme.colors.primary} transparent;
+  -webkit-tap-highlight-color: transparent;
+
+  @media (min-width: 768px) {
+    min-height: ${({ $expanded }) => ($expanded ? '168px' : '48px')};
+    max-height: ${({ $expanded }) => ($expanded ? '320px' : '100px')};
+    font-size: 0.95rem;
+  }
 
   &::-webkit-scrollbar {
-    width: 5px;
+    width: 6px;
   }
 
   &::-webkit-scrollbar-track {
@@ -397,6 +438,14 @@ const DescriptionArea = styled.textarea`
     outline: none;
     box-shadow: 0 0 0 2px ${({ theme }) => theme.colors.shadowGlow};
   }
+`;
+
+const TranscriptionSlot = styled.div<{ $expanded: boolean }>`
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  padding-top: ${({ $expanded }) => ($expanded ? '22px' : '2px')};
+  transition: padding-top 0.2s ease;
 `;
 
 const AiStatus = styled.div`
@@ -501,17 +550,67 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState(room.name);
   const [isSavingName, setIsSavingName] = useState(false);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const descriptionBlurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
     if (!isEditingName) setEditNameValue(room.name);
   }, [room.name, isEditingName]);
+
+  const getDescriptionHeightBounds = useCallback(() => {
+    const expanded = isDescriptionExpanded;
+    const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches;
+    return {
+      min: expanded ? (isDesktop ? 168 : 132) : (isDesktop ? 48 : 44),
+      max: expanded ? (isDesktop ? 320 : Math.min(window.innerHeight * 0.42, 300)) : (isDesktop ? 100 : 92),
+    };
+  }, [isDescriptionExpanded]);
+
+  const adjustDescriptionHeight = useCallback(() => {
+    const el = descriptionRef.current;
+    if (!el) return;
+    const { min, max } = getDescriptionHeightBounds();
+    el.style.height = 'auto';
+    const next = Math.min(Math.max(el.scrollHeight, min), max);
+    el.style.height = `${next}px`;
+  }, [getDescriptionHeightBounds]);
+
+  useEffect(() => {
+    adjustDescriptionHeight();
+  }, [room.description, isDescriptionExpanded, adjustDescriptionHeight]);
+
+  const handleDescriptionFocus = () => {
+    if (descriptionBlurTimeoutRef.current) {
+      clearTimeout(descriptionBlurTimeoutRef.current);
+      descriptionBlurTimeoutRef.current = null;
+    }
+    setIsDescriptionExpanded(true);
+    requestAnimationFrame(() => {
+      adjustDescriptionHeight();
+      descriptionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
+
+  const handleDescriptionBlur = () => {
+    descriptionBlurTimeoutRef.current = setTimeout(() => {
+      setIsDescriptionExpanded(false);
+      descriptionBlurTimeoutRef.current = null;
+    }, 120);
+  };
+
+  useEffect(() => () => {
+    if (descriptionBlurTimeoutRef.current) {
+      clearTimeout(descriptionBlurTimeoutRef.current);
+    }
+  }, []);
 
   // Quando a foto for capturada no modal, repassa para o handler original
   const handleCameraCapture = (dataUrl: string) => {
     onCapturePhoto(room.id, dataUrl);
   };
 
-  // Apagar foto do cÃ´modo
+  // Apagar foto do cômodo
   const handleDeletePhoto = (idx: number) => {
     onDeletePhoto(room.id, idx);
     setPhotoModal(null);
@@ -610,7 +709,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
           ) : (
             <>
               {onRenameRoom && (
-                <IconActionButton type="button" title="Editar nome do cÃ´modo (salva para a empresa)" onClick={handleStartEditName}>
+                <IconActionButton type="button" title="Editar nome do cômodo (salva para a empresa)" onClick={handleStartEditName}>
                   <Pencil size={16} />
                 </IconActionButton>
               )}
@@ -622,7 +721,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
       <AccordionContent $expanded={expanded}>
         <Menu>
          <MenuButton onClick={() => setCameraOpen(true)}>
-           <Camera size={18} /> CÃ¢mera
+           <Camera size={18} /> Câmera
          </MenuButton>
          <MenuButton onClick={() => onSelectFromGallery(room.id)}>
            <Image size={18} /> Galeria
@@ -630,7 +729,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
          <AiButton
            type="button"
            disabled={!room.photos.length || isAiGenerating}
-           title={room.photos.length ? 'Preparar descriÃ§Ã£o com IA' : 'Adicione uma foto antes de usar IA'}
+           title={room.photos.length ? 'Preparar descrição com IA' : 'Adicione uma foto antes de usar IA'}
            onClick={() => setAiModalOpen(true)}
          >
            <Sparkles size={16} />
@@ -655,7 +754,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
                     $isDisabled={isUploading}
                     $isError={isError}
                     onClick={() => !isUploading && !isError && handlePhotoClick(src, idx)}
-                    title={isError ? 'NÃ£o foi possÃ­vel carregar esta foto' : 'Ampliar foto'}
+                    title={isError ? 'Não foi possível carregar esta foto' : 'Ampliar foto'}
                   >
                     {!isError && (
                       <PhotoImage
@@ -682,7 +781,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
             })}
           </PhotosGrid>
         )}
-        {/* Modal de visualizaÃ§Ã£o de foto */}
+        {/* Modal de visualização de foto */}
         {photoModal?.open && renderInBody(
           <PhotoModalOverlay>
             <PhotoModalBox>
@@ -694,43 +793,65 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
             </PhotoModalBox>
           </PhotoModalOverlay>
         )}
-        <div style={{ display: 'flex', flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginBottom: 8, width: '100%' }}>
-          <DescriptionArea
-            value={room.description}
-            onChange={e => onChangeDescription(room.id, e.target.value)}
-            placeholder={isAiGenerating ? 'IA analisando as fotos do cÃ´modo...' : 'Adicione uma descriÃ§Ã£o para este cÃ´modo'}
-            style={{ flex: 1 }}
-          />
-          <div style={{ alignSelf: 'stretch', display: 'flex', alignItems: 'flex-start' }}>
-            <TranscriptionButton
-              onTranscription={text => onChangeDescription(room.id, (room.description ? room.description + ' ' : '') + text)}
+        <DescriptionFieldRow>
+          <DescriptionField>
+            <DescriptionHint $visible={isDescriptionExpanded}>
+              Descrição do cômodo ? toque fora para recolher
+            </DescriptionHint>
+            <DescriptionArea
+              ref={descriptionRef}
+              $expanded={isDescriptionExpanded}
+              value={room.description}
+              rows={isDescriptionExpanded ? 6 : 2}
+              onFocus={handleDescriptionFocus}
+              onBlur={handleDescriptionBlur}
+              onChange={(e) => {
+                onChangeDescription(room.id, e.target.value);
+                requestAnimationFrame(adjustDescriptionHeight);
+              }}
+              placeholder={
+                isAiGenerating
+                  ? 'IA analisando as fotos do cômodo...'
+                  : 'Adicione uma descrição para este cômodo'
+              }
             />
-          </div>
-        </div>
+          </DescriptionField>
+          <TranscriptionSlot $expanded={isDescriptionExpanded}>
+            <TranscriptionButton
+              onTranscription={(text) => {
+                onChangeDescription(
+                  room.id,
+                  room.description ? `${room.description} ${text}` : text
+                );
+                requestAnimationFrame(adjustDescriptionHeight);
+              }}
+            />
+          </TranscriptionSlot>
+        </DescriptionFieldRow>
         {isAiGenerating && (
           <AiStatus>
             <Sparkles size={14} />
-            IA analisando todas as fotos do cÃ´modo e sugerindo descriÃ§Ã£o...
+            IA analisando todas as fotos do cômodo e sugerindo descrição...
           </AiStatus>
         )}
         {aiModalOpen && renderInBody(
           <PhotoModalOverlay>
             <AiModalBox>
-              <AiModalTitle>Orientar IA para este cÃ´modo</AiModalTitle>
+              <AiModalTitle>Orientar IA para este cômodo</AiModalTitle>
               <AiModalDescription>
-                A IA vai analisar todas as fotos anexadas neste cÃ´modo. Informe detalhes Ãºteis para deixar a descriÃ§Ã£o mais assertiva, profissional e confiÃ¡vel.
+                A IA vai analisar todas as fotos anexadas neste cômodo. Informe detalhes úteis para deixar a descrição mais assertiva, profissional e confiável.
               </AiModalDescription>
               <AiPromptArea
                 value={aiPrompt}
                 onChange={(event) => setAiPrompt(event.target.value)}
-                placeholder="Ex.: lÃ¢mpadas e tomadas testadas funcionando; fechadura testada funcionando; focar em paredes, piso, portas, janelas, mÃ³veis, metais, louÃ§as, marcas de uso, manchas, furos e avarias visÃ­veis."
+                placeholder="Ex.: lâmpadas e tomadas testadas funcionando; fechadura testada funcionando; focar em paredes, piso, portas, janelas, móveis, metais, louças, marcas de uso, manchas, furos e avarias visíveis."
               />
               <AiModalActions>
                 <AiModalButton type="button" onClick={() => setAiModalOpen(false)}>
                   Cancelar
                 </AiModalButton>
                 <AiModalButton type="button" $primary onClick={handleGenerateAiDescription}>
-                  Gerar descriÃ§Ã£o
+                  Gerar descrição
                 </AiModalButton>
               </AiModalActions>
             </AiModalBox>
@@ -741,16 +862,16 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
           onClose={() => setCameraOpen(false)}
           onCapture={handleCameraCapture}
         />
-        {/* BotÃ£o de conclusÃ£o destacado no rodapÃ© */}
+        {/* Botão de conclusão destacado no rodapé */}
         {onToggleComplete && (
           <CompleteButton
             onClick={() => onToggleComplete(room.id, !room.completed)}
             style={{ background: room.completed ? '#2ecc40' : undefined, opacity: room.completed ? 0.7 : 1 }}
-            title={room.completed ? 'CÃ´modo jÃ¡ concluÃ­do' : 'Marcar como concluÃ­do'}
+            title={room.completed ? 'Cômodo já concluído' : 'Marcar como concluído'}
             disabled={room.completed}
           >
             <CheckCircle2 size={20} style={{ marginRight: 6 }} />
-            {room.completed ? 'CÃ´modo ConcluÃ­do' : 'Concluir CÃ´modo'}
+            {room.completed ? 'Cômodo Concluído' : 'Concluir Cômodo'}
           </CompleteButton>
         )}
       </AccordionContent>
