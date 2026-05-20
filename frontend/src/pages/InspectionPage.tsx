@@ -511,6 +511,62 @@ export const InspectionPage: React.FC = () => {
     image.src = dataUrl;
   });
 
+  const MOSAIC_MAX_PHOTOS = 4;
+  const MOSAIC_COLS = 2;
+  const MOSAIC_CELL_W = 280;
+  const MOSAIC_CELL_H = 210;
+  const MOSAIC_LABEL_H = 18;
+  const MOSAIC_GAP = 8;
+  const MOSAIC_QUALITY = 0.62;
+
+  const loadImageForCanvas = (dataUrl: string) => new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Não foi possível preparar o mosaico de fotos para IA.'));
+    image.src = dataUrl;
+  });
+
+  const createPhotoMosaicForAi = async (dataUrls: string[]): Promise<string> => {
+    if (dataUrls.length === 1) return dataUrls[0];
+
+    const photos = dataUrls.slice(0, MOSAIC_MAX_PHOTOS);
+    const images = await Promise.all(photos.map(loadImageForCanvas));
+    const cols = Math.min(MOSAIC_COLS, images.length);
+    const rows = Math.ceil(images.length / cols);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = cols * MOSAIC_CELL_W + (cols + 1) * MOSAIC_GAP;
+    canvas.height = rows * (MOSAIC_CELL_H + MOSAIC_LABEL_H) + (rows + 1) * MOSAIC_GAP;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return dataUrls[0];
+
+    ctx.fillStyle = '#111827';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.font = 'bold 11px Arial';
+    ctx.textBaseline = 'middle';
+
+    images.forEach((img, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = MOSAIC_GAP + col * (MOSAIC_CELL_W + MOSAIC_GAP);
+      const y = MOSAIC_GAP + row * (MOSAIC_CELL_H + MOSAIC_LABEL_H + MOSAIC_GAP);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(`Foto ${i + 1}`, x + 5, y + MOSAIC_LABEL_H / 2);
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(x, y + MOSAIC_LABEL_H, MOSAIC_CELL_W, MOSAIC_CELL_H);
+
+      const scale = Math.min(MOSAIC_CELL_W / img.width, MOSAIC_CELL_H / img.height);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+      ctx.drawImage(img, x + (MOSAIC_CELL_W - dw) / 2, y + MOSAIC_LABEL_H + (MOSAIC_CELL_H - dh) / 2, dw, dh);
+    });
+
+    return canvas.toDataURL('image/jpeg', MOSAIC_QUALITY);
+  };
+
   const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (event: ProgressEvent<FileReader>) => {
@@ -525,9 +581,9 @@ export const InspectionPage: React.FC = () => {
     reader.readAsDataURL(blob);
   });
 
-  const preparePhotoForAi = async (photo: string) => {
+  const preparePhotoForAi = async (photo: string, maxSize = 1280, quality = 0.82) => {
     if (photo.startsWith('data:image/')) {
-      return resizeImageForAi(photo);
+      return resizeImageForAi(photo, maxSize, quality);
     }
 
     const response = await fetch(resolvePhotoUrl(photo));
@@ -536,7 +592,7 @@ export const InspectionPage: React.FC = () => {
     }
 
     const dataUrl = await blobToDataUrl(await response.blob());
-    return resizeImageForAi(dataUrl);
+    return resizeImageForAi(dataUrl, maxSize, quality);
   };
 
   const buildPhotoFingerprint = (photo: string) => {
@@ -606,17 +662,21 @@ export const InspectionPage: React.FC = () => {
     setAiLoadingRooms((prev) => ({ ...prev, [roomId]: true }));
 
     try {
-      const fotosPreparadas = await Promise.all(
-        photos.map(preparePhotoForAi)
+      // Para o mosaico, fotos são redimensionadas para 2× o tamanho da célula (560px),
+      // economizando memória e tokens sem perder detalhe visível nas células.
+      const fotosParaMosaico = await Promise.all(
+        photos.map(p => preparePhotoForAi(p, MOSAIC_CELL_W * 2, 0.80))
       );
+      const mosaico = await createPhotoMosaicForAi(fotosParaMosaico);
+      const fotosExibidas = Math.min(photos.length, MOSAIC_MAX_PHOTOS);
       const instrucoesComContexto = [
         photos.length > 1
-          ? `Foram enviadas ${photos.length} fotos separadas do mesmo ambiente. Analise o conjunto completo e consolide os elementos recorrentes e relevantes.`
+          ? `A imagem enviada é um mosaico com ${fotosExibidas} foto(s) do mesmo ambiente${photos.length > MOSAIC_MAX_PHOTOS ? ` (de ${photos.length} no total — as demais seguem o mesmo padrão)` : ''}, identificadas como Foto 1, Foto 2 etc. Analise o conjunto completo e consolide os elementos relevantes.`
           : '',
         instrucoes || ''
       ].filter(Boolean).join('\n');
       const descricao = await descreverFotoComIa({
-        imagens: fotosPreparadas,
+        imagem: mosaico,
         comodo_nome: roomName,
         instrucoes: instrucoesComContexto,
       });
