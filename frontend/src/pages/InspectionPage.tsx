@@ -511,7 +511,7 @@ export const InspectionPage: React.FC = () => {
     image.src = dataUrl;
   });
 
-  const MOSAIC_MAX_PHOTOS = 9;
+  const MOSAIC_BATCH_SIZE = 9; // fotos por lote — encaixa num grid 3×3
   const MOSAIC_LABEL_H = 18;
   const MOSAIC_GAP = 8;
   const MOSAIC_QUALITY = 0.60;
@@ -522,15 +522,6 @@ export const InspectionPage: React.FC = () => {
     if (count <= 4) return { cols: 2, cellW: 280, cellH: 210 };
     if (count <= 6) return { cols: 3, cellW: 220, cellH: 165 };
     return { cols: 3, cellW: 200, cellH: 150 }; // 7–9 fotos
-  };
-
-  // Distribui a seleção ao longo de todo o array em vez de pegar só as primeiras
-  const samplePhotosForMosaic = (photos: string[]): string[] => {
-    if (photos.length <= MOSAIC_MAX_PHOTOS) return photos;
-    return Array.from({ length: MOSAIC_MAX_PHOTOS }, (_, i) => {
-      const idx = Math.round(i * (photos.length - 1) / (MOSAIC_MAX_PHOTOS - 1));
-      return photos[idx];
-    });
   };
 
   const loadImageForCanvas = (dataUrl: string) => new Promise<HTMLImageElement>((resolve, reject) => {
@@ -675,25 +666,34 @@ export const InspectionPage: React.FC = () => {
     setAiLoadingRooms((prev) => ({ ...prev, [roomId]: true }));
 
     try {
-      // Amostra distribuída + resize ajustado ao tamanho de célula do layout
-      const fotosSelecionadas = samplePhotosForMosaic(photos);
-      const { cellW } = getMosaicLayout(fotosSelecionadas.length);
-      const fotosParaMosaico = await Promise.all(
-        fotosSelecionadas.map(p => preparePhotoForAi(p, cellW * 2, 0.80))
-      );
-      const mosaico = await createPhotoMosaicForAi(fotosParaMosaico);
-      const instrucoesComContexto = [
-        photos.length > 1
-          ? `A imagem enviada é um mosaico com ${fotosSelecionadas.length} foto(s) distribuídas do mesmo ambiente${photos.length > MOSAIC_MAX_PHOTOS ? ` (amostra de ${photos.length} no total, selecionadas ao longo de toda a sequência)` : ''}, identificadas como Foto 1, Foto 2 etc. Analise o conjunto completo e consolide os elementos relevantes.`
-          : '',
-        instrucoes || ''
-      ].filter(Boolean).join('\n');
-      const descricao = await descreverFotoComIa({
-        imagem: mosaico,
-        comodo_nome: roomName,
-        instrucoes: instrucoesComContexto,
-      });
-      aplicarDescricaoIa(roomId, descricao);
+      // Divide todas as fotos em lotes de MOSAIC_BATCH_SIZE e processa sequencialmente.
+      // Nenhuma foto é ignorada — lotes adicionais geram mais linhas de laudo.
+      const lotes: string[][] = [];
+      for (let i = 0; i < photos.length; i += MOSAIC_BATCH_SIZE) {
+        lotes.push(photos.slice(i, i + MOSAIC_BATCH_SIZE));
+      }
+
+      const parciais: string[] = [];
+      for (let li = 0; li < lotes.length; li++) {
+        const lote = lotes[li];
+        const { cellW } = getMosaicLayout(lote.length);
+        const fotosPrep = await Promise.all(
+          lote.map(p => preparePhotoForAi(p, cellW * 2, 0.80))
+        );
+        const mosaico = await createPhotoMosaicForAi(fotosPrep);
+        const grupoCtx = lotes.length > 1
+          ? `Grupo ${li + 1} de ${lotes.length}: fotos ${li * MOSAIC_BATCH_SIZE + 1} a ${Math.min((li + 1) * MOSAIC_BATCH_SIZE, photos.length)} de ${photos.length} no total do cômodo.`
+          : '';
+        const inst = [
+          lote.length > 1 ? `A imagem é um mosaico com ${lote.length} foto(s) do ambiente "${roomName}", identificadas como Foto 1, Foto 2 etc.` : '',
+          grupoCtx,
+          instrucoes || '',
+        ].filter(Boolean).join(' ');
+        const parcial = await descreverFotoComIa({ imagem: mosaico, comodo_nome: roomName, instrucoes: inst });
+        parciais.push(parcial);
+      }
+
+      aplicarDescricaoIa(roomId, parciais.join('\n'));
       aiCompletedSignaturesRef.current[roomId] = signature;
     } catch (err: any) {
       const status = err?.response?.status;
