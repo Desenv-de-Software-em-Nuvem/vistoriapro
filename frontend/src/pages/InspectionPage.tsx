@@ -511,13 +511,27 @@ export const InspectionPage: React.FC = () => {
     image.src = dataUrl;
   });
 
-  const MOSAIC_MAX_PHOTOS = 4;
-  const MOSAIC_COLS = 2;
-  const MOSAIC_CELL_W = 280;
-  const MOSAIC_CELL_H = 210;
+  const MOSAIC_MAX_PHOTOS = 9;
   const MOSAIC_LABEL_H = 18;
   const MOSAIC_GAP = 8;
-  const MOSAIC_QUALITY = 0.62;
+  const MOSAIC_QUALITY = 0.60;
+
+  // Layout adaptativo: mantém canvas abaixo de ~700×610px independente do número de fotos
+  const getMosaicLayout = (count: number) => {
+    if (count <= 2) return { cols: count, cellW: 380, cellH: 285 };
+    if (count <= 4) return { cols: 2, cellW: 280, cellH: 210 };
+    if (count <= 6) return { cols: 3, cellW: 220, cellH: 165 };
+    return { cols: 3, cellW: 200, cellH: 150 }; // 7–9 fotos
+  };
+
+  // Distribui a seleção ao longo de todo o array em vez de pegar só as primeiras
+  const samplePhotosForMosaic = (photos: string[]): string[] => {
+    if (photos.length <= MOSAIC_MAX_PHOTOS) return photos;
+    return Array.from({ length: MOSAIC_MAX_PHOTOS }, (_, i) => {
+      const idx = Math.round(i * (photos.length - 1) / (MOSAIC_MAX_PHOTOS - 1));
+      return photos[idx];
+    });
+  };
 
   const loadImageForCanvas = (dataUrl: string) => new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
@@ -529,14 +543,13 @@ export const InspectionPage: React.FC = () => {
   const createPhotoMosaicForAi = async (dataUrls: string[]): Promise<string> => {
     if (dataUrls.length === 1) return dataUrls[0];
 
-    const photos = dataUrls.slice(0, MOSAIC_MAX_PHOTOS);
-    const images = await Promise.all(photos.map(loadImageForCanvas));
-    const cols = Math.min(MOSAIC_COLS, images.length);
-    const rows = Math.ceil(images.length / cols);
+    const { cols, cellW, cellH } = getMosaicLayout(dataUrls.length);
+    const rows = Math.ceil(dataUrls.length / cols);
+    const images = await Promise.all(dataUrls.map(loadImageForCanvas));
 
     const canvas = document.createElement('canvas');
-    canvas.width = cols * MOSAIC_CELL_W + (cols + 1) * MOSAIC_GAP;
-    canvas.height = rows * (MOSAIC_CELL_H + MOSAIC_LABEL_H) + (rows + 1) * MOSAIC_GAP;
+    canvas.width = cols * cellW + (cols + 1) * MOSAIC_GAP;
+    canvas.height = rows * (cellH + MOSAIC_LABEL_H) + (rows + 1) * MOSAIC_GAP;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return dataUrls[0];
@@ -549,19 +562,19 @@ export const InspectionPage: React.FC = () => {
     images.forEach((img, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
-      const x = MOSAIC_GAP + col * (MOSAIC_CELL_W + MOSAIC_GAP);
-      const y = MOSAIC_GAP + row * (MOSAIC_CELL_H + MOSAIC_LABEL_H + MOSAIC_GAP);
+      const x = MOSAIC_GAP + col * (cellW + MOSAIC_GAP);
+      const y = MOSAIC_GAP + row * (cellH + MOSAIC_LABEL_H + MOSAIC_GAP);
 
       ctx.fillStyle = '#ffffff';
       ctx.fillText(`Foto ${i + 1}`, x + 5, y + MOSAIC_LABEL_H / 2);
 
       ctx.fillStyle = '#0f172a';
-      ctx.fillRect(x, y + MOSAIC_LABEL_H, MOSAIC_CELL_W, MOSAIC_CELL_H);
+      ctx.fillRect(x, y + MOSAIC_LABEL_H, cellW, cellH);
 
-      const scale = Math.min(MOSAIC_CELL_W / img.width, MOSAIC_CELL_H / img.height);
+      const scale = Math.min(cellW / img.width, cellH / img.height);
       const dw = img.width * scale;
       const dh = img.height * scale;
-      ctx.drawImage(img, x + (MOSAIC_CELL_W - dw) / 2, y + MOSAIC_LABEL_H + (MOSAIC_CELL_H - dh) / 2, dw, dh);
+      ctx.drawImage(img, x + (cellW - dw) / 2, y + MOSAIC_LABEL_H + (cellH - dh) / 2, dw, dh);
     });
 
     return canvas.toDataURL('image/jpeg', MOSAIC_QUALITY);
@@ -662,16 +675,16 @@ export const InspectionPage: React.FC = () => {
     setAiLoadingRooms((prev) => ({ ...prev, [roomId]: true }));
 
     try {
-      // Para o mosaico, fotos são redimensionadas para 2× o tamanho da célula (560px),
-      // economizando memória e tokens sem perder detalhe visível nas células.
+      // Amostra distribuída + resize ajustado ao tamanho de célula do layout
+      const fotosSelecionadas = samplePhotosForMosaic(photos);
+      const { cellW } = getMosaicLayout(fotosSelecionadas.length);
       const fotosParaMosaico = await Promise.all(
-        photos.map(p => preparePhotoForAi(p, MOSAIC_CELL_W * 2, 0.80))
+        fotosSelecionadas.map(p => preparePhotoForAi(p, cellW * 2, 0.80))
       );
       const mosaico = await createPhotoMosaicForAi(fotosParaMosaico);
-      const fotosExibidas = Math.min(photos.length, MOSAIC_MAX_PHOTOS);
       const instrucoesComContexto = [
         photos.length > 1
-          ? `A imagem enviada é um mosaico com ${fotosExibidas} foto(s) do mesmo ambiente${photos.length > MOSAIC_MAX_PHOTOS ? ` (de ${photos.length} no total — as demais seguem o mesmo padrão)` : ''}, identificadas como Foto 1, Foto 2 etc. Analise o conjunto completo e consolide os elementos relevantes.`
+          ? `A imagem enviada é um mosaico com ${fotosSelecionadas.length} foto(s) distribuídas do mesmo ambiente${photos.length > MOSAIC_MAX_PHOTOS ? ` (amostra de ${photos.length} no total, selecionadas ao longo de toda a sequência)` : ''}, identificadas como Foto 1, Foto 2 etc. Analise o conjunto completo e consolide os elementos relevantes.`
           : '',
         instrucoes || ''
       ].filter(Boolean).join('\n');
