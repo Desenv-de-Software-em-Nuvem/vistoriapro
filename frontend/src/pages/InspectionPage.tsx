@@ -492,7 +492,7 @@ export const InspectionPage: React.FC = () => {
     } : prev);
   };
 
-  const resizeImageForAi = (dataUrl: string, maxSize = 640, quality = 0.68) => new Promise<string>((resolve) => {
+  const resizeImageForAi = (dataUrl: string, maxSize = 1280, quality = 0.82) => new Promise<string>((resolve) => {
     const image = new Image();
     image.onload = () => {
       const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
@@ -510,56 +510,6 @@ export const InspectionPage: React.FC = () => {
     image.onerror = () => resolve(dataUrl);
     image.src = dataUrl;
   });
-
-  const loadImageForCanvas = (dataUrl: string) => new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Não foi possível preparar o mosaico de fotos para IA.'));
-    image.src = dataUrl;
-  });
-
-  const createPhotoContactSheetForAi = async (dataUrls: string[]) => {
-    if (dataUrls.length === 1) return dataUrls[0];
-
-    const images = await Promise.all(dataUrls.map(loadImageForCanvas));
-    const columns = Math.min(3, Math.ceil(Math.sqrt(images.length)));
-    const rows = Math.ceil(images.length / columns);
-    const cellWidth = 360;
-    const cellHeight = 270;
-    const gap = 12;
-    const labelHeight = 28;
-    const canvas = document.createElement('canvas');
-    canvas.width = columns * cellWidth + (columns + 1) * gap;
-    canvas.height = rows * (cellHeight + labelHeight) + (rows + 1) * gap;
-
-    const context = canvas.getContext('2d');
-    if (!context) return dataUrls[0];
-
-    context.fillStyle = '#111827';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.font = '700 16px Arial';
-    context.textBaseline = 'middle';
-
-    images.forEach((image, index) => {
-      const column = index % columns;
-      const row = Math.floor(index / columns);
-      const x = gap + column * (cellWidth + gap);
-      const y = gap + row * (cellHeight + labelHeight + gap);
-      const scale = Math.min(cellWidth / image.width, cellHeight / image.height);
-      const drawWidth = image.width * scale;
-      const drawHeight = image.height * scale;
-      const drawX = x + (cellWidth - drawWidth) / 2;
-      const drawY = y + labelHeight + (cellHeight - drawHeight) / 2;
-
-      context.fillStyle = '#ffffff';
-      context.fillText(`Foto ${index + 1}`, x + 8, y + labelHeight / 2);
-      context.fillStyle = '#0f172a';
-      context.fillRect(x, y + labelHeight, cellWidth, cellHeight);
-      context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
-    });
-
-    return canvas.toDataURL('image/jpeg', 0.72);
-  };
 
   const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -659,15 +609,14 @@ export const InspectionPage: React.FC = () => {
       const fotosPreparadas = await Promise.all(
         photos.map(preparePhotoForAi)
       );
-      const mosaico = await createPhotoContactSheetForAi(fotosPreparadas);
       const instrucoesComContexto = [
         photos.length > 1
-          ? `A imagem enviada é um mosaico com ${photos.length} fotos do mesmo cômodo, identificadas como Foto 1, Foto 2 etc. Analise o conjunto completo.`
+          ? `Foram enviadas ${photos.length} fotos separadas do mesmo ambiente. Analise o conjunto completo e consolide os elementos recorrentes e relevantes.`
           : '',
         instrucoes || ''
       ].filter(Boolean).join('\n');
       const descricao = await descreverFotoComIa({
-        imagem: mosaico,
+        imagens: fotosPreparadas,
         comodo_nome: roomName,
         instrucoes: instrucoesComContexto,
       });

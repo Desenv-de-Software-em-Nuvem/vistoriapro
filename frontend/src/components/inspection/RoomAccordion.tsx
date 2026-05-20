@@ -127,7 +127,7 @@ const AccordionContainer = styled.div`
   box-shadow: 0 4px 16px ${({ theme }) => theme.colors.shadowDark};
 `;
 
-const AccordionHeader = styled.button`
+const AccordionHeader = styled.div`
   width: 100%;
   background: none;
   border: none;
@@ -136,6 +136,11 @@ const AccordionHeader = styled.button`
   justify-content: space-between;
   padding: ${({ theme }) => theme.spacing.lg};
   cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid ${({ theme }) => theme.colors.primary};
+    outline-offset: 2px;
+  }
 `;
 
 const RoomTitle = styled.div`
@@ -551,6 +556,14 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
     setExpanded((currentExpanded) => !currentExpanded);
   };
 
+  const handleHeaderKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return;
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+
+    event.preventDefault();
+    handleToggleAccordion();
+  };
+
   const handleDescriptionChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     onChangeDescription(room.id, event.target.value);
   };
@@ -620,7 +633,13 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
 
   return (
     <AccordionContainer>
-      <AccordionHeader onClick={handleToggleAccordion}>
+      <AccordionHeader
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        onClick={handleToggleAccordion}
+        onKeyDown={handleHeaderKeyDown}
+      >
         <RoomTitle>
           {room.icon}
           {isEditingName ? (
@@ -777,7 +796,7 @@ export const RoomAccordion: React.FC<RoomAccordionProps> = ({
               <AiPromptArea
                 value={aiPrompt}
                 onChange={(event) => setAiPrompt(event.target.value)}
-                placeholder="Ex.: lâmpadas e tomadas testadas funcionando; fechadura testada funcionando; focar em paredes, piso, portas, janelas, móveis, metais, louças, marcas de uso, manchas, furos e avarias visíveis."
+                placeholder="Ex.: frente externa com fachada pintada, gramado, brita, gradil, portão, calçada, garagem coberta, alvenaria aparente, instalações aparentes, manchas, fissuras, desgaste, sujidade ou acabamento pendente."
               />
               <AiModalActions>
                 <AiModalButton type="button" onClick={() => setAiModalOpen(false)}>

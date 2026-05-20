@@ -31,6 +31,7 @@ export const TranscriptionButton: React.FC<Props> = ({ onTranscription }) => {
   const [recording, setRecording] = useState(false);
   const [loading, setLoading] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const nativeTranscriptRef = useRef<string>('');
 
   const isNative = Capacitor.isNativePlatform();
 
@@ -45,6 +46,8 @@ export const TranscriptionButton: React.FC<Props> = ({ onTranscription }) => {
           return;
         }
         await SpeechRecognition.requestPermissions();
+        nativeTranscriptRef.current = '';
+        await SpeechRecognition.removeAllListeners();
         await SpeechRecognition.start({
           language: 'pt-BR',
           maxResults: 1,
@@ -53,10 +56,11 @@ export const TranscriptionButton: React.FC<Props> = ({ onTranscription }) => {
         });
         setRecording(true);
         setLoading(false);
+        // partialResults returns the full accumulated text so far (not deltas).
+        // Store the latest value and deliver it only when the user releases (handleStop).
         SpeechRecognition.addListener('partialResults', (data: { matches: string[] }) => {
-          if (data && data.matches && data.matches[0]) {
-            onTranscription(data.matches[0]);
-            setRecording(false);
+          if (data?.matches?.[0]) {
+            nativeTranscriptRef.current = data.matches[0];
           }
         });
       } catch {
@@ -73,6 +77,7 @@ export const TranscriptionButton: React.FC<Props> = ({ onTranscription }) => {
       const SpeechRecognitionWeb = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       const recognition = new SpeechRecognitionWeb();
       recognition.lang = 'pt-BR';
+      recognition.continuous = true; // keep recording until user explicitly stops
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
       recognition.onstart = () => {
@@ -80,14 +85,20 @@ export const TranscriptionButton: React.FC<Props> = ({ onTranscription }) => {
         setLoading(false);
       };
       recognition.onresult = (event: any) => {
-        const text = event.results[0][0].transcript;
-        onTranscription(text);
-        setRecording(false);
+        // iterate from resultIndex to handle continuous mode correctly
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            onTranscription(event.results[i][0].transcript.trim());
+          }
+        }
       };
-      recognition.onerror = () => {
+      recognition.onerror = (event: any) => {
+        // 'no-speech' and 'aborted' are expected when user stops — not an error
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+          notify({ message: 'Não foi possível transcrever o áudio.', type: 'error' });
+        }
         setRecording(false);
         setLoading(false);
-        notify({ message: 'Não foi possível transcrever o áudio.', type: 'error' });
       };
       recognition.onend = () => {
         setRecording(false);
@@ -102,6 +113,11 @@ export const TranscriptionButton: React.FC<Props> = ({ onTranscription }) => {
     if (isNative) {
       SpeechRecognition.stop();
       setRecording(false);
+      // deliver the last accumulated partial result captured while the user was speaking
+      if (nativeTranscriptRef.current) {
+        onTranscription(nativeTranscriptRef.current);
+        nativeTranscriptRef.current = '';
+      }
     } else {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
